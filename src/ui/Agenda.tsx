@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listAgendamentos } from '../data/agendamentos';
 import { listServicos } from '../data/servicos';
 import { supabase } from '../data/supabase';
@@ -7,6 +7,7 @@ import type { AgendamentoCompleto, Servico } from '../types';
 import { useConfig } from './contexto';
 import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
+import { useAoVoltar } from './useAoVoltar';
 
 type Painel =
   | { tipo: 'novo'; data: string; hora: string }
@@ -49,6 +50,21 @@ export default function Agenda() {
   useEffect(() => {
     listServicos(supabase).then(setServicos, () => setErro(true));
   }, []);
+
+  // ao reabrir o app: se virou o dia e a tela estava em "hoje", vai para o novo hoje; e recarrega
+  const voltas = useAoVoltar();
+  const hojeAnterior = useRef(hoje);
+  useEffect(() => {
+    if (voltas === 0) return;
+    const novoHoje = dataLocal(new Date(), config.fuso);
+    if (novoHoje !== hojeAnterior.current) {
+      const antigo = hojeAnterior.current;
+      hojeAnterior.current = novoHoje;
+      setInicio((atual) => (atual === antigo ? novoHoje : atual));
+    }
+    void carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voltas]);
 
   const porDia = useMemo(() => {
     const mapa = new Map<string, Item[]>();

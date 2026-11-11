@@ -32,6 +32,10 @@ describe('aviso de backup', () => {
     const { recarregar } = renderComConfig(<BackupBanner />, velho);
     expect(screen.getByText(/último backup/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Baixar backup' }));
+    // 1º toque busca os dados; o menu de compartilhar só abre no 2º toque (exigência do Safari)
+    expect(m.exportBackup).toHaveBeenCalled();
+    expect(m.salvarBackup).not.toHaveBeenCalled();
+    await userEvent.click(await screen.findByRole('button', { name: 'Salvar arquivo' }));
     expect(m.salvarBackup).toHaveBeenCalledWith({ versao: 1 }, {});
     await waitFor(() => expect(screen.queryByText(/último backup/)).not.toBeInTheDocument());
     expect(recarregar).toHaveBeenCalled();
@@ -41,7 +45,17 @@ describe('aviso de backup', () => {
     m.salvarBackup.mockResolvedValue(false);
     renderComConfig(<BackupBanner />, velho);
     await userEvent.click(screen.getByRole('button', { name: 'Baixar backup' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Salvar arquivo' }));
     await waitFor(() => expect(m.salvarBackup).toHaveBeenCalled());
     expect(screen.getByText(/último backup/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('erro ao abrir o compartilhamento aparece na tela', async () => {
+    m.salvarBackup.mockRejectedValue(new DOMException('sem gesto', 'NotAllowedError'));
+    renderComConfig(<BackupBanner />, velho);
+    await userEvent.click(screen.getByRole('button', { name: 'Baixar backup' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Salvar arquivo' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar o arquivo');
   });
 });

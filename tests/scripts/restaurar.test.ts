@@ -85,4 +85,13 @@ describe('restaurar', { timeout: 30_000 }, () => {
     const db = await novoBanco();
     await expect(restaurar(consulta(db), { ...ARQUIVO, versao: 2 as 1 }, { confirmarSubstituir: true })).rejects.toThrow(/versão/);
   });
+
+  it('recusa backup sem a linha de configuração e não mexe no banco', async () => {
+    const db = await novoBanco();
+    await expect(restaurar(consulta(db), { ...ARQUIVO, configuracoes: [] }, { confirmarSubstituir: true })).rejects.toThrow(
+      /configura/,
+    );
+    expect((await db.query('select * from configuracoes')).rows).toHaveLength(1);
+    expect((await db.query('select * from clientes')).rows).toHaveLength(0);
+  });
 });

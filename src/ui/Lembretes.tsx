@@ -5,11 +5,13 @@ import { abreviaDia, diasDoPeriodo, horaCurta, horaLocal } from '../lib/slots';
 import { renderModelo, waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto } from '../types';
 import { useConfig } from './contexto';
+import { useAoVoltar } from './useAoVoltar';
 
 export default function Lembretes() {
   const { config } = useConfig();
   const [lista, setLista] = useState<AgendamentoCompleto[] | null>(null);
   const [erro, setErro] = useState(false);
+  const voltas = useAoVoltar();
   const { de: amanha } = diasDoPeriodo('amanha', new Date(), config.fuso);
 
   useEffect(() => {
@@ -17,7 +19,7 @@ export default function Lembretes() {
       (r) => setLista(r.filter((a) => a.status === 'marcado' || a.status === 'confirmado')),
       () => setErro(true),
     );
-  }, [amanha]);
+  }, [amanha, voltas]);
 
   return (
     <main>

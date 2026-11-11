@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderModelo, waLink } from '../../src/lib/whatsapp';
 import type { AgendamentoCompleto, Status } from '../../src/types';
@@ -59,5 +59,13 @@ describe('Lembretes de amanhã', () => {
     m.listAgendamentos.mockResolvedValue([]);
     renderComConfig(<Lembretes />);
     expect(await screen.findByText('Nenhum atendimento amanhã.')).toBeInTheDocument();
+  });
+
+  it('ao voltar para o app no dia seguinte, usa o novo "amanhã"', async () => {
+    renderComConfig(<Lembretes />);
+    await screen.findByText(/João/);
+    vi.setSystemTime(new Date('2026-11-18T12:00:00Z')); // quarta 09:00
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-19', '2026-11-19'));
   });
 });

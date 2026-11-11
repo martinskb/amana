@@ -55,8 +55,9 @@ export async function salvarBackup(arquivo: BackupFile, db: SupabaseClient): Pro
   if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: nome });
-    } catch {
-      return false; // cancelado ou falhou: não conta como backup
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return false; // o usuário cancelou
+      throw e; // outro erro (ex.: o Safari exige um toque recente): a tela avisa
     }
   } else {
     const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));

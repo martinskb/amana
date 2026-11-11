@@ -6,6 +6,7 @@ import { diasDoPeriodo, formatSlotsMessage, freeSlots } from '../lib/slots';
 import { waLink } from '../lib/whatsapp';
 import type { Servico } from '../types';
 import { useConfig } from './contexto';
+import { useAoVoltar } from './useAoVoltar';
 
 type Periodo = 'hoje' | 'amanha' | 'semana';
 
@@ -29,6 +30,7 @@ export default function HorariosLivres() {
   }, []);
 
   const servico = servicos.find((s) => s.id === servicoId);
+  const voltas = useAoVoltar();
 
   useEffect(() => {
     if (!servico) return;
@@ -47,7 +49,7 @@ export default function HorariosLivres() {
     return () => {
       ativo = false;
     };
-  }, [periodo, servico, config]);
+  }, [periodo, servico, config, voltas]);
 
   async function copiar() {
     try {

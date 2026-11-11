@@ -4,6 +4,8 @@
 
 Abra o link da agenda no **Safari**, toque em **Compartilhar** (quadrado com seta) e depois em **Adicionar à Tela de Início**. A partir daí, abra pelo ícone.
 
+Para entrar, toque em **Entrar com Google** ou digite o e-mail do negócio e toque em **Receber código por e-mail**. Digite no app o código de 6 dígitos que chegar.
+
 ## Marcar um horário
 
 1. Na aba **Agenda**, toque num horário com a palavra "livre" (ou em **+ Novo**).
@@ -24,7 +26,7 @@ Aba **Lembretes** → um botão **WhatsApp** por cliente, com a mensagem pronta.
 
 ## Backup (uma vez por semana)
 
-Quando aparecer o aviso amarelo, toque em **Baixar backup** e escolha **Salvar em Arquivos** (iCloud Drive) ou Google Drive. Também dá para fazer em **Ajustes → Backup** a qualquer momento.
+Quando aparecer o aviso amarelo, toque em **Baixar backup**, depois em **Salvar arquivo**, e escolha **Salvar em Arquivos** (iCloud Drive) ou Google Drive. Também dá para fazer em **Ajustes → Backup** a qualquer momento.
 
 ## "Não foi possível conectar"
 

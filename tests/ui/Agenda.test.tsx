@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConflitoDeHorarioError } from '../../src/data/erros';
@@ -206,5 +206,22 @@ describe('Agenda', () => {
       'href',
       'https://wa.me/5511987654321?text=',
     );
+  });
+
+  it('ao voltar para o app no dia seguinte, mostra o novo dia', async () => {
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    vi.setSystemTime(new Date('2026-11-18T11:00:00Z')); // quarta 08:00
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-18', '2026-11-18'));
+    expect(await screen.findByRole('button', { name: /15:00 Maria/ })).toBeInTheDocument();
+  });
+
+  it('ao voltar para o app, recarrega mesmo no mesmo dia', async () => {
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    const antes = m.listAgendamentos.mock.calls.length;
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(m.listAgendamentos.mock.calls.length).toBeGreaterThan(antes));
   });
 });

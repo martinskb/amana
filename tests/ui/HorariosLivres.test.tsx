@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { waLink } from '../../src/lib/whatsapp';
@@ -66,5 +66,13 @@ describe('Horários livres', () => {
     const vazio = { ...CONFIG_TESTE, expediente: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] } };
     renderComConfig(<HorariosLivres />, vazio);
     await waitFor(() => expect(texto().value).toContain('Sem horários livres'));
+  });
+
+  it('ao voltar para o app no dia seguinte, recalcula a partir de agora', async () => {
+    renderComConfig(<HorariosLivres />);
+    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-17', '2026-11-23'));
+    vi.setSystemTime(new Date('2026-11-18T11:00:00Z'));
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-18', '2026-11-24'));
   });
 });

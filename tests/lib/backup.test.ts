@@ -47,6 +47,13 @@ describe('salvarBackup', () => {
     expect(m.saveConfig).not.toHaveBeenCalled();
   });
 
+  it('outro erro do compartilhamento (ex.: toque expirado) é lançado, não engolido', async () => {
+    nav.canShare = () => true;
+    nav.share = vi.fn().mockRejectedValue(new DOMException('sem gesto', 'NotAllowedError'));
+    await expect(salvarBackup(ARQUIVO, db)).rejects.toThrow();
+    expect(m.saveConfig).not.toHaveBeenCalled();
+  });
+
   it('sem compartilhamento, baixa o arquivo', async () => {
     const criar = vi.fn(() => 'blob:x');
     URL.createObjectURL = criar;

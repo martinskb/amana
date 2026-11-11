@@ -36,6 +36,9 @@ async function inserir(q: Consulta, tabela: Tabela, linhas: object[]) {
 /** Restaura um backup numa transação. Banco com dados só é substituído com confirmação. */
 export async function restaurar(q: Consulta, arquivo: BackupFile, opcoes: { confirmarSubstituir: boolean }): Promise<void> {
   if (arquivo?.versao !== 1) throw new Error(`Arquivo de backup com versão desconhecida: ${String(arquivo?.versao)}`);
+  if (arquivo.configuracoes?.length !== 1) {
+    throw new Error('O backup precisa ter exatamente uma linha de configurações; arquivo incompleto, nada foi alterado.');
+  }
 
   await q('begin');
   try {

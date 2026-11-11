@@ -1,33 +1,56 @@
 import { useState } from 'react';
 import { supabase } from '../data/supabase';
-import { backupIsStale, exportBackup, salvarBackup } from '../lib/backup';
+import { backupIsStale, exportBackup, salvarBackup, type BackupFile } from '../lib/backup';
 import { useConfig } from './contexto';
 
-/** Botão que gera o arquivo de backup e abre o menu de salvar/compartilhar. */
+/**
+ * Backup em dois toques: o 1º busca os dados; o 2º abre o menu de compartilhar na hora.
+ * O Safari só abre esse menu logo depois de um toque, e a busca pode demorar.
+ */
 export function BotaoBackup({ onSalvo }: { onSalvo?: () => void }) {
   const { recarregar } = useConfig();
-  const [estado, setEstado] = useState<'livre' | 'gerando' | 'erro'>('livre');
+  const [arquivo, setArquivo] = useState<BackupFile | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  async function baixar() {
-    setEstado('gerando');
+  async function gerar() {
+    setErro(null);
+    setOcupado(true);
     try {
-      const salvou = await salvarBackup(await exportBackup(supabase), supabase);
-      setEstado('livre');
-      if (salvou) {
+      setArquivo(await exportBackup(supabase));
+    } catch {
+      setErro('Não foi possível gerar o backup. Confira a internet.');
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function salvar() {
+    if (!arquivo) return;
+    setErro(null);
+    try {
+      if (await salvarBackup(arquivo, supabase)) {
+        setArquivo(null);
         onSalvo?.();
         await recarregar();
       }
     } catch {
-      setEstado('erro');
+      setErro('Não foi possível salvar o arquivo. Toque em "Salvar arquivo" de novo.');
     }
   }
 
   return (
     <>
-      <button type="button" onClick={baixar} disabled={estado === 'gerando'}>
-        Baixar backup
-      </button>
-      {estado === 'erro' && <p role="alert">Não foi possível gerar o backup. Confira a internet.</p>}
+      {arquivo ? (
+        <button type="button" className="primario" onClick={salvar}>
+          Salvar arquivo
+        </button>
+      ) : (
+        <button type="button" onClick={gerar} disabled={ocupado}>
+          {ocupado ? 'Preparando…' : 'Baixar backup'}
+        </button>
+      )}
+      {erro && <p role="alert">{erro}</p>}
     </>
   );
 }
