@@ -38,11 +38,11 @@ export default function Clientes() {
 
   if (aberto) {
     return (
-      <main>
+      <div className="clientes">
         <button type="button" onClick={() => setAberto(null)}>
           ‹ Clientes
         </button>
-        <h2>{aberto.nome}</h2>
+        <h4>{aberto.nome}</h4>
         <p>
           <a className="botao" href={waLink(aberto.telefone, '')} target="_blank" rel="noreferrer">
             WhatsApp
@@ -61,13 +61,13 @@ export default function Clientes() {
             );
           })}
         </ul>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main>
-      <h2>Clientes</h2>
+    <div className="clientes">
+      <h3>Clientes</h3>
       <label>
         Buscar
         <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome ou telefone" />
@@ -83,6 +83,6 @@ export default function Clientes() {
           </li>
         ))}
       </ul>
-    </main>
+    </div>
   );
 }

@@ -3,9 +3,9 @@ import { saveConfig } from '../data/configuracoes';
 import { listServicos, saveServico } from '../data/servicos';
 import { supabase } from '../data/supabase';
 import type { DiaSemana, Expediente, Intervalo, Servico } from '../types';
-import { linkAgendamento } from '../lib/link';
 import { MSG_WHATSAPP_INVALIDO, normalizePhone } from '../lib/whatsapp';
 import { BotaoBackup } from './BackupBanner';
+import Clientes from './Clientes';
 import { useConfig } from './contexto';
 
 const DIAS: { dia: DiaSemana; nome: string; curto: string }[] = [
@@ -36,23 +36,9 @@ export default function Configuracoes() {
   const [expediente, setExpediente] = useState<Expediente>(config.expediente);
   const [folgas, setFolgas] = useState<string[]>(config.folgas);
   const [novaFolga, setNovaFolga] = useState('');
-  const [modeloLivres, setModeloLivres] = useState(config.modelo_livres);
-  const [modeloLembrete, setModeloLembrete] = useState(config.modelo_lembrete);
-  const [modeloCancelamento, setModeloCancelamento] = useState(config.modelo_cancelamento);
   const [passo, setPasso] = useState(String(config.passo_min));
   const [diasAbertos, setDiasAbertos] = useState(String(config.dias_abertos));
-  const [linkAtivo, setLinkAtivo] = useState(config.link_ativo);
   const [telNegocio, setTelNegocio] = useState(config.telefone_negocio ? `+${config.telefone_negocio}` : '');
-  const [avisoLink, setAvisoLink] = useState<string | null>(null);
-
-  async function copiarLink() {
-    try {
-      await navigator.clipboard.writeText(linkAgendamento());
-      setAvisoLink('Link copiado!');
-    } catch {
-      setAvisoLink(`Não deu para copiar. O link é: ${linkAgendamento()}`);
-    }
-  }
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
 
@@ -108,12 +94,8 @@ export default function Configuracoes() {
         nome_negocio: nome.trim(),
         expediente: ordenado,
         folgas,
-        modelo_livres: modeloLivres,
-        modelo_lembrete: modeloLembrete,
-        modelo_cancelamento: modeloCancelamento,
         passo_min: passoMin,
         dias_abertos: dias,
-        link_ativo: linkAtivo,
         telefone_negocio: tel,
       });
       await recarregar();
@@ -164,11 +146,7 @@ export default function Configuracoes() {
         </section>
 
         <section>
-          <h3>Link de agendamento</h3>
-          <label className="inline">
-            <input type="checkbox" checked={linkAtivo} onChange={(e) => setLinkAtivo(e.target.checked)} />
-            Link de agendamento ligado
-          </label>
+          <h3>Horários</h3>
           <label>
             Duração de cada horário (min)
             <input type="number" inputMode="numeric" value={passo} onChange={(e) => setPasso(e.target.value)} />
@@ -177,17 +155,9 @@ export default function Configuracoes() {
             Quantos dias o link mostra
             <input type="number" inputMode="numeric" value={diasAbertos} onChange={(e) => setDiasAbertos(e.target.value)} />
           </label>
-          <div className="linha">
-            <button type="button" onClick={copiarLink}>
-              Copiar link de agendamento
-            </button>
-            {avisoLink && <span role="status">{avisoLink}</span>}
-          </div>
-          <p className="sutil">Mande no WhatsApp, poste no status ou na bio do Instagram.</p>
-        </section>
 
-        <section>
-          <h3>Expediente</h3>
+          <h4>Expediente</h4>
+
           {DIAS.map(({ dia, nome: nomeDia, curto }) => (
             <fieldset key={dia}>
               <legend>{nomeDia}</legend>
@@ -221,10 +191,8 @@ export default function Configuracoes() {
               </button>
             </fieldset>
           ))}
-        </section>
 
-        <section>
-          <h3>Folgas</h3>
+          <h4>Folgas</h4>
           <ul>
             {folgas.map((f) => (
               <li key={f}>
@@ -246,24 +214,6 @@ export default function Configuracoes() {
           </div>
         </section>
 
-        <section>
-          <h3>Mensagens</h3>
-          <label>
-            Mensagem de horários livres
-            <textarea rows={3} value={modeloLivres} onChange={(e) => setModeloLivres(e.target.value)} />
-          </label>
-          <p className="sutil">Use {'{horarios}'} onde entram os horários e {'{link}'} para o link de agendamento.</p>
-          <label>
-            Mensagem de lembrete
-            <textarea rows={3} value={modeloLembrete} onChange={(e) => setModeloLembrete(e.target.value)} />
-          </label>
-          <p className="sutil">Marcadores: {'{nome}'}, {'{dia}'}, {'{hora}'}, {'{nome_negocio}'}.</p>
-          <label>
-            Mensagem de cancelamento
-            <textarea rows={3} value={modeloCancelamento} onChange={(e) => setModeloCancelamento(e.target.value)} />
-          </label>
-          <p className="sutil">Marcadores: {'{nome}'}, {'{dia}'}, {'{hora}'}, {'{link}'}.</p>
-        </section>
 
         <button type="submit" className="primario">
           Salvar configurações
@@ -300,6 +250,10 @@ export default function Configuracoes() {
           </label>
           <button type="submit">Adicionar serviço</button>
         </form>
+      </section>
+
+      <section>
+        <Clientes />
       </section>
 
       <section>
