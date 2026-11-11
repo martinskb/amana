@@ -109,3 +109,99 @@ $$;
 -- O Supabase concede execute a anon/authenticated em funções novas: fechar as internas.
 revoke execute on function horarios_livres_em(timestamptz) from public, anon, authenticated;
 grant execute on function horarios_publicos() to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Agendamento pelo link (spec v2, seções 5 e 6).
+
+-- Mesma regra de normalizePhone (src/lib/whatsapp.ts); casos em tests/lib/casosTelefone.ts.
+create function normalizar_telefone(t text) returns text
+language plpgsql immutable
+as $$
+declare
+  texto text := btrim(coalesce(t, ''));
+  d text := regexp_replace(btrim(coalesce(t, '')), '\D', '', 'g');
+begin
+  if left(texto, 1) = '+' and left(d, 2) <> '55' then
+    return case when length(d) between 8 and 15 then d end;
+  end if;
+  if left(d, 2) = '55' and length(d) in (12, 13) then
+    return d;
+  end if;
+  if left(texto, 1) = '+' then
+    return null; -- +55 com tamanho errado
+  end if;
+  if left(d, 1) = '0' then
+    d := substr(d, 2);
+  end if;
+  if length(d) in (10, 11) and left(d, 1) <> '0' then
+    return '55' || d;
+  end if;
+  return null;
+end
+$$;
+
+-- IP do cliente, do lado do servidor. Não usa o primeiro item de x-forwarded-for,
+-- que o cliente pode forjar. (Conferir no projeto real: docs/implantacao.md.)
+create function ip_cliente() returns text
+language sql stable
+as $$
+  select coalesce(nullif(h ->> 'cf-connecting-ip', ''), nullif(h ->> 'x-real-ip', ''), 'desconhecido')
+  from (select coalesce(nullif(current_setting('request.headers', true), ''), '{}')::jsonb as h) x
+$$;
+
+-- Interna: recebe `agora` e `ip` para poder ser testada.
+create function agendar_publico_em(p_nome text, p_telefone text, p_inicio timestamptz, p_agora timestamptz, p_ip text)
+returns jsonb
+language plpgsql volatile security definer set search_path = public
+as $$
+declare
+  cfg configuracoes;
+  nome_limpo text := btrim(coalesce(p_nome, ''));
+  tel text := normalizar_telefone(p_telefone);
+  id_cliente uuid;
+begin
+  select * into cfg from configuracoes where id = 1;
+
+  if not cfg.link_ativo then
+    return jsonb_build_object('ok', false, 'erro', 'link_fechado');
+  end if;
+  if char_length(nome_limpo) not between 1 and 80 or tel is null then
+    return jsonb_build_object('ok', false, 'erro', 'dados_invalidos');
+  end if;
+  if (select count(*) from tentativas_publicas t
+      where t.ip = p_ip and t.criado_em > p_agora - interval '1 hour') >= 3 then
+    return jsonb_build_object('ok', false, 'erro', 'limite');
+  end if;
+  if not exists (select 1 from horarios_livres_em(p_agora) h where h = p_inicio) then
+    return jsonb_build_object('ok', false, 'erro', 'horario_indisponivel');
+  end if;
+
+  insert into clientes (nome, telefone) values (nome_limpo, tel) on conflict (telefone) do nothing;
+  select c.id into id_cliente from clientes c where c.telefone = tel;
+
+  begin
+    insert into agendamentos (cliente_id, inicio, fim, status, origem)
+    values (id_cliente, p_inicio, p_inicio + make_interval(mins => cfg.passo_min), 'marcado', 'link');
+  exception when exclusion_violation then
+    -- duas pessoas no mesmo horário ao mesmo tempo: a trava do banco deixou só uma passar
+    return jsonb_build_object('ok', false, 'erro', 'horario_indisponivel');
+  end;
+
+  delete from tentativas_publicas where criado_em < p_agora - interval '30 days';
+  insert into tentativas_publicas (ip, criado_em) values (p_ip, p_agora);
+
+  return jsonb_build_object('ok', true, 'inicio', to_char(p_inicio at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'));
+end
+$$;
+
+-- Pública: chamada pela página /#/agendar (os nomes dos parâmetros são os do rpc).
+create function agendar_publico(nome text, telefone text, inicio timestamptz) returns jsonb
+language sql volatile security definer set search_path = public
+as $$
+  select agendar_publico_em(nome, telefone, inicio, now(), ip_cliente())
+$$;
+
+revoke execute on function normalizar_telefone(text) from public, anon, authenticated;
+revoke execute on function ip_cliente() from public, anon, authenticated;
+revoke execute on function agendar_publico_em(text, text, timestamptz, timestamptz, text) from public, anon, authenticated;
+grant execute on function agendar_publico(text, text, timestamptz) to anon, authenticated;
