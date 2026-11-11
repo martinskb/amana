@@ -45,3 +45,5 @@ button.perigo { color: #b91c1c; border-color: #fecaca; }
 .aviso-novos { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 8px 12px; margin: 8px 0; }
 .aviso-novos ul { margin: 6px 0; padding-left: 18px; }
 .etiqueta { font-size: 12px; color: #2563eb; }
+.link-destaque { font-size: 16px; font-weight: 600; word-break: break-all; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; }
+.chave { margin: 16px 0 4px; }
