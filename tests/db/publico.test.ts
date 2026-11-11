@@ -172,12 +172,13 @@ describe('agendar_publico', { timeout: 30_000 }, () => {
     expect(rows).toEqual([{ ip: '1.1.1.1' }]);
   });
 
-  it('ip_cliente lê cf-connecting-ip (e não x-forwarded-for); sem cabeçalho → desconhecido', async () => {
+  it('ip_cliente lê só cf-connecting-ip (nem x-forwarded-for nem x-real-ip); sem ele → desconhecido', async () => {
     const db = await novoBanco();
     await db.exec(`set request.headers = '{"cf-connecting-ip":"9.9.9.9","x-forwarded-for":"6.6.6.6"}'`);
     expect((await db.query<{ ip: string }>('select ip_cliente() ip')).rows[0].ip).toBe('9.9.9.9');
+    // x-real-ip pode ser forjado por quem chama (verificado no projeto real): não é usado
     await db.exec(`set request.headers = '{"x-real-ip":"8.8.8.8"}'`);
-    expect((await db.query<{ ip: string }>('select ip_cliente() ip')).rows[0].ip).toBe('8.8.8.8');
+    expect((await db.query<{ ip: string }>('select ip_cliente() ip')).rows[0].ip).toBe('desconhecido');
     await db.exec(`set request.headers = '{"x-forwarded-for":"6.6.6.6"}'`);
     expect((await db.query<{ ip: string }>('select ip_cliente() ip')).rows[0].ip).toBe('desconhecido');
     await db.exec(`reset request.headers`);

@@ -140,12 +140,13 @@ begin
 end
 $$;
 
--- IP do cliente, do lado do servidor. Não usa o primeiro item de x-forwarded-for,
--- que o cliente pode forjar. (Conferir no projeto real: docs/implantacao.md.)
+-- IP do cliente, do lado do servidor: só cf-connecting-ip, que a Cloudflare do Supabase preenche
+-- e recusa quando o cliente tenta mandar (erro 1000). x-forwarded-for e x-real-ip podem ser forjados
+-- por quem chama a API: verificado no projeto real em 2026-11-11 (docs/implantacao.md).
 create function ip_cliente() returns text
 language sql stable
 as $$
-  select coalesce(nullif(h ->> 'cf-connecting-ip', ''), nullif(h ->> 'x-real-ip', ''), 'desconhecido')
+  select coalesce(nullif(h ->> 'cf-connecting-ip', ''), 'desconhecido')
   from (select coalesce(nullif(current_setting('request.headers', true), ''), '{}')::jsonb as h) x
 $$;
 

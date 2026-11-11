@@ -36,13 +36,13 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 
 ## 6. Teste no iPhone do cliente
 
-- [ ] **Limite por IP no projeto real** (uma vez por projeto). Com um horário livre do link, chame a função mandando IPs forjados nos cabeçalhos:
+- [ ] **Limite por IP no projeto real** (uma vez por projeto). Com um horário livre do link, chame a função mandando IPs forjados:
       ```bash
       curl -s "$VITE_SUPABASE_URL/rest/v1/rpc/agendar_publico" -H "apikey: $VITE_SUPABASE_ANON_KEY" \
-        -H "Content-Type: application/json" -H "X-Forwarded-For: 6.6.6.6" -H "CF-Connecting-IP: 6.6.6.6" \
-        -d '{"nome":"Teste","telefone":"11900000000","inicio":"<um horário livre em ISO>"}'
+        -H "Content-Type: application/json" -H "X-Forwarded-For: 6.6.6.6" -H "X-Real-IP: 6.6.6.6" \
+        -d '{"nome":"Teste IP","telefone":"11900000000","inicio":"<um horário livre em ISO>"}'
       ```
-      No SQL Editor, `select ip from tentativas_publicas order by id desc limit 1;` precisa mostrar o **IP real** da sua conexão, não `6.6.6.6`. Depois apague o agendamento e o cliente de teste.
+      No SQL Editor, `select ip from tentativas_publicas order by id desc limit 1;` precisa mostrar o **IP real** da sua conexão, não `6.6.6.6`. (Mandar `CF-Connecting-IP` forjado faz a Cloudflare recusar o pedido com "error code: 1000", o esperado.) Repita mais 3 vezes em horários diferentes: a quarta resposta tem que ser `"erro": "limite"`. Depois apague os agendamentos, o cliente "Teste IP" e as tentativas. Verificado no projeto de teste em 2026-11-11.
 - [ ] Abrir o **link de agendamento** no celular de outra pessoa (sem login) e marcar um horário de teste; conferir que ele aparece na agenda como "pelo link".
 - [ ] Abrir o link no Safari → **Adicionar à Tela de Início** → abrir pelo ícone.
 - [ ] Fazer login pelo app instalado com usuário e senha, marcar um horário, gerar horários livres e mandar um lembrete.
