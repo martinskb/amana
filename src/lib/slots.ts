@@ -1,6 +1,8 @@
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import type { Agendamento, Config, DiaSemana, Slot } from '../types';
 
+export const FUSO = 'America/Sao_Paulo';
+
 const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const ATIVOS = new Set(['marcado', 'confirmado']);
 const MINUTO = 60_000;
