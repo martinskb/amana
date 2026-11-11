@@ -385,4 +385,9 @@ describe('Agenda', () => {
     act(() => document.dispatchEvent(new Event('visibilitychange')));
     expect(await screen.findByText('1 agendamento novo pelo link')).toBeInTheDocument();
   });
+
+  it('a Agenda mostra o cartão Amanhã', async () => {
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText(/^Amanhã:/)).toBeInTheDocument();
+  });
 });

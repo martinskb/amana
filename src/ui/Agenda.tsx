@@ -6,6 +6,7 @@ import { supabase } from '../data/supabase';
 import { abreviaDia, dataLocal, freeSlots, gerarHorarios, horaLocal, instanteLocal, somarDias } from '../lib/slots';
 import type { AgendamentoCompleto, HorarioAjuste, Servico } from '../types';
 import { useConfig } from './contexto';
+import CartaoAmanha from './CartaoAmanha';
 import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
 import { useAoVoltar } from './useAoVoltar';
@@ -314,6 +315,8 @@ export default function Agenda() {
           </button>
         </aside>
       )}
+
+      <CartaoAmanha />
 
       {erro && (
         <p role="alert">
