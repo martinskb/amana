@@ -94,4 +94,9 @@ describe('aba Link', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar. Confira a internet e tente de novo.');
     expect(chave).toBeChecked();
   });
+
+  it('sem horários, o resumo mostra a mensagem amigável', async () => {
+    renderComConfig(<AbaLink />, { ...CONFIG_TESTE, expediente: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] } });
+    await waitFor(() => expect(resumo()).toHaveTextContent('Sem horários livres'));
+  });
 });

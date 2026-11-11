@@ -6,12 +6,10 @@ import { getConfig } from '../data/configuracoes';
 import { SemAcessoError, SemConexaoError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import type { Config } from '../types';
+import AbaLink from './AbaLink';
 import Agenda from './Agenda';
 import BackupBanner from './BackupBanner';
-import Clientes from './Clientes';
 import Configuracoes from './Configuracoes';
-import HorariosLivres from './HorariosLivres';
-import Lembretes from './Lembretes';
 import { ConfigContext } from './contexto';
 import Login from './Login';
 import Agendar from './publico/Agendar';
@@ -65,17 +63,17 @@ function Telas() {
               </>
             }
           />
-          <Route path="/livres" element={<HorariosLivres />} />
-          <Route path="/lembretes" element={<Lembretes />} />
-          <Route path="/clientes" element={<Clientes />} />
+          <Route path="/link" element={<AbaLink />} />
           <Route path="/config" element={<Configuracoes />} />
+          {/* endereços antigos (v1/v2) */}
+          <Route path="/livres" element={<Navigate to="/link" replace />} />
+          <Route path="/lembretes" element={<Navigate to="/" replace />} />
+          <Route path="/clientes" element={<Navigate to="/config" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <nav className="abas">
           <NavLink to="/" end>Agenda</NavLink>
-          <NavLink to="/livres">Livres</NavLink>
-          <NavLink to="/lembretes">Lembretes</NavLink>
-          <NavLink to="/clientes">Clientes</NavLink>
+          <NavLink to="/link">Link</NavLink>
           <NavLink to="/config">Ajustes</NavLink>
         </nav>
       </HashRouter>

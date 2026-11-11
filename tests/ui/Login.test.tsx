@@ -16,6 +16,8 @@ vi.mock('../../src/data/supabase', async () => {
 });
 vi.mock('../../src/data/configuracoes', () => ({ getConfig, saveConfig: vi.fn() }));
 vi.mock('../../src/ui/Agenda', () => ({ default: () => <h2>Agenda</h2> }));
+vi.mock('../../src/ui/AbaLink', () => ({ default: () => <h2>Seu link de agendamento</h2> }));
+vi.mock('../../src/ui/Configuracoes', () => ({ default: () => <h2>Ajustes</h2> }));
 
 import App from '../../src/ui/App';
 import { emailDoUsuario } from '../../src/ui/Login';
@@ -84,7 +86,7 @@ describe('login e sessão', () => {
     auth.sessao = SESSAO;
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Agenda' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Livres' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation').querySelectorAll('a').length).toBe(3);
   });
 
   it('evento SIGNED_OUT volta para o login', async () => {
@@ -113,5 +115,27 @@ describe('login e sessão', () => {
     expect(await screen.findByText(/não tem acesso a esta agenda/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Sair' }));
     expect(auth.signOut).toHaveBeenCalled();
+  });
+
+  it('a barra tem exatamente as abas Agenda, Link e Ajustes', async () => {
+    auth.sessao = SESSAO;
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Agenda' });
+    const abas = [...screen.getByRole('navigation').querySelectorAll('a')].map((a) => a.textContent);
+    expect(abas).toEqual(['Agenda', 'Link', 'Ajustes']);
+  });
+
+  it.each([
+    ['#/link', 'Seu link de agendamento'],
+    ['#/config', 'Ajustes'],
+    ['#/livres', 'Seu link de agendamento'],
+    ['#/lembretes', 'Agenda'],
+    ['#/clientes', 'Ajustes'],
+    ['#/qualquer-coisa', 'Agenda'],
+  ])('%s abre "%s"', async (hash, titulo) => {
+    auth.sessao = SESSAO;
+    window.location.hash = hash;
+    render(<App />);
+    expect(await screen.findByRole('heading', { level: 2, name: titulo })).toBeInTheDocument();
   });
 });

@@ -8,9 +8,11 @@ Para entrar, digite o **usuário** e a **senha** que você recebeu e toque em **
 
 ## Link de agendamento (o cliente marca sozinho)
 
-Em **Ajustes**, toque em **Copiar link de agendamento** e cole no status do WhatsApp, na bio do Instagram ou numa conversa. O cliente abre o link, escolhe o dia e o horário e informa nome e WhatsApp. O horário já fica marcado e aparece na sua agenda com a etiqueta **pelo link**. Ao abrir a Agenda, um aviso azul mostra quem marcou pelo link desde a última vez.
+O app tem três abas: **Agenda**, **Link** e **Ajustes**.
 
-O link só mostra os horários livres, nunca o nome de outros clientes. Para fechar o link (férias, por exemplo), desligue **Link de agendamento ligado** em Ajustes.
+Na aba **Link**, toque em **Mandar no WhatsApp** (para o status ou uma conversa) ou em **Copiar link** e cole na bio do Instagram. O cliente abre o link, escolhe o dia e o horário e informa nome e WhatsApp. O horário já fica marcado e aparece na sua agenda com a etiqueta **pelo link**. Ao abrir a Agenda, um aviso azul mostra quem marcou pelo link desde a última vez.
+
+O link só mostra os horários livres, nunca o nome de outros clientes. Para fechar o link (férias, por exemplo), desligue **Link ligado** na aba Link. Lá você também vê os próximos horários livres, do jeito que o cliente vai ver.
 
 ## Fechar ou abrir horários
 
@@ -25,15 +27,13 @@ O link só mostra os horários livres, nunca o nome de outros clientes. Para fec
 
 Se aparecer "Esse horário já está ocupado.", escolha outro horário.
 
-Toque num agendamento para **Confirmar**, **Concluir**, marcar que **Faltou**, **Editar**, abrir o **WhatsApp** do cliente ou **Cancelar**. Depois de cancelar, toque em **Avisar no WhatsApp** para mandar a mensagem de cancelamento pronta, já com o link para o cliente remarcar.
+Toque num agendamento para **Confirmar no WhatsApp**, **Concluir**, marcar que **Faltou**, **Editar**, abrir o **WhatsApp** do cliente ou **Cancelar**. Depois de confirmar, toque em **Abrir WhatsApp** para mandar a confirmação pronta. Depois de cancelar, toque em **Avisar no WhatsApp** para mandar a mensagem de cancelamento, já com o link para o cliente remarcar. Logo depois de marcar um cliente, o app oferece **Mandar confirmação no WhatsApp**.
 
-## Divulgar horários livres
-
-Aba **Livres** → escolha o período (hoje, amanhã ou semana). O texto aparece pronto. Você pode editar, tocar em **Copiar** e colar no status, ou tocar em **Abrir WhatsApp**.
+As mensagens são prontas: você não precisa escrever nada.
 
 ## Lembrar os clientes de amanhã
 
-Aba **Lembretes** → um botão **WhatsApp** por cliente, com a mensagem pronta. É só tocar e enviar.
+No topo da **Agenda**, o cartão **Amanhã** mostra quantos clientes você tem. Toque em **Lembrar**: aparece um botão **WhatsApp** por cliente, com a mensagem pronta.
 
 ## Backup (uma vez por semana)
 
@@ -48,4 +48,4 @@ Usar a agenda todo dia evita a pausa.
 
 ## Ajustes
 
-Em **Ajustes** você muda o nome do negócio, o expediente de cada dia (pode ter mais de um intervalo, por exemplo manhã e tarde), as folgas, os serviços e a duração de cada um, e as mensagens prontas.
+Em **Ajustes** você muda o nome e o WhatsApp do negócio, a duração de cada horário, quantos dias o link mostra, o expediente de cada dia (pode ter mais de um intervalo, por exemplo manhã e tarde), as folgas e os serviços. A lista de **Clientes** (busca e histórico) e o **Backup** também ficam em Ajustes.
