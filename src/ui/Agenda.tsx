@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { listAgendamentos } from '../data/agendamentos';
+import { listAgendamentos, listNovosPeloLink } from '../data/agendamentos';
 import { criarExtra, fecharHorario, listAjustes, removerAjuste } from '../data/ajustes';
 import { listServicos } from '../data/servicos';
 import { supabase } from '../data/supabase';
@@ -25,6 +25,7 @@ type Item =
   | { tipo: 'fechado'; hora: string; ajusteId: string };
 
 const ddmm = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
+const CHAVE_VISITA = 'agenda:ultimaVisita';
 
 export default function Agenda() {
   const { config } = useConfig();
@@ -36,6 +37,31 @@ export default function Agenda() {
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [painel, setPainel] = useState<Painel>(null);
   const [erro, setErro] = useState(false);
+
+  const [novos, setNovos] = useState<AgendamentoCompleto[]>([]);
+
+  // agendamentos que chegaram pelo link desde a última vez que o dono olhou (neste aparelho)
+  useEffect(() => {
+    const agora = new Date().toISOString();
+    let ultima: string | null = null;
+    try {
+      ultima = localStorage.getItem(CHAVE_VISITA);
+      if (!ultima) localStorage.setItem(CHAVE_VISITA, agora);
+    } catch {
+      return; // sem armazenamento (navegação privada): sem aviso
+    }
+    if (!ultima) return;
+    listNovosPeloLink(supabase, ultima).then(setNovos, () => setNovos([]));
+  }, []);
+
+  function marcarVisto() {
+    try {
+      localStorage.setItem(CHAVE_VISITA, new Date().toISOString());
+    } catch {
+      /* sem armazenamento: só esconde */
+    }
+    setNovos([]);
+  }
 
   const dias = modo === 'dia' ? 1 : 7;
   const ate = somarDias(inicio, dias - 1);
@@ -258,6 +284,28 @@ export default function Agenda() {
         </button>
       </div>
 
+      {novos.length > 0 && (
+        <aside className="aviso-novos" role="status">
+          <strong>
+            {novos.length === 1 ? '1 agendamento novo pelo link' : `${novos.length} agendamentos novos pelo link`}
+          </strong>
+          <ul>
+            {novos.map((a) => {
+              const ini = new Date(a.inicio);
+              const d = dataLocal(ini, config.fuso);
+              return (
+                <li key={a.id}>
+                  {abreviaDia(d)} {ddmm(d)} {horaLocal(ini, config.fuso)} · {a.cliente.nome}
+                </li>
+              );
+            })}
+          </ul>
+          <button type="button" onClick={marcarVisto}>
+            Entendi
+          </button>
+        </aside>
+      )}
+
       {erro && (
         <p role="alert">
           Não foi possível carregar a agenda.{' '}
@@ -285,6 +333,7 @@ export default function Agenda() {
                       onClick={() => setPainel({ tipo: 'detalhes', agendamento: item.agendamento })}
                     >
                       {item.hora} {item.agendamento.cliente.nome} · {item.agendamento.servico?.nome ?? '—'}
+                      {item.agendamento.origem === 'link' && <span className="etiqueta"> pelo link</span>}
                     </button>
                   </li>
                 ) : item.tipo === 'fechado' ? (

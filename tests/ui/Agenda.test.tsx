@@ -10,6 +10,7 @@ const m = vi.hoisted(() => ({
   criarAgendamento: vi.fn(),
   editarAgendamento: vi.fn(),
   mudarStatus: vi.fn(),
+  listNovosPeloLink: vi.fn(),
   findOrCreateCliente: vi.fn(),
   listClientes: vi.fn(),
   listServicos: vi.fn(),
@@ -24,6 +25,7 @@ vi.mock('../../src/data/agendamentos', () => ({
   criarAgendamento: m.criarAgendamento,
   editarAgendamento: m.editarAgendamento,
   mudarStatus: m.mudarStatus,
+  listNovosPeloLink: m.listNovosPeloLink,
 }));
 vi.mock('../../src/data/clientes', () => ({ findOrCreateCliente: m.findOrCreateCliente, listClientes: m.listClientes }));
 vi.mock('../../src/data/servicos', () => ({ listServicos: m.listServicos }));
@@ -75,6 +77,8 @@ beforeEach(() => {
   m.editarAgendamento.mockResolvedValue(undefined);
   m.mudarStatus.mockResolvedValue(undefined);
   m.listAjustes.mockResolvedValue([]);
+  m.listNovosPeloLink.mockResolvedValue([]);
+  localStorage.clear();
   m.fecharHorario.mockResolvedValue(undefined);
   m.criarExtra.mockResolvedValue(undefined);
   m.removerAjuste.mockResolvedValue(undefined);
@@ -132,7 +136,7 @@ describe('Agenda', () => {
     expect(m.findOrCreateCliente).not.toHaveBeenCalled();
     expect(m.criarAgendamento).toHaveBeenCalledWith({}, {
       cliente_id: 'c1',
-      servico_id: 's1',
+      servico_id: null,
       inicio: '2026-11-17T12:00:00.000Z',
       fim: '2026-11-17T12:30:00.000Z',
       status: 'marcado',
@@ -284,5 +288,67 @@ describe('Agenda', () => {
     renderComConfig(<Agenda />);
     expect(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 19:00' })).toBeInTheDocument();
     expect(m.listAjustes).toHaveBeenCalledWith({}, '2026-11-17', '2026-11-17');
+  });
+
+  it('o formulário começa em "Sem serviço" e ocupa um horário (30 min)', async () => {
+    renderComConfig(<Agenda />);
+    await abrirNovo();
+    expect(screen.getByLabelText('Serviço')).toHaveValue('');
+    expect(screen.getByRole('option', { name: 'Sem serviço' })).toBeInTheDocument();
+  });
+
+  it('com o serviço "Corte e barba" (60 min) ocupa 60 min', async () => {
+    m.listServicos.mockResolvedValue([CORTE, { id: 's2', nome: 'Corte e barba', duracao_min: 60, ativo: true }]);
+    renderComConfig(<Agenda />);
+    await abrirNovo();
+    await userEvent.type(screen.getByLabelText('Cliente'), 'Jo');
+    await userEvent.click(await screen.findByRole('button', { name: /João/ }));
+    await userEvent.selectOptions(screen.getByLabelText('Serviço'), 's2');
+    await salvar();
+    expect(m.criarAgendamento).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ servico_id: 's2', inicio: '2026-11-17T12:00:00.000Z', fim: '2026-11-17T13:00:00.000Z' }),
+    );
+  });
+
+  it('agendamento feito pelo link mostra a etiqueta "pelo link"', async () => {
+    m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, origem: 'link' }]);
+    renderComConfig(<Agenda />);
+    const botao = await screen.findByRole('button', { name: /10:00 João/ });
+    expect(botao).toHaveTextContent('pelo link');
+  });
+
+  it('na primeira abertura grava a visita e não mostra aviso', async () => {
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    expect(localStorage.getItem('agenda:ultimaVisita')).toBe('2026-11-17T11:00:00.000Z');
+    expect(m.listNovosPeloLink).not.toHaveBeenCalled();
+  });
+
+  it('mostra quantos agendamentos chegaram pelo link desde a última visita e some ao tocar', async () => {
+    localStorage.setItem('agenda:ultimaVisita', '2026-11-16T10:00:00.000Z');
+    m.listNovosPeloLink.mockResolvedValue([{ ...MARIA_QUARTA, origem: 'link' }, { ...JOAO_TERCA, origem: 'link' }]);
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText('2 agendamentos novos pelo link')).toBeInTheDocument();
+    expect(m.listNovosPeloLink).toHaveBeenCalledWith({}, '2026-11-16T10:00:00.000Z');
+    await userEvent.click(screen.getByRole('button', { name: 'Entendi' }));
+    expect(screen.queryByText(/novos? pelo link/)).not.toBeInTheDocument();
+    expect(localStorage.getItem('agenda:ultimaVisita')).toBe('2026-11-17T11:00:00.000Z');
+  });
+
+  it('um só usa o singular', async () => {
+    localStorage.setItem('agenda:ultimaVisita', '2026-11-16T10:00:00.000Z');
+    m.listNovosPeloLink.mockResolvedValue([{ ...MARIA_QUARTA, origem: 'link' }]);
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText('1 agendamento novo pelo link')).toBeInTheDocument();
+  });
+
+  it('localStorage indisponível não quebra a Agenda', async () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('bloqueado');
+    });
+    renderComConfig(<Agenda />);
+    expect(await screen.findByRole('button', { name: /10:00 João/ })).toBeInTheDocument();
+    getItem.mockRestore();
   });
 });

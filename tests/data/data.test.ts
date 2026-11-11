@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
-import { criarAgendamento, editarAgendamento, listAgendamentos, listAgendamentosDoCliente } from '../../src/data/agendamentos';
+import { criarAgendamento, editarAgendamento, listAgendamentos, listAgendamentosDoCliente, listNovosPeloLink } from '../../src/data/agendamentos';
 import { findOrCreateCliente } from '../../src/data/clientes';
 import { getConfig } from '../../src/data/configuracoes';
 import { ConflitoDeHorarioError, SemAcessoError, SemConexaoError } from '../../src/data/erros';
@@ -134,5 +134,20 @@ describe('camada de dados', () => {
       http.get(`${REST}/configuracoes`, () => HttpResponse.json([])),
     );
     await expect(getConfig(db)).rejects.toBeInstanceOf(SemAcessoError);
+  });
+
+  it('listNovosPeloLink filtra origem link, criados depois da data e não cancelados', async () => {
+    let params: URLSearchParams | undefined;
+    servidor.use(
+      http.get(`${REST}/agendamentos`, ({ request }) => {
+        params = new URL(request.url).searchParams;
+        return HttpResponse.json([]);
+      }),
+    );
+    await listNovosPeloLink(db, '2026-11-17T10:00:00.000Z');
+    expect(params!.get('origem')).toBe('eq.link');
+    expect(params!.get('criado_em')).toBe('gt.2026-11-17T10:00:00.000Z');
+    expect(params!.get('status')).toBe('neq.cancelado');
+    expect(params!.get('order')).toBe('inicio.asc');
   });
 });

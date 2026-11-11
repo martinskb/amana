@@ -30,6 +30,20 @@ export async function listAgendamentosDoCliente(db: SupabaseClient, clienteId: s
   );
 }
 
+/** Agendamentos feitos pelo link depois de `desde` (qualquer data de atendimento), sem os cancelados. */
+export async function listNovosPeloLink(db: SupabaseClient, desde: string): Promise<AgendamentoCompleto[]> {
+  return executar(
+    db
+      .from('agendamentos')
+      .select(COMPLETO)
+      .eq('origem', 'link')
+      .gt('criado_em', desde)
+      .neq('status', 'cancelado')
+      .order('inicio')
+      .returns<AgendamentoCompleto[]>(),
+  );
+}
+
 export async function criarAgendamento(db: SupabaseClient, a: Omit<Agendamento, 'id'>): Promise<Agendamento> {
   return executar(db.from('agendamentos').insert(a).select(CAMPOS).single<Agendamento>());
 }
