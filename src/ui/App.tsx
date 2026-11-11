@@ -8,6 +8,7 @@ import type { Config } from '../types';
 import Agenda from './Agenda';
 import Configuracoes from './Configuracoes';
 import HorariosLivres from './HorariosLivres';
+import Lembretes from './Lembretes';
 import { ConfigContext } from './contexto';
 import Login from './Login';
 import SemConexao from './SemConexao';
@@ -53,6 +54,7 @@ function Telas() {
         <Routes>
           <Route path="/" element={<Agenda />} />
           <Route path="/livres" element={<HorariosLivres />} />
+          <Route path="/lembretes" element={<Lembretes />} />
           <Route path="/config" element={<Configuracoes />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
