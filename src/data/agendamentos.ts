@@ -1,26 +1,32 @@
 import { FUSO, instanteLocal, somarDias } from '../lib/slots';
-import type { Agendamento, Status } from '../types';
+import type { Agendamento, AgendamentoCompleto, Status } from '../types';
 import { executar } from './erros';
 import type { SupabaseClient } from './supabase';
 
 const CAMPOS = 'id, cliente_id, servico_id, inicio, fim, status, observacao';
+const COMPLETO = `${CAMPOS}, cliente:clientes(nome,telefone), servico:servicos(nome)`;
 
 /** Agendamentos com início entre 00:00 de `de` e 24:00 de `ate`, em hora local do negócio. */
-export async function listAgendamentos(db: SupabaseClient, de: string, ate: string): Promise<Agendamento[]> {
+export async function listAgendamentos(db: SupabaseClient, de: string, ate: string): Promise<AgendamentoCompleto[]> {
   return executar(
     db
       .from('agendamentos')
-      .select(CAMPOS)
+      .select(COMPLETO)
       .gte('inicio', instanteLocal(de, '00:00', FUSO).toISOString())
       .lt('inicio', instanteLocal(somarDias(ate, 1), '00:00', FUSO).toISOString())
       .order('inicio')
-      .returns<Agendamento[]>(),
+      .returns<AgendamentoCompleto[]>(),
   );
 }
 
-export async function listAgendamentosDoCliente(db: SupabaseClient, clienteId: string): Promise<Agendamento[]> {
+export async function listAgendamentosDoCliente(db: SupabaseClient, clienteId: string): Promise<AgendamentoCompleto[]> {
   return executar(
-    db.from('agendamentos').select(CAMPOS).eq('cliente_id', clienteId).order('inicio', { ascending: false }).returns<Agendamento[]>(),
+    db
+      .from('agendamentos')
+      .select(COMPLETO)
+      .eq('cliente_id', clienteId)
+      .order('inicio', { ascending: false })
+      .returns<AgendamentoCompleto[]>(),
   );
 }
 

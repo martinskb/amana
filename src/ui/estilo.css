@@ -22,3 +22,16 @@ fieldset { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 12px; }
 .lista { list-style: none; padding: 0; }
 .lista li { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
 label.inline { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 0 auto; }
+.controles { margin-bottom: 8px; }
+.segmentado button[aria-pressed=true] { background: #1f2937; color: #fff; }
+.dia h3 { margin: 16px 0 6px; font-size: 15px; text-transform: capitalize; }
+.grade { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.grade button { width: 100%; text-align: left; }
+.grade .livre { border-style: dashed; color: #6b7280; }
+.grade .ag { background: #eef2ff; border-color: #c7d2fe; }
+.grade .ag.confirmado { background: #ecfdf5; border-color: #a7f3d0; }
+.grade .ag.concluido, .grade .ag.faltou { opacity: .6; }
+.painel { background: #fff; border-radius: 14px; padding: 12px 16px; margin-top: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.sugestoes { list-style: none; padding: 0; display: grid; gap: 4px; }
+a.botao { padding: 10px 14px; border-radius: 10px; background: #16a34a; color: #fff; text-decoration: none; }
+button.perigo { color: #b91c1c; border-color: #fecaca; }

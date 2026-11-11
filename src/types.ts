@@ -24,4 +24,9 @@ export interface Agendamento {
   status: Status;
   observacao: string | null;
 }
+/** Agendamento com os dados de exibição do cliente e do serviço. */
+export interface AgendamentoCompleto extends Agendamento {
+  cliente: Pick<Cliente, 'nome' | 'telefone'>;
+  servico: Pick<Servico, 'nome'>;
+}
 export interface Slot { data: string; hora: string; inicio: Date } // "YYYY-MM-DD", "HH:MM"

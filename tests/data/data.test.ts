@@ -79,6 +79,19 @@ describe('camada de dados', () => {
     expect(params!.getAll('inicio')).toEqual(['gte.2026-11-17T03:00:00.000Z', 'lt.2026-11-18T03:00:00.000Z']);
   });
 
+  it('listAgendamentos traz nome e telefone do cliente e nome do serviço', async () => {
+    let select = '';
+    servidor.use(
+      http.get(`${REST}/agendamentos`, ({ request }) => {
+        select = new URL(request.url).searchParams.get('select') ?? '';
+        return HttpResponse.json([]);
+      }),
+    );
+    await listAgendamentos(db, '2026-11-17', '2026-11-17');
+    expect(select).toContain('cliente:clientes(nome,telefone)');
+    expect(select).toContain('servico:servicos(nome)');
+  });
+
   it('listAgendamentosDoCliente filtra pelo cliente e ordena decrescente', async () => {
     let params: URLSearchParams | undefined;
     servidor.use(
