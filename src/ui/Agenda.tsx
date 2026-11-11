@@ -78,7 +78,7 @@ export default function Agenda() {
     const livres = freeSlots({
       config: { ...config, antecedencia_min: 0 },
       agendamentos: visiveis,
-      duracaoMin: config.passo_min,
+      ajustes: [],
       de: inicio,
       ate,
       agora: new Date(),

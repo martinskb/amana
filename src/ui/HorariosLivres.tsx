@@ -41,7 +41,7 @@ export default function HorariosLivres() {
     listAgendamentos(supabase, de, ate).then(
       (agendamentos) => {
         if (!ativo) return;
-        const slots = freeSlots({ config, agendamentos, duracaoMin: servico.duracao_min, de, ate, agora });
+        const slots = freeSlots({ config, agendamentos, ajustes: [], de, ate, agora });
         setTexto(formatSlotsMessage(slots, config.modelo_livres));
       },
       () => ativo && setErro('Não foi possível carregar a agenda. Confira a internet.'),

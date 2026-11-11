@@ -1,5 +1,5 @@
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
-import type { Agendamento, Config, DiaSemana, Slot } from '../types';
+import type { Agendamento, Config, DiaSemana, HorarioAjuste, Slot } from '../types';
 
 export const FUSO = 'America/Sao_Paulo';
 
@@ -40,39 +40,77 @@ function paraHora(min: number): string {
   return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 }
 
-export function freeSlots(args: {
-  config: Config;
-  agendamentos: Agendamento[];
-  duracaoMin: number;
-  de: string;
-  ate: string;
-  agora: Date;
-}): Slot[] {
-  const { config, agendamentos, duracaoMin, de, ate, agora } = args;
-  const ocupados = agendamentos
-    .filter((a) => ATIVOS.has(a.status))
-    .map((a) => [new Date(a.inicio).getTime(), new Date(a.fim).getTime()] as const);
-  const limite = agora.getTime() + config.antecedencia_min * MINUTO;
+type Ofertado = Slot & { fechado: boolean };
+
+/**
+ * Horários ofertados (spec v2, seção 3): blocos de `passo_min` dentro do expediente
+ * (dias que não são folga) mais os extras; `fechado` quando se sobrepõe a um ajuste fechado.
+ * Sem duplicata de início, em ordem. A mesma regra existe em SQL: `horarios_livres_em`.
+ */
+export function gerarHorarios(args: { config: Config; ajustes: HorarioAjuste[]; de: string; ate: string }): Ofertado[] {
+  const { config, ajustes, de, ate } = args;
+  const passo = config.passo_min * MINUTO;
   const folgas = new Set(config.folgas);
-  const slots: Slot[] = [];
+  const porInicio = new Map<number, Slot>();
 
   for (let data = de; data <= ate; data = somarDias(data, 1)) {
     if (folgas.has(data)) continue;
     for (const intervalo of config.expediente[diaDaSemana(data)] ?? []) {
       const fimIntervalo = paraMinutos(intervalo.fim);
-      for (let m = paraMinutos(intervalo.inicio); m + duracaoMin <= fimIntervalo; m += config.passo_min) {
+      for (let m = paraMinutos(intervalo.inicio); m + config.passo_min <= fimIntervalo; m += config.passo_min) {
         const hora = paraHora(m);
         const inicio = instanteLocal(data, hora, config.fuso);
-        const ini = inicio.getTime();
-        const fim = ini + duracaoMin * MINUTO;
-        if (ini < limite) continue;
-        // intervalos meio-abertos: encostar no fim de outro não é conflito
-        if (ocupados.some(([oi, of]) => ini < of && oi < fim)) continue;
-        slots.push({ data, hora, inicio });
+        porInicio.set(inicio.getTime(), { data, hora, inicio });
       }
     }
   }
-  return slots;
+  for (const a of ajustes) {
+    if (a.tipo !== 'extra') continue;
+    const inicio = new Date(a.inicio);
+    const data = dataLocal(inicio, config.fuso);
+    if (data < de || data > ate) continue;
+    porInicio.set(inicio.getTime(), { data, hora: horaLocal(inicio, config.fuso), inicio });
+  }
+
+  const fechados = ajustes.filter((a) => a.tipo === 'fechado').map((a) => new Date(a.inicio).getTime());
+  return [...porInicio.values()]
+    .sort((x, y) => x.inicio.getTime() - y.inicio.getTime())
+    .map((s) => {
+      const ini = s.inicio.getTime();
+      return { ...s, fechado: fechados.some((f) => ini < f + passo && f < ini + passo) };
+    });
+}
+
+/** Horários ofertados que estão livres: sem fechado, sem agendamento ativo e respeitando a antecedência. */
+export function freeSlots(args: {
+  config: Config;
+  agendamentos: Agendamento[];
+  ajustes: HorarioAjuste[];
+  de: string;
+  ate: string;
+  agora: Date;
+}): Slot[] {
+  const { config, agendamentos, ajustes, de, ate, agora } = args;
+  const passo = config.passo_min * MINUTO;
+  const ocupados = agendamentos
+    .filter((a) => ATIVOS.has(a.status))
+    .map((a) => [new Date(a.inicio).getTime(), new Date(a.fim).getTime()] as const);
+  const limite = agora.getTime() + config.antecedencia_min * MINUTO;
+
+  return gerarHorarios({ config, ajustes, de, ate })
+    .filter((h) => !h.fechado)
+    .filter((h) => {
+      const ini = h.inicio.getTime();
+      // intervalos meio-abertos: encostar no fim de outro não é conflito
+      return ini >= limite && !ocupados.some(([oi, of]) => ini < of && oi < ini + passo);
+    })
+    .map(({ data, hora, inicio }) => ({ data, hora, inicio }));
+}
+
+/** Dias que o link mostra: de hoje até hoje + dias_abertos − 1, em hora local. */
+export function diasDoLink(agora: Date, config: Config): { de: string; ate: string } {
+  const hoje = dataLocal(agora, config.fuso);
+  return { de: hoje, ate: somarDias(hoje, config.dias_abertos - 1) };
 }
 
 function horaCurta(hora: string): string {
