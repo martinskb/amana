@@ -36,7 +36,8 @@ const ARQUIVO: BackupFile = {
 
 const iso = (v: unknown) => new Date(v as string).toISOString();
 
-describe('restaurar', () => {
+// o PGlite demora alguns segundos para iniciar quando a suíte roda em paralelo
+describe('restaurar', { timeout: 30_000 }, () => {
   it('ida e volta: restaurar num banco limpo reproduz os mesmos dados', async () => {
     const db = await novoBanco();
     await restaurar(consulta(db), ARQUIVO, { confirmarSubstituir: false });

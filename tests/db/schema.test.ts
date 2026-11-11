@@ -18,7 +18,8 @@ async function base() {
   return { db, marcar };
 }
 
-describe('esquema do banco', () => {
+// o PGlite demora alguns segundos para iniciar quando a suíte roda em paralelo
+describe('esquema do banco', { timeout: 30_000 }, () => {
   it('rejeita dois agendamentos marcados que se sobrepõem', async () => {
     const { marcar } = await base();
     await marcar('10:00', '11:00');
