@@ -15,3 +15,10 @@ input, select, textarea { padding: 10px; border-radius: 8px; border: 1px solid #
 [role=alert] { color: #b91c1c; }
 .aviso-conexao { color: inherit; max-width: 420px; margin: 10vh auto 0; }
 .carregando { text-align: center; color: #6b7280; margin-top: 30vh; }
+.config section, .config fieldset { margin: 16px 0; }
+fieldset { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 12px; }
+.linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sutil { color: #6b7280; font-size: 14px; }
+.lista { list-style: none; padding: 0; }
+.lista li { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+label.inline { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 0 auto; }
