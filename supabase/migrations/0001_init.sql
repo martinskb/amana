@@ -46,15 +46,28 @@ create table configuracoes (
   ultimo_backup timestamptz
 );
 
--- Row Level Security: só o usuário autenticado (o dono) lê e escreve
+-- Quem é o dono. Preenchido uma vez na implantação (ver docs/implantacao.md):
+--   insert into donos (user_id) values ('<id do usuário em Authentication > Users>');
+create table donos (
+  user_id uuid primary key
+);
+
+-- security definer: lê donos mesmo sem política de leitura para o usuário
+create function eh_dono() returns boolean
+language sql stable security definer set search_path = public
+as $$ select exists (select 1 from donos where user_id = auth.uid()) $$;
+
+-- Row Level Security: só o dono lê e escreve. Qualquer outra conta logada não vê nada.
+alter table donos enable row level security; -- sem políticas: ninguém mexe pela API
 alter table clientes enable row level security;
 alter table servicos enable row level security;
 alter table agendamentos enable row level security;
 alter table configuracoes enable row level security;
 
-create policy dono_clientes on clientes for all to authenticated using (true) with check (true);
-create policy dono_servicos on servicos for all to authenticated using (true) with check (true);
-create policy dono_agendamentos on agendamentos for all to authenticated using (true) with check (true);
-create policy dono_configuracoes on configuracoes for all to authenticated using (true) with check (true);
+create policy dono_clientes on clientes for all to authenticated using (eh_dono()) with check (eh_dono());
+create policy dono_servicos on servicos for all to authenticated using (eh_dono()) with check (eh_dono());
+create policy dono_agendamentos on agendamentos for all to authenticated using (eh_dono()) with check (eh_dono());
+create policy dono_configuracoes on configuracoes for all to authenticated using (eh_dono()) with check (eh_dono());
 
+revoke all on donos from anon, authenticated;
 grant select, insert, update, delete on clientes, servicos, agendamentos, configuracoes to authenticated;

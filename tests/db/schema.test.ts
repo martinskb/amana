@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { novoBanco } from '../helpers/pg';
+import { comoUsuario, DONO, ESTRANHO, novoBanco } from '../helpers/pg';
 
 async function base() {
   const db = await novoBanco();
@@ -65,8 +65,24 @@ describe('esquema do banco', () => {
     await expect(
       db.query(`insert into clientes (nome, telefone) values ('X', '5511900000000')`),
     ).rejects.toMatchObject({ code: '42501' });
-    await db.exec('reset role; set role authenticated');
+    await db.exec(`reset role; insert into donos (user_id) values ('${DONO}')`);
+    await comoUsuario(db, DONO);
     const { rows } = await db.query('select * from clientes');
     expect(rows).toHaveLength(1);
+  });
+
+  it('usuário logado que não é o dono não lê nem escreve nada', async () => {
+    const { db } = await base();
+    await db.exec(`insert into donos (user_id) values ('${DONO}')`);
+    await comoUsuario(db, ESTRANHO);
+    expect((await db.query('select * from clientes')).rows).toHaveLength(0);
+    expect((await db.query('select * from configuracoes')).rows).toHaveLength(0);
+    await expect(db.query('select * from donos')).rejects.toMatchObject({ code: '42501' });
+    await expect(
+      db.query(`insert into clientes (nome, telefone) values ('X', '5511900000000')`),
+    ).rejects.toMatchObject({ code: '42501' });
+    await expect(db.query(`insert into donos (user_id) values ('${ESTRANHO}')`)).rejects.toMatchObject({
+      code: '42501',
+    });
   });
 });
