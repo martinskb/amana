@@ -104,4 +104,9 @@ describe('Configurações', () => {
       modelo_lembrete: 'Oi {nome}, até amanhã!',
     });
   });
+
+  it('tem o botão "Baixar backup"', () => {
+    renderComConfig(<Configuracoes />);
+    expect(screen.getByRole('button', { name: 'Baixar backup' })).toBeInTheDocument();
+  });
 });

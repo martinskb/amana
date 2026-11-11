@@ -6,6 +6,7 @@ import { SemAcessoError, SemConexaoError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import type { Config } from '../types';
 import Agenda from './Agenda';
+import BackupBanner from './BackupBanner';
 import Clientes from './Clientes';
 import Configuracoes from './Configuracoes';
 import HorariosLivres from './HorariosLivres';
@@ -53,7 +54,15 @@ function Telas() {
       <HashRouter>
         <header className="topo">{config.nome_negocio}</header>
         <Routes>
-          <Route path="/" element={<Agenda />} />
+          <Route
+            path="/"
+            element={
+              <>
+                <BackupBanner />
+                <Agenda />
+              </>
+            }
+          />
           <Route path="/livres" element={<HorariosLivres />} />
           <Route path="/lembretes" element={<Lembretes />} />
           <Route path="/clientes" element={<Clientes />} />

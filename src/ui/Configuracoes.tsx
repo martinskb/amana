@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { saveConfig } from '../data/configuracoes';
 import { listServicos, saveServico } from '../data/servicos';
 import { supabase } from '../data/supabase';
 import type { DiaSemana, Expediente, Intervalo, Servico } from '../types';
+import { BotaoBackup } from './BackupBanner';
 import { useConfig } from './contexto';
 
 const DIAS: { dia: DiaSemana; nome: string; curto: string }[] = [
@@ -27,7 +28,7 @@ function validar(expediente: Expediente): string | null {
   return null;
 }
 
-export default function Configuracoes({ extra }: { extra?: ReactNode }) {
+export default function Configuracoes() {
   const { config, recarregar } = useConfig();
   const [nome, setNome] = useState(config.nome_negocio);
   const [expediente, setExpediente] = useState<Expediente>(config.expediente);
@@ -237,7 +238,11 @@ export default function Configuracoes({ extra }: { extra?: ReactNode }) {
         </form>
       </section>
 
-      {extra}
+      <section>
+        <h3>Backup</h3>
+        <p className="sutil">Salve o arquivo no iCloud Drive ou no Google Drive pelo menu de compartilhar.</p>
+        <BotaoBackup />
+      </section>
     </main>
   );
 }
