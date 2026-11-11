@@ -26,7 +26,15 @@ export default function CartaoAmanha() {
   }, [amanha, voltas]);
 
   if (erro) return <p className="sutil">Não foi possível carregar os clientes de amanhã.</p>;
-  if (!lista) return null;
+  // enquanto carrega, ocupa o mesmo lugar: a grade não pula quando a resposta chega
+  if (!lista)
+    return (
+      <aside className="cartao-amanha">
+        <div className="linha">
+          <strong>Amanhã: …</strong>
+        </div>
+      </aside>
+    );
 
   const n = lista.length;
   const titulo = n === 0 ? 'Amanhã: nenhum cliente' : n === 1 ? 'Amanhã: 1 cliente' : `Amanhã: ${n} clientes`;

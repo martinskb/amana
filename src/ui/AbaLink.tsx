@@ -73,9 +73,16 @@ export default function AbaLink() {
       <h2>Seu link de agendamento</h2>
       <p className="link-destaque">{link}</p>
       <div className="linha">
-        <a className="botao" href={waLink(null, mensagemDivulgar(link))} target="_blank" rel="noreferrer">
-          Mandar no WhatsApp
-        </a>
+        {ligado ? (
+          <a className="botao" href={waLink(null, mensagemDivulgar(link))} target="_blank" rel="noreferrer">
+            Mandar no WhatsApp
+          </a>
+        ) : (
+          // link desligado: não deixa divulgar um link que mostraria "fechado"
+          <button type="button" disabled>
+            Ligue o link para divulgar
+          </button>
+        )}
         <button type="button" onClick={copiar}>
           Copiar link
         </button>

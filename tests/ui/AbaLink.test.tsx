@@ -100,3 +100,17 @@ describe('aba Link', () => {
     await waitFor(() => expect(resumo()).toHaveTextContent('Sem horários livres'));
   });
 });
+
+describe('aba Link com o link desligado', () => {
+  it('não oferece divulgar: troca "Mandar no WhatsApp" pelo aviso para ligar o link', () => {
+    renderComConfig(<AbaLink />, { ...CONFIG_TESTE, link_ativo: false });
+    expect(screen.queryByRole('link', { name: 'Mandar no WhatsApp' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ligue o link para divulgar' })).toBeDisabled();
+  });
+
+  it('ao religar, "Mandar no WhatsApp" volta', async () => {
+    renderComConfig(<AbaLink />, { ...CONFIG_TESTE, link_ativo: false });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Link ligado' }));
+    expect(await screen.findByRole('link', { name: 'Mandar no WhatsApp' })).toBeInTheDocument();
+  });
+});

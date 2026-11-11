@@ -76,3 +76,15 @@ describe('cartão Amanhã', () => {
     await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-19', '2026-11-19'));
   });
 });
+
+describe('cartão Amanhã — estabilidade da tela', () => {
+  it('enquanto carrega, já ocupa o lugar do cartão (a grade não pula quando a resposta chega)', async () => {
+    let responder: (v: AgendamentoCompleto[]) => void = () => {};
+    m.listAgendamentos.mockReturnValue(new Promise((r) => (responder = r)));
+    const { container } = renderComConfig(<CartaoAmanha />);
+    expect(container.querySelector('.cartao-amanha')).not.toBeNull();
+    expect(screen.getByText('Amanhã: …')).toBeInTheDocument();
+    responder([JOAO]);
+    expect(await screen.findByText('Amanhã: 1 cliente')).toBeInTheDocument();
+  });
+});
