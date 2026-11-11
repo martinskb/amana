@@ -4,7 +4,7 @@ import { findOrCreateCliente, listClientes } from '../data/clientes';
 import { ConflitoDeHorarioError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import { dataLocal, horaLocal, instanteLocal } from '../lib/slots';
-import { normalizePhone } from '../lib/whatsapp';
+import { MSG_WHATSAPP_INVALIDO, normalizePhone } from '../lib/whatsapp';
 import type { AgendamentoCompleto, Cliente, Servico } from '../types';
 import { useConfig } from './contexto';
 
@@ -68,7 +68,7 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
         if (!clienteId) {
           if (!termo.trim()) return setErro('Informe o nome do cliente.');
           const tel = normalizePhone(telefone);
-          if (!tel) return setErro('Telefone inválido. Use DDD + número, por exemplo (11) 98765-4321.');
+          if (!tel) return setErro(MSG_WHATSAPP_INVALIDO);
           clienteId = (await findOrCreateCliente(supabase, termo.trim(), tel)).id;
         }
         await criarAgendamento(supabase, {

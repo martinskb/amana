@@ -136,14 +136,14 @@ describe('Agenda', () => {
     expect(m.criarAgendamento).toHaveBeenCalledWith({}, expect.objectContaining({ cliente_id: 'c9' }));
   });
 
-  it('salvar com telefone inválido mostra "Telefone inválido" e não grava', async () => {
+  it('salvar com telefone inválido mostra "WhatsApp inválido" e não grava', async () => {
     m.listClientes.mockResolvedValue([]);
     renderComConfig(<Agenda />);
     await abrirNovo();
     await userEvent.type(screen.getByLabelText('Cliente'), 'Pedro');
     await userEvent.type(screen.getByLabelText('Telefone'), '1234');
     await salvar();
-    expect(screen.getByRole('alert')).toHaveTextContent('Telefone inválido');
+    expect(screen.getByRole('alert')).toHaveTextContent('WhatsApp inválido. Use DDD + número, ou + e o código do país.');
     expect(m.criarAgendamento).not.toHaveBeenCalled();
   });
 

@@ -1,17 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { normalizePhone, renderModelo, waLink } from '../../src/lib/whatsapp';
+import { CASOS_TELEFONE } from './casosTelefone';
 
 describe('normalizePhone', () => {
-  it.each(['(11) 98765-4321', '+55 11 98765-4321', '011987654321', '11987654321', '5511987654321'])(
-    'celular %s',
-    (raw) => expect(normalizePhone(raw)).toBe('5511987654321'),
-  );
-
-  it('fixo', () => expect(normalizePhone('(11) 3456-7890')).toBe('551134567890'));
-
-  it.each(['98765-4321', '12345', '', 'abc', '+1 415 555 0100 99'])('inválido %j', (raw) =>
-    expect(normalizePhone(raw)).toBeNull(),
-  );
+  it.each(CASOS_TELEFONE)('%j → %j', (entrada, esperado) => expect(normalizePhone(entrada)).toBe(esperado));
 });
 
 describe('waLink', () => {
