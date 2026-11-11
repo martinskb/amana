@@ -3,8 +3,8 @@ import type { Agendamento, AgendamentoCompleto, Status } from '../types';
 import { executar } from './erros';
 import type { SupabaseClient } from './supabase';
 
-const CAMPOS = 'id, cliente_id, servico_id, inicio, fim, status, observacao';
-const COMPLETO = `${CAMPOS}, cliente:clientes(nome,telefone), servico:servicos(nome)`;
+const CAMPOS = 'id, cliente_id, servico_id, inicio, fim, status, observacao, origem';
+const COMPLETO = `${CAMPOS}, criado_em, cliente:clientes(nome,telefone), servico:servicos(nome)`;
 
 /** Agendamentos com início entre 00:00 de `de` e 24:00 de `ate`, em hora local do negócio. */
 export async function listAgendamentos(db: SupabaseClient, de: string, ate: string): Promise<AgendamentoCompleto[]> {

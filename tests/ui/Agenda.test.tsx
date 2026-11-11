@@ -38,6 +38,8 @@ function ag(id: string, inicio: string, fim: string, nome: string, status: Statu
     fim,
     status,
     observacao: null,
+    origem: 'dono',
+    criado_em: '2026-11-01T00:00:00Z',
     cliente: { nome, telefone: nome === 'João' ? JOAO.telefone : '5511911112222' },
     servico: { nome: 'Corte' },
   };
@@ -118,6 +120,7 @@ describe('Agenda', () => {
       fim: '2026-11-17T12:30:00.000Z',
       status: 'marcado',
       observacao: null,
+      origem: 'dono',
     });
   });
 

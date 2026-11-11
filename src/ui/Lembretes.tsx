@@ -39,7 +39,7 @@ export default function Lembretes() {
           return (
             <li key={a.id}>
               <span>
-                {hora} {a.cliente.nome} <span className="sutil">· {a.servico.nome}</span>
+                {hora} {a.cliente.nome} <span className="sutil">· {a.servico?.nome ?? '—'}</span>
               </span>
               <a
                 className="botao"

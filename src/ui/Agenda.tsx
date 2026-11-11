@@ -170,7 +170,7 @@ export default function Agenda() {
                       className={`ag ${item.agendamento.status}`}
                       onClick={() => setPainel({ tipo: 'detalhes', agendamento: item.agendamento })}
                     >
-                      {item.hora} {item.agendamento.cliente.nome} · {item.agendamento.servico.nome}
+                      {item.hora} {item.agendamento.cliente.nome} · {item.agendamento.servico?.nome ?? '—'}
                     </button>
                   </li>
                 ) : (

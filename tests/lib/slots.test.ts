@@ -17,6 +17,10 @@ const config: Config = {
   modelo_livres: '{horarios}',
   modelo_lembrete: '',
   ultimo_backup: null,
+  dias_abertos: 14,
+  link_ativo: true,
+  telefone_negocio: null,
+  modelo_cancelamento: '',
 };
 
 const ag = (inicio: string, fim: string, status: Status = 'marcado'): Agendamento => ({
@@ -27,6 +31,7 @@ const ag = (inicio: string, fim: string, status: Status = 'marcado'): Agendament
   fim: sp(fim).toISOString(),
   status,
   observacao: null,
+  origem: 'dono',
 });
 
 const TERCA = '2026-11-17';

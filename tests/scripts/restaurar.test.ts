@@ -20,16 +20,18 @@ const ARQUIVO: BackupFile = {
     { id: C2, nome: 'Bia', telefone: '5511900000002', criado_em: '2026-11-02T10:00:00.000Z' },
   ],
   agendamentos: [
-    { id: 'cccccccc-0000-0000-0000-000000000001', cliente_id: C1, servico_id: S1, inicio: '2026-11-17T13:00:00.000Z', fim: '2026-11-17T13:30:00.000Z', status: 'marcado', observacao: null },
-    { id: 'cccccccc-0000-0000-0000-000000000002', cliente_id: C2, servico_id: S1, inicio: '2026-11-17T13:30:00.000Z', fim: '2026-11-17T14:00:00.000Z', status: 'confirmado', observacao: 'barba também' },
-    { id: 'cccccccc-0000-0000-0000-000000000003', cliente_id: C1, servico_id: S1, inicio: '2026-11-10T13:00:00.000Z', fim: '2026-11-10T13:30:00.000Z', status: 'concluido', observacao: null },
+    { id: 'cccccccc-0000-0000-0000-000000000001', cliente_id: C1, servico_id: S1, inicio: '2026-11-17T13:00:00.000Z', fim: '2026-11-17T13:30:00.000Z', status: 'marcado', observacao: null, origem: 'dono' },
+    { id: 'cccccccc-0000-0000-0000-000000000002', cliente_id: C2, servico_id: S1, inicio: '2026-11-17T13:30:00.000Z', fim: '2026-11-17T14:00:00.000Z', status: 'confirmado', observacao: 'barba também', origem: 'link' },
+    { id: 'cccccccc-0000-0000-0000-000000000003', cliente_id: C1, servico_id: null, inicio: '2026-11-10T13:00:00.000Z', fim: '2026-11-10T13:30:00.000Z', status: 'concluido', observacao: null, origem: 'dono' },
   ],
+  horarios_ajuste: [{ id: 'dddddddd-0000-0000-0000-000000000001', inicio: '2026-11-17T22:00:00.000Z', tipo: 'extra' }],
   configuracoes: [
     {
       nome_negocio: 'Barbearia', fuso: 'America/Sao_Paulo',
       expediente: { 0: [], 1: [], 2: [{ inicio: '09:00', fim: '12:00' }], 3: [], 4: [], 5: [], 6: [] },
       folgas: ['2026-12-25'], passo_min: 30, antecedencia_min: 60,
       modelo_livres: 'Livres: {horarios}', modelo_lembrete: 'Oi {nome}', ultimo_backup: '2026-11-17T12:00:00.000Z',
+      dias_abertos: 21, link_ativo: false, telefone_negocio: '5511900001111', modelo_cancelamento: 'Não vai dar, {nome}.',
     },
   ],
 };
@@ -48,9 +50,12 @@ describe('restaurar', { timeout: 30_000 }, () => {
     expect((await db.query('select * from servicos')).rows).toEqual(ARQUIVO.servicos);
 
     const ags = (await db.query<Record<string, unknown>>(
-      'select id, cliente_id, servico_id, inicio, fim, status, observacao from agendamentos order by id',
+      'select id, cliente_id, servico_id, inicio, fim, status, observacao, origem from agendamentos order by id',
     )).rows;
     expect(ags.map((a) => ({ ...a, inicio: iso(a.inicio), fim: iso(a.fim) }))).toEqual(ARQUIVO.agendamentos);
+
+    const ajustes = (await db.query<Record<string, unknown>>('select id, inicio, tipo from horarios_ajuste')).rows;
+    expect(ajustes.map((a) => ({ ...a, inicio: iso(a.inicio) }))).toEqual(ARQUIVO.horarios_ajuste);
 
     const [cfg] = (await db.query<Record<string, unknown>>('select * from configuracoes')).rows;
     expect({ ...cfg, ultimo_backup: iso(cfg.ultimo_backup) }).toEqual({ id: 1, ...ARQUIVO.configuracoes[0] });
@@ -93,5 +98,13 @@ describe('restaurar', { timeout: 30_000 }, () => {
     );
     expect((await db.query('select * from configuracoes')).rows).toHaveLength(1);
     expect((await db.query('select * from clientes')).rows).toHaveLength(0);
+  });
+
+  it('backup da v1 (sem horarios_ajuste) restaura normalmente', async () => {
+    const db = await novoBanco();
+    const { horarios_ajuste: _, ...v1 } = ARQUIVO;
+    await restaurar(consulta(db), v1 as BackupFile, { confirmarSubstituir: false });
+    expect((await db.query('select * from clientes')).rows).toHaveLength(2);
+    expect((await db.query('select * from horarios_ajuste')).rows).toHaveLength(0);
   });
 });

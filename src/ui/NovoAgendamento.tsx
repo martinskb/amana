@@ -78,6 +78,7 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
           fim: fim.toISOString(),
           status: 'marcado',
           observacao: obs,
+          origem: 'dono',
         });
       }
       onSalvo();

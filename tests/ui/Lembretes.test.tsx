@@ -13,7 +13,7 @@ import Lembretes from '../../src/ui/Lembretes';
 
 function ag(id: string, inicio: string, nome: string, telefone: string, status: Status): AgendamentoCompleto {
   return {
-    id, cliente_id: id, servico_id: 's1', inicio, fim: inicio, status, observacao: null,
+    id, cliente_id: id, servico_id: 's1', inicio, fim: inicio, status, observacao: null, origem: 'dono', criado_em: '2026-11-01T00:00:00Z',
     cliente: { nome, telefone }, servico: { nome: 'Corte' },
   };
 }

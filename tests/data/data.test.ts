@@ -23,6 +23,7 @@ const novo = {
   fim: '2026-11-17T14:00:00.000Z',
   status: 'marcado' as const,
   observacao: null,
+  origem: 'dono' as const,
 };
 
 describe('camada de dados', () => {

@@ -1,7 +1,7 @@
 import { saveConfig } from '../data/configuracoes';
 import { executar } from '../data/erros';
 import type { SupabaseClient } from '../data/supabase';
-import type { Agendamento, Cliente, Config, Servico } from '../types';
+import type { Agendamento, Cliente, Config, HorarioAjuste, Servico } from '../types';
 import { dataLocal, FUSO } from './slots';
 
 export interface BackupFile {
@@ -11,6 +11,8 @@ export interface BackupFile {
   servicos: Servico[];
   agendamentos: Agendamento[];
   configuracoes: Config[];
+  /** v2: horários fechados e extras. Ausente nos backups da v1. */
+  horarios_ajuste?: HorarioAjuste[];
 }
 
 const SETE_DIAS = 7 * 24 * 60 * 60 * 1000;
@@ -33,13 +35,14 @@ export async function exportBackup(db: SupabaseClient): Promise<BackupFile> {
       if (pagina.length < PAGINA) return linhas;
     }
   }
-  const [clientes, servicos, agendamentos, configuracoes] = await Promise.all([
+  const [clientes, servicos, agendamentos, configuracoes, horarios_ajuste] = await Promise.all([
     tudo<Cliente>('clientes'),
     tudo<Servico>('servicos'),
     tudo<Agendamento>('agendamentos'),
     tudo<Config>('configuracoes'),
+    tudo<HorarioAjuste>('horarios_ajuste'),
   ]);
-  return { versao: 1, gerado_em: new Date().toISOString(), clientes, servicos, agendamentos, configuracoes };
+  return { versao: 1, gerado_em: new Date().toISOString(), clientes, servicos, agendamentos, configuracoes, horarios_ajuste };
 }
 
 /**

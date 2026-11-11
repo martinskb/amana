@@ -10,7 +10,7 @@ describe('exportBackup', () => {
   it('com tabelas vazias devolve versao 1 e quatro listas vazias', async () => {
     servidor.use(http.get(`${REST}/:tabela`, () => HttpResponse.json([])));
     const b = await exportBackup(dbTeste);
-    expect(b).toMatchObject({ versao: 1, clientes: [], servicos: [], agendamentos: [], configuracoes: [] });
+    expect(b).toMatchObject({ versao: 1, clientes: [], servicos: [], agendamentos: [], configuracoes: [], horarios_ajuste: [] });
     expect(Number.isNaN(Date.parse(b.gerado_em))).toBe(false);
   });
 

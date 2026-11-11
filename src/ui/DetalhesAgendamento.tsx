@@ -41,7 +41,7 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
     <section role="dialog" aria-label="Agendamento" className="painel">
       <h3>{a.cliente.nome}</h3>
       <p>
-        {abreviaDia(data)} {data.slice(8, 10)}/{data.slice(5, 7)} às {horaLocal(inicio, config.fuso)} · {a.servico.nome}
+        {abreviaDia(data)} {data.slice(8, 10)}/{data.slice(5, 7)} às {horaLocal(inicio, config.fuso)} · {a.servico?.nome ?? 'sem serviço'}
       </p>
       <p className="sutil">Situação: {NOMES[a.status]}</p>
       {a.observacao && <p>{a.observacao}</p>}

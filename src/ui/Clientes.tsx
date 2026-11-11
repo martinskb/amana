@@ -56,7 +56,7 @@ export default function Clientes() {
             const data = dataLocal(ini, config.fuso).split('-').reverse().join('/');
             return (
               <li key={a.id}>
-                {data} {horaLocal(ini, config.fuso)} · {a.servico.nome} · {STATUS[a.status]}
+                {data} {horaLocal(ini, config.fuso)} · {a.servico?.nome ?? '—'} · {STATUS[a.status]}
               </li>
             );
           })}
