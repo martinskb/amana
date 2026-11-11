@@ -6,6 +6,7 @@ import { SemAcessoError, SemConexaoError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import type { Config } from '../types';
 import Agenda from './Agenda';
+import Clientes from './Clientes';
 import Configuracoes from './Configuracoes';
 import HorariosLivres from './HorariosLivres';
 import Lembretes from './Lembretes';
@@ -55,6 +56,7 @@ function Telas() {
           <Route path="/" element={<Agenda />} />
           <Route path="/livres" element={<HorariosLivres />} />
           <Route path="/lembretes" element={<Lembretes />} />
+          <Route path="/clientes" element={<Clientes />} />
           <Route path="/config" element={<Configuracoes />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

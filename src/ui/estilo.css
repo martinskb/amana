@@ -35,3 +35,4 @@ label.inline { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 
 .sugestoes { list-style: none; padding: 0; display: grid; gap: 4px; }
 a.botao { padding: 10px 14px; border-radius: 10px; background: #16a34a; color: #fff; text-decoration: none; }
 button.perigo { color: #b91c1c; border-color: #fecaca; }
+.lista button.link { width: 100%; text-align: left; border: 0; background: none; padding: 4px 0; }
