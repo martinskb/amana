@@ -13,6 +13,10 @@ const m = vi.hoisted(() => ({
   findOrCreateCliente: vi.fn(),
   listClientes: vi.fn(),
   listServicos: vi.fn(),
+  listAjustes: vi.fn(),
+  fecharHorario: vi.fn(),
+  criarExtra: vi.fn(),
+  removerAjuste: vi.fn(),
 }));
 vi.mock('../../src/data/supabase', () => ({ supabase: {} }));
 vi.mock('../../src/data/agendamentos', () => ({
@@ -23,6 +27,12 @@ vi.mock('../../src/data/agendamentos', () => ({
 }));
 vi.mock('../../src/data/clientes', () => ({ findOrCreateCliente: m.findOrCreateCliente, listClientes: m.listClientes }));
 vi.mock('../../src/data/servicos', () => ({ listServicos: m.listServicos }));
+vi.mock('../../src/data/ajustes', () => ({
+  listAjustes: m.listAjustes,
+  fecharHorario: m.fecharHorario,
+  criarExtra: m.criarExtra,
+  removerAjuste: m.removerAjuste,
+}));
 
 import Agenda from '../../src/ui/Agenda';
 
@@ -64,13 +74,20 @@ beforeEach(() => {
   m.criarAgendamento.mockResolvedValue({ id: 'novo' });
   m.editarAgendamento.mockResolvedValue(undefined);
   m.mudarStatus.mockResolvedValue(undefined);
+  m.listAjustes.mockResolvedValue([]);
+  m.fecharHorario.mockResolvedValue(undefined);
+  m.criarExtra.mockResolvedValue(undefined);
+  m.removerAjuste.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-const abrirNovo = async (rotulo = 'Marcar ter 17/11 às 09:00') => userEvent.click(await screen.findByRole('button', { name: rotulo }));
+const abrirNovo = async (rotulo = 'Marcar ter 17/11 às 09:00') => {
+  await userEvent.click(await screen.findByRole('button', { name: rotulo }));
+  await userEvent.click(screen.getByRole('button', { name: 'Marcar cliente' }));
+};
 const salvar = () => userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
 describe('Agenda', () => {
@@ -226,5 +243,46 @@ describe('Agenda', () => {
     const antes = m.listAgendamentos.mock.calls.length;
     act(() => document.dispatchEvent(new Event('visibilitychange')));
     await waitFor(() => expect(m.listAgendamentos.mock.calls.length).toBeGreaterThan(antes));
+  });
+
+  it('tocar num horário livre oferece "Marcar cliente" e "Fechar este horário"', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    expect(screen.getByRole('button', { name: 'Marcar cliente' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Fechar este horário' })).toBeInTheDocument();
+  });
+
+  it('Fechar este horário grava o fechado e recarrega', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    const antes = m.listAjustes.mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar este horário' }));
+    expect(m.fecharHorario).toHaveBeenCalledWith({}, '2026-11-17T12:00:00.000Z');
+    await waitFor(() => expect(m.listAjustes.mock.calls.length).toBeGreaterThan(antes));
+  });
+
+  it('horário fechado aparece como "fechado" e pode ser reaberto', async () => {
+    m.listAjustes.mockResolvedValue([{ id: 'f1', tipo: 'fechado', inicio: '2026-11-17T12:00:00.000Z' }]);
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /09:00 fechado/ }));
+    expect(screen.queryByRole('button', { name: 'Marcar ter 17/11 às 09:00' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Reabrir' }));
+    expect(m.removerAjuste).toHaveBeenCalledWith({}, 'f1');
+  });
+
+  it('+ Horário extra abre um horário fora do expediente', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: '+ Horário extra' }));
+    fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-11-17' } });
+    fireEvent.change(screen.getByLabelText('Hora'), { target: { value: '19:00' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir horário' }));
+    expect(m.criarExtra).toHaveBeenCalledWith({}, '2026-11-17T22:00:00.000Z');
+  });
+
+  it('o horário extra aparece livre na grade', async () => {
+    m.listAjustes.mockResolvedValue([{ id: 'e1', tipo: 'extra', inicio: '2026-11-17T22:00:00.000Z' }]);
+    renderComConfig(<Agenda />);
+    expect(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 19:00' })).toBeInTheDocument();
+    expect(m.listAjustes).toHaveBeenCalledWith({}, '2026-11-17', '2026-11-17');
   });
 });

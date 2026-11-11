@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listAgendamentos } from '../data/agendamentos';
+import { criarExtra, fecharHorario, listAjustes, removerAjuste } from '../data/ajustes';
 import { listServicos } from '../data/servicos';
 import { supabase } from '../data/supabase';
-import { abreviaDia, dataLocal, freeSlots, horaLocal, somarDias } from '../lib/slots';
-import type { AgendamentoCompleto, Servico } from '../types';
+import { abreviaDia, dataLocal, freeSlots, gerarHorarios, horaLocal, instanteLocal, somarDias } from '../lib/slots';
+import type { AgendamentoCompleto, HorarioAjuste, Servico } from '../types';
 import { useConfig } from './contexto';
 import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
@@ -13,11 +14,15 @@ type Painel =
   | { tipo: 'novo'; data: string; hora: string }
   | { tipo: 'detalhes'; agendamento: AgendamentoCompleto }
   | { tipo: 'editar'; agendamento: AgendamentoCompleto }
+  | { tipo: 'livre'; data: string; hora: string }
+  | { tipo: 'fechado'; data: string; hora: string; ajusteId: string }
+  | { tipo: 'extra' }
   | null;
 
 type Item =
   | { tipo: 'agendamento'; hora: string; agendamento: AgendamentoCompleto }
-  | { tipo: 'livre'; hora: string };
+  | { tipo: 'livre'; hora: string }
+  | { tipo: 'fechado'; hora: string; ajusteId: string };
 
 const ddmm = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
 
@@ -27,6 +32,7 @@ export default function Agenda() {
   const [modo, setModo] = useState<'dia' | 'semana'>('dia');
   const [inicio, setInicio] = useState(hoje);
   const [agendamentos, setAgendamentos] = useState<AgendamentoCompleto[] | null>(null);
+  const [ajustes, setAjustes] = useState<HorarioAjuste[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [painel, setPainel] = useState<Painel>(null);
   const [erro, setErro] = useState(false);
@@ -37,7 +43,9 @@ export default function Agenda() {
   const carregar = useCallback(async () => {
     setErro(false);
     try {
-      setAgendamentos(await listAgendamentos(supabase, inicio, ate));
+      const [ags, ajs] = await Promise.all([listAgendamentos(supabase, inicio, ate), listAjustes(supabase, inicio, ate)]);
+      setAjustes(ajs);
+      setAgendamentos(ags);
     } catch {
       setErro(true);
     }
@@ -78,15 +86,40 @@ export default function Agenda() {
     const livres = freeSlots({
       config: { ...config, antecedencia_min: 0 },
       agendamentos: visiveis,
-      ajustes: [],
+      ajustes,
       de: inicio,
       ate,
       agora: new Date(),
     });
     for (const s of livres) mapa.get(s.data)?.push({ tipo: 'livre', hora: s.hora });
+    const passo = config.passo_min * 60_000;
+    const fechados = ajustes.filter((a) => a.tipo === 'fechado');
+    for (const h of gerarHorarios({ config, ajustes, de: inicio, ate })) {
+      if (!h.fechado) continue;
+      const ini = h.inicio.getTime();
+      const ajuste = fechados.find((f) => {
+        const fi = new Date(f.inicio).getTime();
+        return ini < fi + passo && fi < ini + passo;
+      });
+      if (ajuste) mapa.get(h.data)?.push({ tipo: 'fechado', hora: h.hora, ajusteId: ajuste.id });
+    }
     for (const itens of mapa.values()) itens.sort((x, y) => x.hora.localeCompare(y.hora));
     return mapa;
-  }, [agendamentos, config, inicio, ate]);
+  }, [agendamentos, ajustes, config, inicio, ate]);
+
+  const [erroAjuste, setErroAjuste] = useState<string | null>(null);
+  const [extraData, setExtraData] = useState(hoje);
+  const [extraHora, setExtraHora] = useState('');
+
+  async function ajustar(acao: () => Promise<void>) {
+    setErroAjuste(null);
+    try {
+      await acao();
+      depoisDeSalvar();
+    } catch {
+      setErroAjuste('Não foi possível salvar. Confira a internet e tente de novo.');
+    }
+  }
 
   function depoisDeSalvar() {
     setPainel(null);
@@ -102,6 +135,84 @@ export default function Agenda() {
         onSalvo={depoisDeSalvar}
         onFechar={() => setPainel(null)}
       />
+    );
+
+  if (painel?.tipo === 'livre')
+    return (
+      <section role="dialog" aria-label="Horário livre" className="painel">
+        <h3>
+          {abreviaDia(painel.data)} {ddmm(painel.data)} às {painel.hora}
+        </h3>
+        <div className="linha">
+          <button type="button" className="primario" onClick={() => setPainel({ tipo: 'novo', data: painel.data, hora: painel.hora })}>
+            Marcar cliente
+          </button>
+          <button
+            type="button"
+            onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(painel.data, painel.hora, config.fuso).toISOString()))}
+          >
+            Fechar este horário
+          </button>
+          <button type="button" onClick={() => setPainel(null)}>
+            Voltar
+          </button>
+        </div>
+        {erroAjuste && <p role="alert">{erroAjuste}</p>}
+      </section>
+    );
+
+  if (painel?.tipo === 'fechado')
+    return (
+      <section role="dialog" aria-label="Horário fechado" className="painel">
+        <h3>
+          {abreviaDia(painel.data)} {ddmm(painel.data)} às {painel.hora} — fechado
+        </h3>
+        <p className="sutil">Este horário não aparece no link de agendamento.</p>
+        <div className="linha">
+          <button type="button" className="primario" onClick={() => ajustar(() => removerAjuste(supabase, painel.ajusteId))}>
+            Reabrir
+          </button>
+          <button type="button" onClick={() => setPainel(null)}>
+            Voltar
+          </button>
+        </div>
+        {erroAjuste && <p role="alert">{erroAjuste}</p>}
+      </section>
+    );
+
+  if (painel?.tipo === 'extra')
+    return (
+      <section role="dialog" aria-label="Horário extra" className="painel">
+        <h3>Abrir horário extra</h3>
+        <p className="sutil">Um horário fora do expediente, que aparece no link.</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!extraData || !extraHora) return setErroAjuste('Escolha a data e a hora.');
+            void ajustar(() => criarExtra(supabase, instanteLocal(extraData, extraHora, config.fuso).toISOString()));
+          }}
+        >
+          <div className="linha">
+            <label>
+              Data
+              <input type="date" value={extraData} onChange={(e) => setExtraData(e.target.value)} />
+            </label>
+            <label>
+              Hora
+              <input type="time" step={300} value={extraHora} onChange={(e) => setExtraHora(e.target.value)} />
+            </label>
+          </div>
+          <div className="linha">
+            <button type="submit" className="primario">
+              Abrir horário
+            </button>
+            <button type="button" onClick={() => setPainel(null)}>
+              Voltar
+            </button>
+          </div>
+        </form>
+        {erroAjuste && <p role="alert">{erroAjuste}</p>}
+      </section>
     );
 
   if (painel?.tipo === 'detalhes')
@@ -142,6 +253,9 @@ export default function Agenda() {
         >
           + Novo
         </button>
+        <button type="button" onClick={() => setPainel({ tipo: 'extra' })}>
+          + Horário extra
+        </button>
       </div>
 
       {erro && (
@@ -173,13 +287,23 @@ export default function Agenda() {
                       {item.hora} {item.agendamento.cliente.nome} · {item.agendamento.servico?.nome ?? '—'}
                     </button>
                   </li>
+                ) : item.tipo === 'fechado' ? (
+                  <li key={`fechado-${item.hora}`}>
+                    <button
+                      type="button"
+                      className="fechado"
+                      onClick={() => setPainel({ tipo: 'fechado', data, hora: item.hora, ajusteId: item.ajusteId })}
+                    >
+                      {item.hora} fechado
+                    </button>
+                  </li>
                 ) : (
                   <li key={`livre-${item.hora}`}>
                     <button
                       type="button"
                       className="livre"
                       aria-label={`Marcar ${abreviaDia(data)} ${ddmm(data)} às ${item.hora}`}
-                      onClick={() => setPainel({ tipo: 'novo', data, hora: item.hora })}
+                      onClick={() => setPainel({ tipo: 'livre', data, hora: item.hora })}
                     >
                       {item.hora} livre
                     </button>

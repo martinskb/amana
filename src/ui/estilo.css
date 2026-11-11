@@ -41,3 +41,4 @@ button.perigo { color: #b91c1c; border-color: #fecaca; }
 .publico .dias, .publico .horarios { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .publico .dias button[aria-pressed=true], .publico .horarios button[aria-pressed=true] { background: #1f2937; color: #fff; }
 .publico .sucesso { font-size: 18px; font-weight: 600; }
+.grade .fechado { text-decoration: line-through; color: #9ca3af; border-style: dotted; }
