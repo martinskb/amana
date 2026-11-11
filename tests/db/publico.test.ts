@@ -201,3 +201,53 @@ describe('agendar_publico', { timeout: 30_000 }, () => {
     expect((await db.query('select * from clientes')).rows).toHaveLength(0);
   });
 });
+
+describe('correções da revisão final', { timeout: 30_000 }, () => {
+  it.each(CASOS_TELEFONE.filter(([, e]) => e !== null))(
+    'o que a página manda ("+" + normalizado de %j) volta igual no servidor',
+    async (_entrada, esperado) => {
+      const db = await novoBanco();
+      const { rows: [r] } = await db.query<{ t: string | null }>('select normalizar_telefone($1) t', [`+${esperado}`]);
+      expect(r.t).toBe(esperado);
+    },
+  );
+
+  it('corrida perdida (trava do banco) não deixa cliente órfão', async () => {
+    const db = await novoBanco();
+    await inserirCenario(db);
+    // simula a outra pessoa gravando o mesmo horário entre a checagem e o insert
+    await db.exec(`
+      create function simula_corrida() returns trigger language plpgsql as $$
+      begin raise exclusion_violation using message = 'corrida'; end $$;
+      create trigger simula_corrida before insert on agendamentos for each row execute function simula_corrida();
+    `);
+    const { rows: [r] } = await db.query<{ r: { ok: boolean; erro?: string } }>(
+      'select agendar_publico_em($1, $2, $3, $4, $5) r',
+      ['Nova', '11955554444', iso('2026-11-17 09:00'), sp('2026-11-16 20:00').toISOString(), '1.1.1.1'],
+    );
+    expect(r.r).toEqual({ ok: false, erro: 'horario_indisponivel' });
+    expect((await db.query(`select 1 from clientes where telefone = '5511955554444'`)).rows).toHaveLength(0);
+  });
+
+  it('a checagem do limite é serializada por IP (trava consultiva na transação)', async () => {
+    const db = await novoBanco();
+    const { rows: [f] } = await db.query<{ src: string }>(
+      `select prosrc as src from pg_proc where proname = 'agendar_publico_em'`,
+    );
+    expect(f.src).toMatch(/pg_advisory_xact_lock\(\s*hashtext\(\s*'agendar_publico:'\s*\|\|\s*p_ip\s*\)\s*\)/);
+    expect(f.src.indexOf('pg_advisory_xact_lock')).toBeLessThan(f.src.indexOf('from tentativas_publicas'));
+  });
+
+  it('IPv6 é agrupado por /64; IPv4 e valor estranho ficam como estão', async () => {
+    const db = await novoBanco();
+    const ip = async (h: string) => {
+      await db.exec(`set request.headers = '${JSON.stringify({ 'cf-connecting-ip': h })}'`);
+      return (await db.query<{ ip: string }>('select ip_cliente() ip')).rows[0].ip;
+    };
+    expect(await ip('2001:db8:1:2:aaaa::1')).toBe('2001:db8:1:2::/64');
+    expect(await ip('2001:db8:1:2:bbbb:cccc:dddd:2')).toBe('2001:db8:1:2::/64');
+    expect(await ip('2001:db8:1:3::1')).toBe('2001:db8:1:3::/64');
+    expect(await ip('9.9.9.9')).toBe('9.9.9.9');
+    expect(await ip('lixo:::x')).toBe('lixo:::x');
+  });
+});

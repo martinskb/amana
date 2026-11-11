@@ -65,7 +65,8 @@ export default function Agendar() {
 
     setEnviando(true);
     try {
-      const r = await agendarPublico(supabase, nomeLimpo, tel, horario);
+      // com "+": o servidor normaliza de novo e um número estrangeiro não vira brasileiro
+      const r = await agendarPublico(supabase, nomeLimpo, `+${tel}`, horario);
       if (r.ok) {
         setMarcado({ nome: nomeLimpo, inicio: r.inicio });
       } else if (r.erro === 'link_fechado') {

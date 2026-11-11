@@ -331,13 +331,17 @@ describe('Agenda', () => {
 
   it('mostra quantos agendamentos chegaram pelo link desde a última visita e some ao tocar', async () => {
     localStorage.setItem('agenda:ultimaVisita', '2026-11-16T10:00:00.000Z');
-    m.listNovosPeloLink.mockResolvedValue([{ ...MARIA_QUARTA, origem: 'link' }, { ...JOAO_TERCA, origem: 'link' }]);
+    m.listNovosPeloLink.mockResolvedValue([
+      { ...MARIA_QUARTA, origem: 'link', criado_em: '2026-11-17T10:30:00+00:00' },
+      { ...JOAO_TERCA, origem: 'link', criado_em: '2026-11-16T22:00:00+00:00' },
+    ]);
     renderComConfig(<Agenda />);
     expect(await screen.findByText('2 agendamentos novos pelo link')).toBeInTheDocument();
     expect(m.listNovosPeloLink).toHaveBeenCalledWith({}, '2026-11-16T10:00:00.000Z');
     await userEvent.click(screen.getByRole('button', { name: 'Entendi' }));
     expect(screen.queryByText(/novos? pelo link/)).not.toBeInTheDocument();
-    expect(localStorage.getItem('agenda:ultimaVisita')).toBe('2026-11-17T11:00:00.000Z');
+    // guarda o criado_em mais recente mostrado (relógio do servidor), não a hora do celular
+    expect(localStorage.getItem('agenda:ultimaVisita')).toBe('2026-11-17T10:30:00+00:00');
   });
 
   it('um só usa o singular', async () => {
@@ -370,5 +374,15 @@ describe('Agenda', () => {
     expect(msg).toContain('não vou conseguir te atender ter às 10h');
     expect(aviso).toHaveAttribute('href', waLink('5511987654321', msg));
     expect(screen.getByText(/Cancelado/)).toBeInTheDocument();
+  });
+
+  it('ao voltar para o app, busca de novo os agendamentos novos pelo link', async () => {
+    localStorage.setItem('agenda:ultimaVisita', '2026-11-16T10:00:00.000Z');
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    expect(screen.queryByText(/novos? pelo link/)).not.toBeInTheDocument();
+    m.listNovosPeloLink.mockResolvedValue([{ ...MARIA_QUARTA, origem: 'link', criado_em: '2026-11-17T10:50:00+00:00' }]);
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(await screen.findByText('1 agendamento novo pelo link')).toBeInTheDocument();
   });
 });

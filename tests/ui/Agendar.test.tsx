@@ -71,7 +71,8 @@ describe('página pública de agendamento', () => {
     expect(screen.getByText('Seu nome e WhatsApp são usados só para este agendamento.')).toBeInTheDocument();
     await preencher('Ana', '(11) 98765-4321');
     await confirmar();
-    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Ana', '5511987654321', '2026-11-18T12:00:00Z');
+    // com "+": o servidor aplica a mesma regra e não confunde com número brasileiro
+    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Ana', '+5511987654321', '2026-11-18T12:00:00Z');
     expect(await screen.findByText('Pronto, Ana! Seu horário: qua 18/11 às 9h.')).toBeInTheDocument();
     expect(falar()).toHaveAttribute('href', waLink('5511900001111', 'Oi! Marquei qua 18/11 às 9h pelo link.'));
   });
@@ -159,5 +160,13 @@ describe('página pública de agendamento', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
     expect(await screen.findByRole('button', { name: 'qua 18' })).toBeInTheDocument();
     await waitFor(() => expect(m.getHorariosPublicos).toHaveBeenCalledTimes(2));
+  });
+
+  it('número internacional vai com + e o código do país', async () => {
+    render(<Agendar />);
+    await escolher9hDeQuarta();
+    await preencher('Rui', '+351 912 345 678');
+    await confirmar();
+    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Rui', '+351912345678', '2026-11-18T12:00:00Z');
   });
 });

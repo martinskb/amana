@@ -143,11 +143,25 @@ $$;
 -- IP do cliente, do lado do servidor: só cf-connecting-ip, que a Cloudflare do Supabase preenche
 -- e recusa quando o cliente tenta mandar (erro 1000). x-forwarded-for e x-real-ip podem ser forjados
 -- por quem chama a API: verificado no projeto real em 2026-11-11 (docs/implantacao.md).
+-- IPv6 é agrupado por /64: uma conexão IPv6 controla um /64 inteiro e o iPhone troca de endereço
+-- sozinho; sem o agrupamento, trocar de endereço furaria o limite.
 create function ip_cliente() returns text
-language sql stable
+language plpgsql stable
 as $$
-  select coalesce(nullif(h ->> 'cf-connecting-ip', ''), 'desconhecido')
-  from (select coalesce(nullif(current_setting('request.headers', true), ''), '{}')::jsonb as h) x
+declare
+  bruto text := coalesce(
+    nullif(coalesce(nullif(current_setting('request.headers', true), ''), '{}')::jsonb ->> 'cf-connecting-ip', ''),
+    'desconhecido');
+begin
+  if position(':' in bruto) > 0 then
+    begin
+      return host(set_masklen(bruto::inet, 64)::cidr) || '/64';
+    exception when others then
+      return bruto; -- valor estranho: usa como veio
+    end;
+  end if;
+  return bruto;
+end
 $$;
 
 -- Interna: recebe `agora` e `ip` para poder ser testada.
@@ -169,6 +183,8 @@ begin
   if char_length(nome_limpo) not between 1 and 80 or tel is null then
     return jsonb_build_object('ok', false, 'erro', 'dados_invalidos');
   end if;
+  -- serializa os pedidos do mesmo IP: sem isso, pedidos simultâneos leriam a contagem ao mesmo tempo
+  perform pg_advisory_xact_lock(hashtext('agendar_publico:' || p_ip));
   if (select count(*) from tentativas_publicas t
       where t.ip = p_ip and t.criado_em > p_agora - interval '1 hour') >= 3 then
     return jsonb_build_object('ok', false, 'erro', 'limite');
@@ -177,10 +193,10 @@ begin
     return jsonb_build_object('ok', false, 'erro', 'horario_indisponivel');
   end if;
 
-  insert into clientes (nome, telefone) values (nome_limpo, tel) on conflict (telefone) do nothing;
-  select c.id into id_cliente from clientes c where c.telefone = tel;
-
   begin
+    -- dentro do bloco protegido: se a trava do banco recusar o horário, o cliente novo também é desfeito
+    insert into clientes (nome, telefone) values (nome_limpo, tel) on conflict (telefone) do nothing;
+    select c.id into id_cliente from clientes c where c.telefone = tel;
     insert into agendamentos (cliente_id, inicio, fim, status, origem)
     values (id_cliente, p_inicio, p_inicio + make_interval(mins => cfg.passo_min), 'marcado', 'link');
   exception when exclusion_violation then

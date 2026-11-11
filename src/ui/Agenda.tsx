@@ -41,12 +41,11 @@ export default function Agenda() {
   const [novos, setNovos] = useState<AgendamentoCompleto[]>([]);
 
   // agendamentos que chegaram pelo link desde a última vez que o dono olhou (neste aparelho)
-  useEffect(() => {
-    const agora = new Date().toISOString();
+  const buscarNovos = useCallback(() => {
     let ultima: string | null = null;
     try {
       ultima = localStorage.getItem(CHAVE_VISITA);
-      if (!ultima) localStorage.setItem(CHAVE_VISITA, agora);
+      if (!ultima) localStorage.setItem(CHAVE_VISITA, new Date().toISOString());
     } catch {
       return; // sem armazenamento (navegação privada): sem aviso
     }
@@ -54,9 +53,18 @@ export default function Agenda() {
     listNovosPeloLink(supabase, ultima).then(setNovos, () => setNovos([]));
   }, []);
 
+  useEffect(() => {
+    buscarNovos();
+  }, [buscarNovos]);
+
   function marcarVisto() {
+    // o criado_em mais recente mostrado (relógio do servidor): o que chegar depois ainda aparece
+    const maisRecente = novos.reduce(
+      (max, a) => (new Date(a.criado_em).getTime() > new Date(max).getTime() ? a.criado_em : max),
+      novos[0]?.criado_em ?? new Date().toISOString(),
+    );
     try {
-      localStorage.setItem(CHAVE_VISITA, new Date().toISOString());
+      localStorage.setItem(CHAVE_VISITA, maisRecente);
     } catch {
       /* sem armazenamento: só esconde */
     }
@@ -97,6 +105,7 @@ export default function Agenda() {
       setInicio((atual) => (atual === antigo ? novoHoje : atual));
     }
     void carregar();
+    buscarNovos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voltas]);
 
