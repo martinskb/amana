@@ -23,4 +23,20 @@ describe('exportBackup', () => {
     const b = await exportBackup(dbTeste);
     expect(b.clientes).toEqual([{ id: 'c1', nome: 'Ana', telefone: '5511900000000' }]);
   });
+
+  it('pagina as tabelas grandes (o Supabase devolve no máximo 1000 linhas por vez)', async () => {
+    const linhas = Array.from({ length: 2500 }, (_, i) => ({ id: String(i).padStart(5, '0') }));
+    servidor.use(
+      http.get(`${REST}/:tabela`, ({ params, request }) => {
+        if (params.tabela !== 'agendamentos') return HttpResponse.json([]);
+        const q = new URL(request.url).searchParams;
+        const offset = Number(q.get('offset') ?? 0);
+        const limit = Math.min(Number(q.get('limit') ?? 1000), 1000);
+        return HttpResponse.json(linhas.slice(offset, offset + limit));
+      }),
+    );
+    const b = await exportBackup(dbTeste);
+    expect(b.agendamentos).toHaveLength(2500);
+    expect(b.agendamentos.at(-1)).toEqual({ id: '02499' });
+  });
 });

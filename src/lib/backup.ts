@@ -14,6 +14,8 @@ export interface BackupFile {
 }
 
 const SETE_DIAS = 7 * 24 * 60 * 60 * 1000;
+/** O Supabase devolve no máximo 1000 linhas por requisição; o backup busca em páginas. */
+const PAGINA = 1000;
 
 export function backupIsStale(ultimo: string | null, agora: Date): boolean {
   if (!ultimo) return true;
@@ -21,7 +23,16 @@ export function backupIsStale(ultimo: string | null, agora: Date): boolean {
 }
 
 export async function exportBackup(db: SupabaseClient): Promise<BackupFile> {
-  const tudo = <T,>(tabela: string) => executar(db.from(tabela).select('*').returns<T[]>());
+  async function tudo<T>(tabela: string): Promise<T[]> {
+    const linhas: T[] = [];
+    for (let de = 0; ; de += PAGINA) {
+      const pagina = await executar(
+        db.from(tabela).select('*').order('id').range(de, de + PAGINA - 1).returns<T[]>(),
+      );
+      linhas.push(...pagina);
+      if (pagina.length < PAGINA) return linhas;
+    }
+  }
   const [clientes, servicos, agendamentos, configuracoes] = await Promise.all([
     tudo<Cliente>('clientes'),
     tudo<Servico>('servicos'),

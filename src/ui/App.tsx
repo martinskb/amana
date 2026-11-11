@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { HashRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { ehErroDeConexao } from '../data/auth';
 import { getConfig } from '../data/configuracoes';
 import { SemAcessoError, SemConexaoError } from '../data/erros';
 import { supabase } from '../data/supabase';
@@ -83,21 +84,24 @@ function Telas() {
 
 export default function App() {
   const nome = import.meta.env.VITE_NOME_NEGOCIO || 'Agenda Fácil';
-  const [sessao, setSessao] = useState<Session | null | undefined>(undefined);
+  // undefined = carregando; 'sem-conexao' = não deu para ler/renovar a sessão
+  const [sessao, setSessao] = useState<Session | null | 'sem-conexao' | undefined>(undefined);
 
-  useEffect(() => {
-    let ativo = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (ativo) setSessao(data.session);
-    });
-    const { data } = supabase.auth.onAuthStateChange((_evento, s) => setSessao(s));
-    return () => {
-      ativo = false;
-      data.subscription.unsubscribe();
-    };
+  const lerSessao = useCallback(async () => {
+    setSessao(undefined);
+    const { data, error } = await supabase.auth.getSession();
+    // sem internet ou projeto pausado: não mandar para o login (a sessão pode estar guardada)
+    setSessao(error && ehErroDeConexao(error) ? 'sem-conexao' : data.session);
   }, []);
 
+  useEffect(() => {
+    void lerSessao();
+    const { data } = supabase.auth.onAuthStateChange((_evento, s) => setSessao(s));
+    return () => data.subscription.unsubscribe();
+  }, [lerSessao]);
+
   if (sessao === undefined) return <p className="carregando">Carregando…</p>;
+  if (sessao === 'sem-conexao') return <SemConexao onTentarDeNovo={lerSessao} />;
   if (!sessao) return <Login nome={nome} />;
   return <Telas />;
 }
