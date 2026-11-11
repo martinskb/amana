@@ -41,3 +41,71 @@ create table tentativas_publicas (
 create index tentativas_publicas_ip_idx on tentativas_publicas (ip, criado_em);
 alter table tentativas_publicas enable row level security;
 revoke all on tentativas_publicas from anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Horários livres do link (spec v2, seção 3). Mesma regra de gerarHorarios/freeSlots
+-- em src/lib/slots.ts; o teste tests/db/concordancia.test.ts mantém as duas iguais.
+-- Interna: recebe `agora` para poder ser testada; o público usa horarios_publicos().
+create function horarios_livres_em(agora timestamptz) returns setof timestamptz
+language sql stable security definer set search_path = public
+as $$
+  with c as (
+    select *, make_interval(mins => passo_min) as passo, (agora at time zone fuso)::date as hoje
+    from configuracoes where id = 1
+  ),
+  dias as (
+    select d::date as dia
+    from c, generate_series(c.hoje, c.hoje + (c.dias_abertos - 1), interval '1 day') d
+  ),
+  do_expediente as (
+    select (h at time zone c.fuso) as inicio
+    from c, dias,
+      jsonb_array_elements(c.expediente -> extract(dow from dias.dia)::int::text) iv,
+      generate_series(dias.dia + (iv ->> 'inicio')::time, dias.dia + (iv ->> 'fim')::time - c.passo, c.passo) h
+    where not (c.folgas ? to_char(dias.dia, 'YYYY-MM-DD'))
+  ),
+  extras as (
+    select a.inicio
+    from c, horarios_ajuste a
+    where a.tipo = 'extra'
+      and (a.inicio at time zone c.fuso)::date between c.hoje and c.hoje + (c.dias_abertos - 1)
+  ),
+  ofertados as (
+    select inicio from do_expediente
+    union
+    select inicio from extras
+  )
+  select o.inicio
+  from ofertados o, c
+  where c.link_ativo
+    and o.inicio >= agora + make_interval(mins => c.antecedencia_min)
+    and not exists (
+      select 1 from horarios_ajuste f
+      where f.tipo = 'fechado' and f.inicio < o.inicio + c.passo and o.inicio < f.inicio + c.passo
+    )
+    and not exists (
+      select 1 from agendamentos a
+      where a.status in ('marcado', 'confirmado') and a.inicio < o.inicio + c.passo and o.inicio < a.fim
+    )
+  order by o.inicio
+$$;
+
+-- Pública: o que a página /#/agendar vê. Nunca devolve dado de cliente.
+create function horarios_publicos() returns jsonb
+language sql stable security definer set search_path = public
+as $$
+  select jsonb_build_object(
+    'nome_negocio', c.nome_negocio,
+    'telefone_negocio', c.telefone_negocio,
+    'link_ativo', c.link_ativo,
+    'horarios', coalesce(
+      (select jsonb_agg(to_char(h at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') order by h)
+       from horarios_livres_em(now()) h),
+      '[]'::jsonb)
+  )
+  from configuracoes c where c.id = 1
+$$;
+
+-- O Supabase concede execute a anon/authenticated em funções novas: fechar as internas.
+revoke execute on function horarios_livres_em(timestamptz) from public, anon, authenticated;
+grant execute on function horarios_publicos() to anon, authenticated;
