@@ -2,6 +2,9 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConflitoDeHorarioError } from '../../src/data/erros';
+import { linkAgendamento } from '../../src/lib/link';
+import { renderModelo, waLink } from '../../src/lib/whatsapp';
+import { CONFIG_TESTE } from '../helpers/config';
 import type { AgendamentoCompleto, Status } from '../../src/types';
 import { renderComConfig } from '../helpers/render';
 
@@ -218,6 +221,7 @@ describe('Agenda', () => {
     await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
     m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, status: 'cancelado' }]);
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar agendamento' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Fechar' }));
     expect(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 10:00' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /10:00 João/ })).not.toBeInTheDocument();
   });
@@ -350,5 +354,21 @@ describe('Agenda', () => {
     renderComConfig(<Agenda />);
     expect(await screen.findByRole('button', { name: /10:00 João/ })).toBeInTheDocument();
     getItem.mockRestore();
+  });
+
+  it('depois de cancelar aparece "Avisar no WhatsApp" com a mensagem de cancelamento', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar agendamento' }));
+    const aviso = await screen.findByRole('link', { name: 'Avisar no WhatsApp' });
+    const msg = renderModelo(CONFIG_TESTE.modelo_cancelamento, {
+      nome: 'João',
+      dia: 'ter',
+      hora: '10h',
+      link: linkAgendamento(),
+    });
+    expect(msg).toContain('não vou conseguir te atender ter às 10h');
+    expect(aviso).toHaveAttribute('href', waLink('5511987654321', msg));
+    expect(screen.getByText(/Cancelado/)).toBeInTheDocument();
   });
 });
