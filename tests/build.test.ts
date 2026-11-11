@@ -45,6 +45,13 @@ describe('build de produção', { timeout: 120_000 }, () => {
     }
   });
 
+  it('o login antigo (Google e código por e-mail) não está mais no app', () => {
+    const js = arquivos(saida).filter((f) => f.endsWith('.js')).map((f) => readFileSync(f, 'utf8')).join('\n');
+    expect(js).not.toContain('Entrar com Google');
+    expect(js).not.toContain('Receber código por e-mail');
+    expect(js).toContain('#/agendar');
+  });
+
   it('o .env não está no repositório', () => {
     expect(readFileSync(join(raiz, '.gitignore'), 'utf8')).toMatch(/^\.env$/m);
   });
