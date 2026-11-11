@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { linkAgendamento } from '../../src/lib/link';
 import { CONFIG_TESTE } from '../helpers/config';
 import { renderComConfig } from '../helpers/render';
 
@@ -108,5 +109,66 @@ describe('Configurações', () => {
   it('tem o botão "Baixar backup"', () => {
     renderComConfig(<Configuracoes />);
     expect(screen.getByRole('button', { name: 'Baixar backup' })).toBeInTheDocument();
+  });
+});
+
+describe('Configurações do link', () => {
+  const campo = (rotulo: string, valor: string) => fireEvent.change(screen.getByLabelText(rotulo), { target: { value: valor } });
+
+  it('salva duração, dias do link, liga/desliga, WhatsApp do negócio e mensagem de cancelamento', async () => {
+    renderComConfig(<Configuracoes />);
+    campo('Duração de cada horário (min)', '40');
+    campo('Quantos dias o link mostra', '21');
+    await userEvent.click(screen.getByLabelText('Link de agendamento ligado'));
+    campo('WhatsApp do negócio', '(11) 90000-2222');
+    campo('Mensagem de cancelamento', 'Não vai dar, {nome}. {link}');
+    await salvar();
+    expect(saveConfig.mock.calls[0][1]).toMatchObject({
+      passo_min: 40,
+      dias_abertos: 21,
+      link_ativo: false,
+      telefone_negocio: '5511900002222',
+      modelo_cancelamento: 'Não vai dar, {nome}. {link}',
+    });
+  });
+
+  it('WhatsApp do negócio vazio grava nulo', async () => {
+    renderComConfig(<Configuracoes />);
+    campo('WhatsApp do negócio', '');
+    await salvar();
+    expect(saveConfig.mock.calls[0][1].telefone_negocio).toBeNull();
+  });
+
+  it('WhatsApp do negócio inválido mostra a mensagem e não salva', async () => {
+    renderComConfig(<Configuracoes />);
+    campo('WhatsApp do negócio', '9999');
+    await salvar();
+    expect(screen.getByRole('alert')).toHaveTextContent('WhatsApp inválido. Use DDD + número, ou + e o código do país.');
+    expect(saveConfig).not.toHaveBeenCalled();
+  });
+
+  it.each([['0'], ['61']])('dias do link = %s é recusado', async (dias) => {
+    renderComConfig(<Configuracoes />);
+    campo('Quantos dias o link mostra', dias);
+    await salvar();
+    expect(screen.getByRole('alert')).toHaveTextContent('Os dias do link precisam ficar entre 1 e 60.');
+    expect(saveConfig).not.toHaveBeenCalled();
+  });
+
+  it.each([['4'], ['241']])('duração = %s é recusada', async (dur) => {
+    renderComConfig(<Configuracoes />);
+    campo('Duração de cada horário (min)', dur);
+    await salvar();
+    expect(screen.getByRole('alert')).toHaveTextContent('A duração de cada horário precisa ficar entre 5 e 240 minutos.');
+    expect(saveConfig).not.toHaveBeenCalled();
+  });
+
+  it('"Copiar link de agendamento" copia o link', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    renderComConfig(<Configuracoes />);
+    await user.click(screen.getByRole('button', { name: 'Copiar link de agendamento' }));
+    expect(writeText).toHaveBeenCalledWith(linkAgendamento());
+    expect(await screen.findByText('Link copiado!')).toBeInTheDocument();
   });
 });
