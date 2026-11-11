@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { criarAgendamento, editarAgendamento, listAgendamentos, listAgendamentosDoCliente } from '../../src/data/agendamentos';
 import { findOrCreateCliente } from '../../src/data/clientes';
 import { getConfig } from '../../src/data/configuracoes';
-import { ConflitoDeHorarioError, SemConexaoError } from '../../src/data/erros';
+import { ConflitoDeHorarioError, SemAcessoError, SemConexaoError } from '../../src/data/erros';
 import { listServicos } from '../../src/data/servicos';
 import { dbTeste as db, REST, servidor, usarServidor } from '../helpers/msw';
 
@@ -112,5 +112,13 @@ describe('camada de dados', () => {
   it('resposta 503 vira SemConexaoError', async () => {
     servidor.use(http.get(`${REST}/configuracoes`, () => new HttpResponse('pausado', { status: 503 })));
     await expect(getConfig(db)).rejects.toBeInstanceOf(SemConexaoError);
+  });
+
+  it('getConfig sem linha visível (conta que não é o dono) vira SemAcessoError', async () => {
+    servidor.use(
+      // o RLS esconde a linha: o PostgREST devolve lista vazia
+      http.get(`${REST}/configuracoes`, () => HttpResponse.json([])),
+    );
+    await expect(getConfig(db)).rejects.toBeInstanceOf(SemAcessoError);
   });
 });

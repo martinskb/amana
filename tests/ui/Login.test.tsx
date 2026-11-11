@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SemConexaoError } from '../../src/data/erros';
+import { SemAcessoError, SemConexaoError } from '../../src/data/erros';
 import { CONFIG_TESTE } from '../helpers/config';
 import { SESSAO, type AuthFalso } from '../helpers/auth';
 
@@ -61,5 +61,14 @@ describe('login e sessão', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
     expect(await screen.findByRole('heading', { name: 'Agenda' })).toBeInTheDocument();
     expect(getConfig).toHaveBeenCalledTimes(2);
+  });
+
+  it('conta sem acesso mostra o aviso e o botão Sair', async () => {
+    auth.sessao = SESSAO;
+    getConfig.mockRejectedValueOnce(new SemAcessoError());
+    render(<App />);
+    expect(await screen.findByText(/não tem acesso a esta agenda/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Sair' }));
+    expect(auth.signOut).toHaveBeenCalled();
   });
 });

@@ -12,6 +12,14 @@ export class SemConexaoError extends Error {
   }
 }
 
+/** A conta logada não é o dono: o RLS esconde todas as linhas. */
+export class SemAcessoError extends Error {
+  constructor() {
+    super('Esta conta não tem acesso a esta agenda.');
+    this.name = 'SemAcessoError';
+  }
+}
+
 interface Resposta<T> {
   data: T | null;
   error: { code?: string; message: string } | null;

@@ -2,7 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { HashRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { getConfig } from '../data/configuracoes';
-import { SemConexaoError } from '../data/erros';
+import { SemAcessoError, SemConexaoError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import type { Config } from '../types';
 import Agenda from './Agenda';
@@ -12,14 +12,14 @@ import SemConexao from './SemConexao';
 
 function Telas() {
   const [config, setConfig] = useState<Config | null>(null);
-  const [erro, setErro] = useState<'conexao' | 'outro' | null>(null);
+  const [erro, setErro] = useState<'conexao' | 'acesso' | 'outro' | null>(null);
 
   const carregar = useCallback(async () => {
     setErro(null);
     try {
       setConfig(await getConfig(supabase));
     } catch (e) {
-      setErro(e instanceof SemConexaoError ? 'conexao' : 'outro');
+      setErro(e instanceof SemConexaoError ? 'conexao' : e instanceof SemAcessoError ? 'acesso' : 'outro');
     }
   }, []);
 
@@ -28,6 +28,13 @@ function Telas() {
   }, [carregar]);
 
   if (erro === 'conexao') return <SemConexao onTentarDeNovo={carregar} />;
+  if (erro === 'acesso')
+    return (
+      <main role="alert">
+        <p>Esta conta não tem acesso a esta agenda. Saia e entre com a conta do negócio.</p>
+        <button type="button" onClick={() => void supabase.auth.signOut()}>Sair</button>
+      </main>
+    );
   if (erro === 'outro')
     return (
       <main role="alert">
