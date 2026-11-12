@@ -1,22 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 
-const CONSULTA = '(prefers-reduced-motion: reduce)';
+function lerConsulta(consulta: string): boolean {
+  return typeof window.matchMedia === 'function' ? window.matchMedia(consulta).matches : false;
+}
 
-function lerPreferencia(): boolean {
-  return typeof window.matchMedia === 'function' ? window.matchMedia(CONSULTA).matches : false;
+/** Acompanha uma media query; false quando o navegador não tem matchMedia. */
+function useConsultaMidia(consulta: string): boolean {
+  const [vale, setVale] = useState(() => lerConsulta(consulta));
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(consulta);
+    setVale(mq.matches);
+    const mudou = (e: { matches: boolean }) => setVale(e.matches);
+    mq.addEventListener('change', mudou);
+    return () => mq.removeEventListener('change', mudou);
+  }, [consulta]);
+  return vale;
 }
 
 /** true quando o sistema pede menos movimento (Android, iOS, Windows, macOS). */
 export function usePrefereMenosMovimento(): boolean {
-  const [menos, setMenos] = useState(lerPreferencia);
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-    const mq = window.matchMedia(CONSULTA);
-    const mudou = (e: { matches: boolean }) => setMenos(e.matches);
-    mq.addEventListener('change', mudou);
-    return () => mq.removeEventListener('change', mudou);
-  }, []);
-  return menos;
+  return useConsultaMidia('(prefers-reduced-motion: reduce)');
+}
+
+/** true a partir de 1280px: a agenda ganha a coluna lateral de resumo e detalhes. */
+export function useTelaLarga(): boolean {
+  return useConsultaMidia('(min-width: 1280px)');
 }
 
 /** Mantém um elemento montado durante a animação de saída. */
