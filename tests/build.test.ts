@@ -66,6 +66,29 @@ describe('build de produção', { timeout: 120_000 }, () => {
     expect(readFileSync(join(saida, 'sw.js'), 'utf8')).toContain('.woff2');
   });
 
+  // SEC-004: o Cloudflare Pages lê dist/_headers e manda estes cabeçalhos em todas as páginas
+  it('publica os cabeçalhos de segurança para todas as rotas', () => {
+    const h = readFileSync(join(saida, '_headers'), 'utf8');
+    expect(h).toMatch(/^\/\*$/m);
+    const csp = h.match(/Content-Security-Policy: (.+)/)?.[1] ?? '';
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
+    expect(csp).toContain('connect-src');
+    expect(csp).toContain('https://*.supabase.co');
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("base-uri 'self'");
+    expect(h).toMatch(/X-Content-Type-Options: nosniff/);
+    expect(h).toMatch(/X-Frame-Options: DENY/);
+    expect(h).toMatch(/Referrer-Policy: strict-origin-when-cross-origin/);
+  });
+
+  it('o HTML não tem script embutido (a CSP sem unsafe-inline não o bloquearia)', () => {
+    const html = readFileSync(join(saida, 'index.html'), 'utf8');
+    expect(html).not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>/);
+  });
+
   it('o .env não está no repositório', () => {
     expect(readFileSync(join(raiz, '.gitignore'), 'utf8')).toMatch(/^\.env$/m);
   });
