@@ -299,3 +299,33 @@ input[type='checkbox'].chave:disabled { opacity: 0.55; }
   .dias-faixa .seta { display: inline-flex; }
   .publico .dias { -webkit-mask-image: none; mask-image: none; }
 }
+
+/* ===== Movimento ===== */
+.conteudo.entra { animation: entra-aba 200ms var(--curva); }
+@keyframes entra-aba { from { opacity: 0; transform: translateY(8px); } }
+button:not(:disabled):active, a.botao:active { transform: scale(0.97); }
+button, a.botao { transition: transform 120ms var(--curva), background-color var(--rapido) var(--curva), border-color var(--rapido) var(--curva), color var(--rapido) var(--curva); }
+p[role='alert'] { animation: treme 300ms var(--curva); }
+@keyframes treme { 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.config .lista li, fieldset .linha { animation: entra-item 250ms var(--curva); }
+@keyframes entra-item { from { opacity: 0; transform: scale(0.96); } }
+
+/* Menos movimento (pedido pelo sistema): só fades curtos; nada desliza, treme ou fica esperando animação. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 150ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  .conteudo.entra, .entra-dir, .entra-esq, .cascata .grade > li, .ficha, .publico .horarios button, .formulario,
+  .desdobra, .publico h1, .publico .sucesso h2, .resumo-sucesso, .config .lista li, fieldset .linha,
+  .painel-camada .painel, .painel-camada.saindo .painel { animation-name: aparece !important; }
+  .painel-camada.saindo .painel, .painel-camada.saindo .fundo-escuro { animation-name: some !important; }
+  @media (min-width: 768px) { .painel-camada .painel { transform: translate(-50%, -50%); } }
+  p[role='alert'], .ficha[aria-pressed='true'] { animation: none !important; }
+  .check-circulo, .check-traco { animation: none !important; stroke-dashoffset: 0; }
+  .esqueleto-linha { animation: none !important; }
+  button:not(:disabled):active, a.botao:active { transform: none; }
+}

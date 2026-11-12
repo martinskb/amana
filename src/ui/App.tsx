@@ -13,6 +13,7 @@ import Configuracoes from './Configuracoes';
 import { ConfigContext } from './contexto';
 import Login from './Login';
 import Navegacao from './Navegacao';
+import TransicaoRota from './TransicaoRota';
 import Esqueleto from './Esqueleto';
 import Agendar from './publico/Agendar';
 import SemConexao from './SemConexao';
@@ -55,7 +56,7 @@ function Telas() {
     <ConfigContext.Provider value={{ config, recarregar: carregar }}>
       <HashRouter>
         <header className="topo">{config.nome_negocio}</header>
-        <div className="conteudo">
+        <TransicaoRota>
           <Routes>
             <Route
               path="/"
@@ -74,7 +75,7 @@ function Telas() {
             <Route path="/clientes" element={<Navigate to="/config" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </div>
+        </TransicaoRota>
         <Navegacao nomeNegocio={config.nome_negocio} />
       </HashRouter>
     </ConfigContext.Provider>
