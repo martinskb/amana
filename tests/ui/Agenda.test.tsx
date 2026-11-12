@@ -137,6 +137,78 @@ describe('Agenda', () => {
     vi.unstubAllGlobals();
   });
 
+  it('na tela larga, clicar num agendamento mostra os detalhes na região, sem diálogo nem histórico', async () => {
+    larga();
+    const push = vi.spyOn(history, 'pushState');
+    renderComConfig(<Agenda />);
+    const joao = await screen.findByRole('button', { name: /10:00 João/ });
+    await userEvent.click(joao);
+    expect(screen.getByRole('region', { name: 'Agendamento' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+    expect(joao).toHaveAttribute('aria-current', 'true');
+    expect(screen.queryByRole('complementary', { name: 'Resumo' })).toBeNull();
+    push.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, a grade continua usável com o painel lateral aberto', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    expect(screen.getByRole('region', { name: 'Horário livre' })).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, "Fechar painel" volta ao resumo e devolve o foco ao horário', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    const joao = await screen.findByRole('button', { name: /10:00 João/ });
+    await userEvent.click(joao);
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar painel' }));
+    expect(await screen.findByRole('complementary', { name: 'Resumo' })).toBeInTheDocument();
+    expect(joao).toHaveFocus();
+    expect(joao).not.toHaveAttribute('aria-current');
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, "+ Novo" abre na região e, ao fechar, o foco volta ao botão', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    const novo = await screen.findByRole('button', { name: '+ Novo' });
+    await userEvent.click(novo);
+    expect(screen.getByRole('region', { name: 'Novo agendamento' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar painel' }));
+    expect(novo).toHaveFocus();
+    vi.unstubAllGlobals();
+  });
+
+  it('mudar a largura com o novo agendamento aberto mantém o nome digitado', async () => {
+    let ehLarga = true;
+    const ouvintes = new Set<(e: { matches: boolean }) => void>();
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      get matches() {
+        return ehLarga && q === '(min-width: 1280px)';
+      },
+      media: q,
+      addEventListener: (_: string, f: (e: { matches: boolean }) => void) => ouvintes.add(f),
+      removeEventListener: (_: string, f: (e: { matches: boolean }) => void) => ouvintes.delete(f),
+    }));
+    vi.spyOn(history, 'back').mockImplementation(() => {});
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: '+ Novo' }));
+    await userEvent.type(screen.getByLabelText('Cliente'), 'Jo');
+    act(() => {
+      ehLarga = false;
+      ouvintes.forEach((f) => f({ matches: false }));
+    });
+    const dialogo = await screen.findByRole('dialog', { name: 'Novo agendamento' });
+    expect(within(dialogo).getByLabelText('Cliente')).toHaveValue('Jo');
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it('abaixo de 1280px não há resumo lateral', async () => {
     larga(false);
     renderComConfig(<Agenda />);

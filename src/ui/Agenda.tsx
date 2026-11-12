@@ -32,6 +32,13 @@ type EstadoPainel =
   | null;
 
 
+/** Identifica o item da grade aberto no painel (para destacar na tela larga). */
+function chaveDoPainel(p: Exclude<EstadoPainel, null>): string | null {
+  if (p.tipo === 'detalhes' || p.tipo === 'editar') return `ag:${p.agendamento.id}`;
+  if (p.tipo === 'livre' || p.tipo === 'fechado') return `h:${p.data}:${p.hora}`;
+  return null;
+}
+
 const ddmm = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
 const CHAVE_VISITA = 'agenda:ultimaVisita';
 
@@ -61,6 +68,11 @@ export default function Agenda() {
   const larga = useTelaLarga();
   // muda quando a agenda grava algo: o resumo lateral recarrega o próximo cliente
   const [versao, setVersao] = useState(0);
+  // o resto da tela fica inerte só quando o painel é uma janela por cima (celular e telas médias)
+  const modal = painel !== null && !larga;
+  // na tela larga, o item aberto no painel lateral fica destacado na grade
+  const atual = (chave: string) => larga && painel !== null && chaveDoPainel(painel) === chave;
+  const sel = (chave: string) => (atual(chave) ? ' selecionado' : '');
 
   // agendamentos que chegaram pelo link desde a última vez que o dono olhou (neste aparelho)
   const buscarNovos = useCallback(() => {
@@ -340,7 +352,7 @@ export default function Agenda() {
 
   return (
     <main className="agenda">
-      <div className="agenda-fundo" inert={painel !== null} aria-hidden={painel !== null || undefined}>
+      <div className="agenda-fundo" inert={modal} aria-hidden={modal || undefined}>
         <CabecalhoAgenda />
         <BackupBanner />
         <div className="linha controles">
@@ -382,9 +394,10 @@ export default function Agenda() {
         {!larga && avisoNovos}
 
         {!larga && <CartaoAmanha />}
+      </div>
 
-        <div className="agenda-layout">
-        <div className="agenda-grade">
+      <div className="agenda-layout">
+        <div className="agenda-grade" inert={modal} aria-hidden={modal || undefined}>
         {erro && (
           <p role="alert">
             Não foi possível carregar a agenda.{' '}
@@ -412,7 +425,8 @@ export default function Agenda() {
                       {item.tipo === 'agendamento' ? (
                         <button
                           type="button"
-                          className={`ag ${item.agendamento.status}`}
+                          className={`ag ${item.agendamento.status}${sel(`ag:${item.agendamento.id}`)}`}
+                          aria-current={atual(`ag:${item.agendamento.id}`) || undefined}
                           onClick={() => setPainel({ tipo: 'detalhes', agendamento: item.agendamento })}
                         >
                           <span className="h">{item.hora}</span>{' '}
@@ -431,7 +445,8 @@ export default function Agenda() {
                       ) : item.tipo === 'fechado' ? (
                         <button
                           type="button"
-                          className="fechado"
+                          className={`fechado${sel(`h:${data}:${item.hora}`)}`}
+                          aria-current={atual(`h:${data}:${item.hora}`) || undefined}
                           onClick={() => setPainel({ tipo: 'fechado', data, hora: item.hora, ajusteId: item.ajusteId })}
                         >
                           <s>{item.hora}</s> fechado
@@ -439,7 +454,8 @@ export default function Agenda() {
                       ) : item.tipo === 'livres' ? (
                         <button
                           type="button"
-                          className="livre grupo"
+                          className={`livre grupo${sel(`h:${data}:${item.de}`)}`}
+                          aria-current={atual(`h:${data}:${item.de}`) || undefined}
                           aria-label={
                             item.de === item.ate
                               ? `Marcar ${abreviaDia(data)} ${ddmm(data)} às ${item.de}`
@@ -452,7 +468,8 @@ export default function Agenda() {
                       ) : (
                         <button
                           type="button"
-                          className="livre"
+                          className={`livre${sel(`h:${data}:${item.hora}`)}`}
+                          aria-current={atual(`h:${data}:${item.hora}`) || undefined}
                           aria-label={`Marcar ${abreviaDia(data)} ${ddmm(data)} às ${item.hora}`}
                           onClick={() => setPainel({ tipo: 'livre', data, hora: item.hora, extraId: extraQueCria(data, item.hora) })}
                         >
@@ -467,16 +484,17 @@ export default function Agenda() {
           </div>
         )}
         </div>
-        {larga && <ResumoLateral novos={avisoNovos} versao={versao} />}
-        </div>
+        {larga && painel === null && <ResumoLateral novos={avisoNovos} versao={versao} />}
+        {/* sempre aqui, nos dois modos: trocar a largura não desmonta o que está aberto */}
+        <Painel
+          aberto={painel !== null}
+          onFechar={() => setPainel(null)}
+          rotulo={ultimoPainel.current ? ROTULOS[ultimoPainel.current.tipo] : ''}
+          modo={larga ? 'lateral' : 'sobreposto'}
+        >
+          {ultimoPainel.current && conteudoPainel(ultimoPainel.current)}
+        </Painel>
       </div>
-      <Painel
-        aberto={painel !== null}
-        onFechar={() => setPainel(null)}
-        rotulo={ultimoPainel.current ? ROTULOS[ultimoPainel.current.tipo] : ''}
-      >
-        {ultimoPainel.current && conteudoPainel(ultimoPainel.current)}
-      </Painel>
     </main>
   );
 }
