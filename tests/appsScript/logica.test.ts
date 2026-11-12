@@ -122,4 +122,16 @@ describe('logica.js do script de backup', () => {
     expect(chamadas).toEqual(['exportar', 'criarPlanilha', 'salvarJson', 'limparAntigas', 'concluir']);
     expect(avisos).toEqual(['HTTP 500: erro']);
   });
+
+  it('copiasParaApagar conta datas, não nomes repetidos', () => {
+    const datas = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2026, 0, 4 + 7 * i)).toISOString().slice(0, 10));
+    const nomes = [...datas.map((d) => `Backup Agenda ${d}`), `Backup Agenda ${datas[11]}`, `Backup Agenda ${datas[11]}`];
+    expect(deVm(L.copiasParaApagar(nomes))).toEqual([]);
+  });
+
+  it('protegerLinhas põe aspas simples antes de = + - @ e não mexe no resto', () => {
+    expect(deVm(L.protegerLinhas([['=HYPERLINK("x")', '+55', '-1', '@a', 'Ana', 30, '']]))).toEqual([
+      ["'=HYPERLINK(\"x\")", "'+55", "'-1", "'@a", 'Ana', 30, ''],
+    ]);
+  });
 });

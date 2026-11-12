@@ -143,9 +143,13 @@ function copiasParaApagar(nomes, manter) {
   if (manter === undefined) manter = 12;
   var resultado = [];
   [PADRAO_PLANILHA, PADRAO_ARQUIVO].forEach(function (padrao) {
+    var vistos = {};
     var doTipo = nomes
       .filter(function (n) {
-        return padrao.test(n);
+        // nomes repetidos (vários backups no mesmo dia) contam uma vez só
+        if (!padrao.test(n) || vistos[n]) return false;
+        vistos[n] = true;
+        return true;
       })
       .sort(function (a, b) {
         var da = a.match(padrao)[1];
@@ -155,6 +159,18 @@ function copiasParaApagar(nomes, manter) {
     resultado = resultado.concat(doTipo.slice(manter));
   });
   return resultado;
+}
+
+/**
+ * Texto que começa com = + - @ vira fórmula na planilha. Um nome vindo do link público
+ * (qualquer pessoa pode digitar) não pode virar fórmula: põe ' na frente, que o Sheets esconde.
+ */
+function protegerLinhas(linhas) {
+  return linhas.map(function (linha) {
+    return linha.map(function (v) {
+      return typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v;
+    });
+  });
 }
 
 /**

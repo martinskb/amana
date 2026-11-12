@@ -23,6 +23,7 @@ interface ArquivoFalso {
   pasta: string | null;
   lixeira: boolean;
   abas?: Record<string, unknown[][]>;
+  formato?: string;
 }
 
 function iterador<T>(itens: T[]) {
@@ -33,39 +34,61 @@ function iterador<T>(itens: T[]) {
 /** Monta um Google falso: Drive, Planilhas, URL, e-mail, gatilhos e log. */
 export function criarGoogleFalso(opcoes: { responder: (url: string, corpo: string) => { codigo: number; texto: string } }) {
   const arquivos: ArquivoFalso[] = [];
-  const pastas: string[] = [];
+  const pastas: { id: string; nome: string; lixeira: boolean; raiz: boolean }[] = [];
+  const propriedades: Record<string, string> = {};
   const emails: { para: string; assunto: string; corpo: string }[] = [];
   const chamadas: { url: string; corpo: string; headers: Record<string, string> }[] = [];
   let gatilhos: { funcao: string; dia?: unknown; hora?: number; semanas?: number }[] = [];
+  let falhaDrive: string | null = null;
   let seq = 0;
 
+  // Como no Drive de verdade: buscas devolvem também o que está na lixeira (isTrashed() diz).
   const arquivoApi = (f: ArquivoFalso) => ({
     getId: () => f.id,
     getName: () => f.nome,
+    isTrashed: () => f.lixeira,
     setTrashed: (v: boolean) => {
       f.lixeira = v;
     },
-    moveTo: (p: { _nome: string }) => {
-      f.pasta = p._nome;
+    moveTo: (p: { _id: string }) => {
+      f.pasta = p._id;
     },
   });
-  const pastaApi = (nome: string) => ({
-    _nome: nome,
-    getFiles: () => iterador(arquivos.filter((f) => f.pasta === nome && !f.lixeira).map(arquivoApi)),
-    getFilesByName: (n: string) => iterador(arquivos.filter((f) => f.pasta === nome && !f.lixeira && f.nome === n).map(arquivoApi)),
+  const pastaApi = (p: { id: string; nome: string; lixeira: boolean }) => ({
+    _id: p.id,
+    getId: () => p.id,
+    getName: () => p.nome,
+    isTrashed: () => p.lixeira,
+    getFiles: () => iterador(arquivos.filter((f) => f.pasta === p.id).map(arquivoApi)),
+    getFilesByName: (n: string) => iterador(arquivos.filter((f) => f.pasta === p.id && f.nome === n).map(arquivoApi)),
     createFile: (n: string, conteudo: string) => {
-      const f = { id: `f${++seq}`, nome: n, conteudo, pasta: nome, lixeira: false };
+      const f = { id: `f${++seq}`, nome: n, conteudo, pasta: p.id, lixeira: false };
       arquivos.push(f);
       return arquivoApi(f);
     },
   });
+  const novaPasta = (nome: string, raiz = true) => {
+    const p = { id: `d${++seq}`, nome, lixeira: false, raiz };
+    pastas.push(p);
+    return p;
+  };
 
   const globais = {
     DriveApp: {
-      getFoldersByName: (n: string) => iterador(pastas.filter((p) => p === n).map(pastaApi)),
-      createFolder: (n: string) => {
-        pastas.push(n);
-        return pastaApi(n);
+      getFoldersByName: (n: string) => iterador(pastas.filter((p) => p.nome === n).map(pastaApi)),
+      getRootFolder: () => {
+        if (falhaDrive) throw new Error(falhaDrive);
+        return {
+          getFoldersByName: (n: string) => iterador(pastas.filter((p) => p.raiz && p.nome === n).map(pastaApi)),
+          createFolder: (n: string) => pastaApi(novaPasta(n)),
+        };
+      },
+      createFolder: (n: string) => pastaApi(novaPasta(n)),
+      getFolderById: (id: string) => {
+        if (falhaDrive) throw new Error(falhaDrive);
+        const p = pastas.find((x) => x.id === id);
+        if (!p) throw new Error('Pasta não encontrada');
+        return pastaApi(p);
       },
       getFileById: (id: string) => arquivoApi(arquivos.find((f) => f.id === id)!),
     },
@@ -83,6 +106,10 @@ export function criarGoogleFalso(opcoes: { responder: (url: string, corpo: strin
               atual = n;
             },
             getRange: (_l: number, _c: number, nl: number, nc: number) => ({
+              setNumberFormat: (formato: string) => {
+                f.formato = formato;
+                return undefined;
+              },
               setValues: (v: unknown[][]) => {
                 if (v.length !== nl || v.some((linha) => linha.length !== nc)) throw new Error('tamanho errado');
                 f.abas![atual] = v;
@@ -107,6 +134,14 @@ export function criarGoogleFalso(opcoes: { responder: (url: string, corpo: strin
       },
     },
     Session: { getEffectiveUser: () => ({ getEmail: () => 'negocio@exemplo.com' }) },
+    PropertiesService: {
+      getScriptProperties: () => ({
+        getProperty: (k: string) => propriedades[k] ?? null,
+        setProperty: (k: string, v: string) => {
+          propriedades[k] = v;
+        },
+      }),
+    },
     ScriptApp: {
       WeekDay: { SUNDAY: 'SUNDAY' },
       getProjectTriggers: () => gatilhos.map((g) => ({ getHandlerFunction: () => g.funcao, _g: g })),
@@ -136,9 +171,15 @@ export function criarGoogleFalso(opcoes: { responder: (url: string, corpo: strin
     emails,
     chamadas,
     gatilhos: () => gatilhos,
-    preencherPasta(nomes: string[]) {
-      if (!pastas.includes('Backups da Agenda')) pastas.push('Backups da Agenda');
-      for (const n of nomes) arquivos.push({ id: `p${++seq}`, nome: n, pasta: 'Backups da Agenda', lixeira: false });
+    pastas,
+    /** Cria (ou usa) a pasta de backups na raiz e põe arquivos nela. */
+    preencherPasta(nomes: string[], lixeira = false) {
+      const p = pastas.find((x) => x.nome === 'Backups da Agenda' && !x.lixeira) ?? novaPasta('Backups da Agenda');
+      for (const n of nomes) arquivos.push({ id: `p${++seq}`, nome: n, pasta: p.id, lixeira });
+      return p;
+    },
+    falharDrive(msg: string | null) {
+      falhaDrive = msg;
     },
   };
 }

