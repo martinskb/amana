@@ -31,6 +31,8 @@ export interface Agendamento {
   status: Status;
   observacao: string | null;
   origem: Origem;
+  /** Nome digitado no link (só agendamentos pelo link); pode não bater com o cadastro do WhatsApp. */
+  nome_informado?: string | null;
 }
 /** Agendamento com os dados de exibição do cliente e do serviço. */
 export interface AgendamentoCompleto extends Agendamento {

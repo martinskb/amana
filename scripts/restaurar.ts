@@ -14,7 +14,7 @@ export class BancoNaoVazioError extends Error {
 const COLUNAS = {
   servicos: ['id', 'nome', 'duracao_min', 'ativo'],
   clientes: ['id', 'nome', 'telefone', 'criado_em'],
-  agendamentos: ['id', 'cliente_id', 'servico_id', 'inicio', 'fim', 'status', 'observacao', 'origem', 'criado_em'],
+  agendamentos: ['id', 'cliente_id', 'servico_id', 'inicio', 'fim', 'status', 'observacao', 'origem', 'criado_em', 'nome_informado'],
   configuracoes: [
     'nome_negocio', 'fuso', 'expediente', 'folgas', 'passo_min', 'antecedencia_min',
     'modelo_livres', 'modelo_lembrete', 'ultimo_backup',

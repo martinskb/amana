@@ -8,6 +8,7 @@ import { waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto, Status } from '../types';
 import { useConfig } from './contexto';
 import { IconeWhatsApp } from './icones';
+import { nomeDivergente } from '../lib/nomes';
 
 const NOMES: Record<Status, string> = {
   marcado: 'Marcado',
@@ -109,6 +110,12 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
       </p>
       <p className="sutil">Situação: {NOMES[a.status]}</p>
       {a.observacao && <p>{a.observacao}</p>}
+      {nomeDivergente(a.cliente.nome, a.nome_informado) && (
+        <p role="note" className="aviso-nome">
+          Pelo link, a pessoa digitou o nome "{nomeDivergente(a.cliente.nome, a.nome_informado)}", diferente do cadastro
+          deste WhatsApp. Confirme com o cliente.
+        </p>
+      )}
       {erro && <p role="alert">{erro}</p>}
       <div className="acoes">
         {a.status === 'marcado' && (
