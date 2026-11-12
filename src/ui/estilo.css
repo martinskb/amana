@@ -1,0 +1,39 @@
+:root { font-family: system-ui, -apple-system, sans-serif; color: #1f2937; background: #f9fafb; }
+body { margin: 0; padding: env(safe-area-inset-top) 16px calc(72px + env(safe-area-inset-bottom)); }
+button, input, select, textarea { font: inherit; font-size: 16px; }
+.topo { position: sticky; top: 0; padding: 12px 0; font-weight: 600; background: #f9fafb; z-index: 1; }
+.abas { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around;
+  padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #e5e7eb; }
+.abas a { color: #6b7280; text-decoration: none; font-size: 14px; padding: 6px 8px; }
+.abas a.active { color: #111827; font-weight: 600; }
+button { padding: 10px 14px; border-radius: 10px; border: 1px solid #d1d5db; background: #fff; }
+button.primario { background: #1f2937; color: #fff; border-color: #1f2937; }
+label { display: grid; gap: 4px; margin: 8px 0; }
+input, select, textarea { padding: 10px; border-radius: 8px; border: 1px solid #d1d5db; }
+.login { max-width: 360px; margin: 15vh auto 0; display: grid; gap: 12px; }
+.ou { text-align: center; color: #6b7280; margin: 0; }
+[role=alert] { color: #b91c1c; }
+.aviso-conexao { color: inherit; max-width: 420px; margin: 10vh auto 0; }
+.carregando { text-align: center; color: #6b7280; margin-top: 30vh; }
+.config section, .config fieldset { margin: 16px 0; }
+fieldset { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 12px; }
+.linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sutil { color: #6b7280; font-size: 14px; }
+.lista { list-style: none; padding: 0; }
+.lista li { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+label.inline { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 0 auto; }
+.controles { margin-bottom: 8px; }
+.segmentado button[aria-pressed=true] { background: #1f2937; color: #fff; }
+.dia h3 { margin: 16px 0 6px; font-size: 15px; text-transform: capitalize; }
+.grade { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.grade button { width: 100%; text-align: left; }
+.grade .livre { border-style: dashed; color: #6b7280; }
+.grade .ag { background: #eef2ff; border-color: #c7d2fe; }
+.grade .ag.confirmado { background: #ecfdf5; border-color: #a7f3d0; }
+.grade .ag.concluido, .grade .ag.faltou { opacity: .6; }
+.painel { background: #fff; border-radius: 14px; padding: 12px 16px; margin-top: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.sugestoes { list-style: none; padding: 0; display: grid; gap: 4px; }
+a.botao { padding: 10px 14px; border-radius: 10px; background: #16a34a; color: #fff; text-decoration: none; }
+button.perigo { color: #b91c1c; border-color: #fecaca; }
+.lista button.link { width: 100%; text-align: left; border: 0; background: none; padding: 4px 0; }
+.aviso-backup { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 8px 12px; margin: 8px 0; }
