@@ -177,6 +177,19 @@ describe('Agenda', () => {
     expect(within(screen.getByRole('dialog', { name: 'Agendamento' })).queryByRole('note')).toBeNull();
   });
 
+  it('a agenda começa pelo cabeçalho, sem o título "Agenda"', async () => {
+    renderComConfig(<Agenda />);
+    expect(await screen.findByRole('button', { name: 'Copiar link' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Agenda' })).toBeNull();
+  });
+
+  it('com backup atrasado, o banner aparece depois do cabeçalho', async () => {
+    renderComConfig(<Agenda />, { ...CONFIG_TESTE, ultimo_backup: null });
+    const copiar = await screen.findByRole('button', { name: 'Copiar link' });
+    const banner = screen.getByText('Você ainda não fez nenhum backup.');
+    expect(copiar.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('agendamento mostra o selo de status com texto', async () => {
     renderComConfig(<Agenda />);
     expect(await screen.findByRole('button', { name: /10:00 João/ })).toHaveTextContent('marcado');

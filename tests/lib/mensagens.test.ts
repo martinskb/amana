@@ -3,7 +3,6 @@ import {
   diaPorExtenso,
   mensagemCancelar,
   mensagemConfirmar,
-  mensagemDivulgar,
   mensagemLembrar,
 } from '../../src/lib/mensagens';
 import { waLink } from '../../src/lib/whatsapp';
@@ -39,9 +38,6 @@ describe('mensagens prontas', () => {
     expect(mensagemConfirmar({ nome: 'Zé', inicio: '2026-12-05T12:00:00Z', fuso: F })).toContain('sábado (05/12) às 9h');
   });
 
-  it('Divulgar', () => {
-    expect(mensagemDivulgar(L)).toBe('📅 Agenda aberta! Escolha seu horário aqui: https://b.pages.dev/#/agendar');
-  });
 
   it('nome com acento e emoji é preservado e o link codifica o emoji', () => {
     const msg = mensagemConfirmar({ nome: 'José 💈', inicio: '2026-11-18T12:00:00Z', fuso: F });

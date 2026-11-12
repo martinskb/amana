@@ -6,13 +6,10 @@ import { getConfig } from '../data/configuracoes';
 import { SemAcessoError, SemConexaoError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import type { Config } from '../types';
-import AbaLink from './AbaLink';
 import Agenda from './Agenda';
-import BackupBanner from './BackupBanner';
 import Configuracoes from './Configuracoes';
 import { ConfigContext } from './contexto';
 import Login from './Login';
-import Navegacao from './Navegacao';
 import TransicaoRota from './TransicaoRota';
 import Esqueleto from './Esqueleto';
 import Agendar from './publico/Agendar';
@@ -55,28 +52,18 @@ function Telas() {
   return (
     <ConfigContext.Provider value={{ config, recarregar: carregar }}>
       <HashRouter>
-        <header className="topo">{config.nome_negocio}</header>
         <TransicaoRota>
           <Routes>
-            <Route
-              path="/"
-              element={
-                <>
-                  <BackupBanner />
-                  <Agenda />
-                </>
-              }
-            />
-            <Route path="/link" element={<AbaLink />} />
+            <Route path="/" element={<Agenda />} />
+            <Route path="/link" element={<Navigate to="/" replace />} />
             <Route path="/config" element={<Configuracoes />} />
             {/* endereços antigos (v1/v2) */}
-            <Route path="/livres" element={<Navigate to="/link" replace />} />
+            <Route path="/livres" element={<Navigate to="/" replace />} />
             <Route path="/lembretes" element={<Navigate to="/" replace />} />
             <Route path="/clientes" element={<Navigate to="/config" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </TransicaoRota>
-        <Navegacao nomeNegocio={config.nome_negocio} />
       </HashRouter>
     </ConfigContext.Provider>
   );

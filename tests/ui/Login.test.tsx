@@ -16,7 +16,6 @@ vi.mock('../../src/data/supabase', async () => {
 });
 vi.mock('../../src/data/configuracoes', () => ({ getConfig, saveConfig: vi.fn() }));
 vi.mock('../../src/ui/Agenda', () => ({ default: () => <h2>Agenda</h2> }));
-vi.mock('../../src/ui/AbaLink', () => ({ default: () => <h2>Seu link de agendamento</h2> }));
 vi.mock('../../src/ui/Configuracoes', () => ({ default: () => <h2>Ajustes</h2> }));
 
 import App from '../../src/ui/App';
@@ -30,6 +29,30 @@ beforeEach(() => {
 });
 
 describe('login e sessão', () => {
+  // um cliente que troque o endereço da página pública não chega a nenhuma tela do dono
+  it.each(['#/config', '#/', '#/link', '#/qualquer'])('%s sem sessão mostra o login', async (hash) => {
+    window.location.hash = hash;
+    render(<App />);
+    expect(await screen.findByLabelText('Usuário')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Ajustes' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Agenda' })).toBeNull();
+  });
+
+  it('com sessão, não há abas de navegação', async () => {
+    auth.sessao = SESSAO;
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Agenda' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).toBeNull();
+  });
+
+  it('#/link com sessão leva à agenda', async () => {
+    auth.sessao = SESSAO;
+    window.location.hash = '#/link';
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Agenda' })).toBeInTheDocument();
+    expect(window.location.hash).toBe('#/');
+  });
+
   const entrar = async (usuario: string, senha: string) => {
     await userEvent.type(await screen.findByLabelText('Usuário'), usuario);
     await userEvent.type(screen.getByLabelText('Senha'), senha);
@@ -96,7 +119,6 @@ describe('login e sessão', () => {
     auth.sessao = SESSAO;
     render(<App />);
     expect(await screen.findByRole('heading', { name: 'Agenda' })).toBeInTheDocument();
-    expect(screen.getByRole('navigation').querySelectorAll('a').length).toBe(3);
   });
 
   it('evento SIGNED_OUT volta para o login', async () => {
@@ -127,18 +149,10 @@ describe('login e sessão', () => {
     expect(auth.signOut).toHaveBeenCalled();
   });
 
-  it('a barra tem exatamente as abas Agenda, Link e Ajustes', async () => {
-    auth.sessao = SESSAO;
-    render(<App />);
-    await screen.findByRole('heading', { name: 'Agenda' });
-    const abas = [...screen.getByRole('navigation').querySelectorAll('a')].map((a) => a.textContent);
-    expect(abas).toEqual(['Agenda', 'Link', 'Ajustes']);
-  });
-
   it.each([
-    ['#/link', 'Seu link de agendamento'],
+    ['#/link', 'Agenda'],
     ['#/config', 'Ajustes'],
-    ['#/livres', 'Seu link de agendamento'],
+    ['#/livres', 'Agenda'],
     ['#/lembretes', 'Agenda'],
     ['#/clientes', 'Ajustes'],
     ['#/qualquer-coisa', 'Agenda'],

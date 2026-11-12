@@ -6,6 +6,8 @@ import { supabase } from '../data/supabase';
 import { abreviaDia, dataLocal, freeSlots, gerarHorarios, horaLocal, instanteLocal, somarDias } from '../lib/slots';
 import type { AgendamentoCompleto, HorarioAjuste, Servico } from '../types';
 import { useConfig } from './contexto';
+import BackupBanner from './BackupBanner';
+import CabecalhoAgenda from './CabecalhoAgenda';
 import CartaoAmanha from './CartaoAmanha';
 import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
@@ -310,7 +312,8 @@ export default function Agenda() {
   return (
     <main className="agenda">
       <div className="agenda-fundo" inert={painel !== null} aria-hidden={painel !== null || undefined}>
-        <h2>Agenda</h2>
+        <CabecalhoAgenda />
+        <BackupBanner />
         <div className="linha controles">
           <div role="group" aria-label="Visão" className="segmentado">
             <button type="button" aria-pressed={modo === 'dia'} onClick={() => { setDirecao(null); setModo('dia'); }}>
