@@ -4,7 +4,7 @@ import { listServicos, saveServico } from '../data/servicos';
 import { supabase } from '../data/supabase';
 import type { DiaSemana, Expediente, Intervalo, Servico } from '../types';
 import { MSG_WHATSAPP_INVALIDO, normalizePhone } from '../lib/whatsapp';
-import { BotaoBackup } from './BackupBanner';
+import SecaoBackup from './SecaoBackup';
 import Clientes from './Clientes';
 import { useConfig } from './contexto';
 
@@ -257,9 +257,7 @@ export default function Configuracoes() {
       </section>
 
       <section>
-        <h3>Backup</h3>
-        <p className="sutil">Salve o arquivo no iCloud Drive ou no Google Drive pelo menu de compartilhar.</p>
-        <BotaoBackup />
+        <SecaoBackup />
       </section>
     </main>
   );
