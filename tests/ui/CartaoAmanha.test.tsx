@@ -42,6 +42,21 @@ describe('cartão Amanhã', () => {
     expect(await screen.findByText('Amanhã: 2 clientes')).toBeInTheDocument();
   });
 
+  it('com menos movimento, o número grande aparece direto', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q.includes('prefers-reduced-motion'),
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    const { container } = renderComConfig(<CartaoAmanha />);
+    await screen.findByText('Amanhã: 2 clientes');
+    const num = container.querySelector('.num');
+    expect(num).toHaveTextContent('2');
+    expect(num).toHaveAttribute('aria-hidden', 'true');
+    vi.unstubAllGlobals();
+  });
+
   it('um só usa o singular', async () => {
     m.listAgendamentos.mockResolvedValue([JOAO]);
     renderComConfig(<CartaoAmanha />);

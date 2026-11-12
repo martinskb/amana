@@ -145,6 +145,22 @@ describe('Agenda', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: /15:00 Maria/ })).not.toBeInTheDocument());
   });
 
+  it('na semana, livres seguidos aparecem agrupados e abrem o primeiro horário', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Semana' }));
+    const grupo = await screen.findByRole('button', { name: 'Marcar ter 17/11 entre 09:00 e 09:30' });
+    expect(grupo).toHaveTextContent('09:00–09:30 livre');
+    expect(screen.queryByRole('button', { name: 'Marcar ter 17/11 às 09:00' })).toBeNull();
+    await userEvent.click(grupo);
+    const painel = screen.getByRole('dialog', { name: 'Horário livre' });
+    expect(within(painel).getByRole('heading', { name: 'ter 17/11 às 09:00' })).toBeInTheDocument();
+  });
+
+  it('agendamento mostra o selo de status com texto', async () => {
+    renderComConfig(<Agenda />);
+    expect(await screen.findByRole('button', { name: /10:00 João/ })).toHaveTextContent('marcado');
+  });
+
   it('horário ocupado não aparece como livre', async () => {
     renderComConfig(<Agenda />);
     await screen.findByRole('button', { name: /10:00 João/ });

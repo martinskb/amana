@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { listAgendamentos, listNovosPeloLink } from '../data/agendamentos';
 import { criarExtra, fecharHorario, listAjustes, removerAjuste } from '../data/ajustes';
 import { listServicos } from '../data/servicos';
@@ -10,6 +10,9 @@ import CartaoAmanha from './CartaoAmanha';
 import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
 import Painel from './Painel';
+import { agruparLivres, type Item } from './semana';
+import SeloStatus from './SeloStatus';
+import { IconeDireita, IconeEsquerda, IconeMais } from './icones';
 import { useAoVoltar } from './useAoVoltar';
 
 type EstadoPainel =
@@ -22,10 +25,6 @@ type EstadoPainel =
   | { tipo: 'extra' }
   | null;
 
-type Item =
-  | { tipo: 'agendamento'; hora: string; agendamento: AgendamentoCompleto }
-  | { tipo: 'livre'; hora: string }
-  | { tipo: 'fechado'; hora: string; ajusteId: string };
 
 const ddmm = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
 const CHAVE_VISITA = 'agenda:ultimaVisita';
@@ -36,6 +35,17 @@ export default function Agenda() {
   const [modo, setModo] = useState<'dia' | 'semana'>('dia');
   const [inicio, setInicio] = useState(hoje);
   const [agendamentos, setAgendamentos] = useState<AgendamentoCompleto[] | null>(null);
+  // para onde a grade desliza ao trocar de dia/semana (null: sem deslize)
+  const [direcao, setDirecao] = useState<'esq' | 'dir' | null>(null);
+  // a cascata dos horários só acontece na primeira vez que a grade aparece
+  const primeiraCarga = useRef(true);
+  useEffect(() => {
+    if (agendamentos) primeiraCarga.current = false;
+  }, [agendamentos]);
+  function andar(passo: -1 | 1) {
+    setDirecao(passo < 0 ? 'esq' : 'dir');
+    setInicio((d) => somarDias(d, passo * dias));
+  }
   const [ajustes, setAjustes] = useState<HorarioAjuste[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [painel, setPainel] = useState<EstadoPainel>(null);
@@ -301,21 +311,27 @@ export default function Agenda() {
         <h2>Agenda</h2>
         <div className="linha controles">
           <div role="group" aria-label="Visão" className="segmentado">
-            <button type="button" aria-pressed={modo === 'dia'} onClick={() => setModo('dia')}>
+            <button type="button" aria-pressed={modo === 'dia'} onClick={() => { setDirecao(null); setModo('dia'); }}>
               Dia
             </button>
-            <button type="button" aria-pressed={modo === 'semana'} onClick={() => setModo('semana')}>
+            <button type="button" aria-pressed={modo === 'semana'} onClick={() => { setDirecao(null); setModo('semana'); }}>
               Semana
             </button>
           </div>
-          <button type="button" aria-label="Anterior" onClick={() => setInicio(somarDias(inicio, -dias))}>
-            ‹
+          <button type="button" className="red" aria-label="Anterior" onClick={() => andar(-1)}>
+            <IconeEsquerda />
           </button>
-          <button type="button" onClick={() => setInicio(hoje)}>
+          <button
+            type="button"
+            onClick={() => {
+              setDirecao(hoje < inicio ? 'esq' : hoje > inicio ? 'dir' : null);
+              setInicio(hoje);
+            }}
+          >
             Hoje
           </button>
-          <button type="button" aria-label="Próximo" onClick={() => setInicio(somarDias(inicio, dias))}>
-            ›
+          <button type="button" className="red" aria-label="Próximo" onClick={() => andar(1)}>
+            <IconeDireita />
           </button>
           <button
             type="button"
@@ -363,52 +379,72 @@ export default function Agenda() {
         )}
         {!agendamentos && !erro && <p className="carregando">Carregando…</p>}
 
-        {agendamentos &&
-          [...porDia].map(([data, itens]) => (
-            <section key={data} className="dia">
-              <h3>
-                {abreviaDia(data)} {ddmm(data)}
-              </h3>
-              {itens.length === 0 && <p className="sutil">Sem horários.</p>}
-              <ul className="grade">
-                {itens.map((item) =>
-                  item.tipo === 'agendamento' ? (
-                    <li key={item.agendamento.id}>
-                      <button
-                        type="button"
-                        className={`ag ${item.agendamento.status}`}
-                        onClick={() => setPainel({ tipo: 'detalhes', agendamento: item.agendamento })}
-                      >
-                        {item.hora} {item.agendamento.cliente.nome} · {item.agendamento.servico?.nome ?? '—'}
-                        {item.agendamento.origem === 'link' && <span className="etiqueta"> pelo link</span>}
-                      </button>
+        {agendamentos && (
+          <div
+            key={`${modo}-${inicio}`}
+            className={`dias-grade${modo === 'semana' ? ' semana' : ''}${direcao ? ` entra-${direcao}` : ''}${primeiraCarga.current ? ' cascata' : ''}`}
+          >
+            {[...porDia].map(([data, itens]) => (
+              <section key={data} className="dia">
+                <h3>
+                  {abreviaDia(data)} {ddmm(data)}
+                </h3>
+                {itens.length === 0 && <p className="sutil">{modo === 'semana' ? 'Fechado' : 'Sem horários.'}</p>}
+                <ul className="grade">
+                  {(modo === 'semana' ? agruparLivres(itens, config.passo_min) : itens).map((item, i) => (
+                    <li key={item.tipo === 'agendamento' ? item.agendamento.id : `${item.tipo}-${item.tipo === 'livres' ? item.de : item.hora}`} style={{ '--i': Math.min(i, 10) } as CSSProperties}>
+                      {item.tipo === 'agendamento' ? (
+                        <button
+                          type="button"
+                          className={`ag ${item.agendamento.status}`}
+                          onClick={() => setPainel({ tipo: 'detalhes', agendamento: item.agendamento })}
+                        >
+                          <span className="h">{item.hora}</span>{' '}
+                          <span className="quem">
+                            <span className="n">{item.agendamento.cliente.nome}</span>{' '}
+                            <span className="s">· {item.agendamento.servico?.nome ?? '—'}</span>
+                            {item.agendamento.origem === 'link' && <span className="etiqueta"> pelo link</span>}
+                          </span>{' '}
+                          <SeloStatus status={item.agendamento.status} />
+                        </button>
+                      ) : item.tipo === 'fechado' ? (
+                        <button
+                          type="button"
+                          className="fechado"
+                          onClick={() => setPainel({ tipo: 'fechado', data, hora: item.hora, ajusteId: item.ajusteId })}
+                        >
+                          <s>{item.hora}</s> fechado
+                        </button>
+                      ) : item.tipo === 'livres' ? (
+                        <button
+                          type="button"
+                          className="livre grupo"
+                          aria-label={
+                            item.de === item.ate
+                              ? `Marcar ${abreviaDia(data)} ${ddmm(data)} às ${item.de}`
+                              : `Marcar ${abreviaDia(data)} ${ddmm(data)} entre ${item.de} e ${item.ate}`
+                          }
+                          onClick={() => setPainel({ tipo: 'livre', data, hora: item.de, extraId: extraQueCria(data, item.de) })}
+                        >
+                          {item.de === item.ate ? item.de : `${item.de}–${item.ate}`} livre
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="livre"
+                          aria-label={`Marcar ${abreviaDia(data)} ${ddmm(data)} às ${item.hora}`}
+                          onClick={() => setPainel({ tipo: 'livre', data, hora: item.hora, extraId: extraQueCria(data, item.hora) })}
+                        >
+                          {item.hora} livre <IconeMais tamanho={18} />
+                        </button>
+                      )}
                     </li>
-                  ) : item.tipo === 'fechado' ? (
-                    <li key={`fechado-${item.hora}`}>
-                      <button
-                        type="button"
-                        className="fechado"
-                        onClick={() => setPainel({ tipo: 'fechado', data, hora: item.hora, ajusteId: item.ajusteId })}
-                      >
-                        {item.hora} fechado
-                      </button>
-                    </li>
-                  ) : (
-                    <li key={`livre-${item.hora}`}>
-                      <button
-                        type="button"
-                        className="livre"
-                        aria-label={`Marcar ${abreviaDia(data)} ${ddmm(data)} às ${item.hora}`}
-                        onClick={() => setPainel({ tipo: 'livre', data, hora: item.hora, extraId: extraQueCria(data, item.hora) })}
-                      >
-                        {item.hora} livre
-                      </button>
-                    </li>
-                  ),
-                )}
-              </ul>
-            </section>
-          ))}
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
       <Painel
         aberto={painel !== null}

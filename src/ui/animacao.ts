@@ -42,7 +42,7 @@ export function useContador(alvo: number, ms = 600): number {
 
   useEffect(() => {
     if (menos) {
-      setValor(alvo);
+      setValor(alvo); // guarda para quando a preferência mudar
       return;
     }
     const de = atual.current;
@@ -59,5 +59,5 @@ export function useContador(alvo: number, ms = 600): number {
     return () => cancelAnimationFrame(quadro);
   }, [alvo, ms, menos]);
 
-  return valor;
+  return menos ? alvo : valor;
 }
