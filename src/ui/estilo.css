@@ -327,3 +327,18 @@ p[role='alert'] { animation: treme 300ms var(--curva); }
 @media (min-width: 768px) {
   body { padding: 0 32px 40px; }
 }
+
+/* ===== Agenda em duas colunas (tela larga) ===== */
+.resumo-lateral { display: grid; gap: 12px; align-content: start; }
+.resumo-lateral .cartao-amanha, .resumo-lateral .aviso-novos { margin: 0; }
+.proximo-cliente .rotulo { margin: 0 0 10px; }
+.proximo { flex-wrap: nowrap; gap: 12px; }
+.proximo-hora { font-weight: 600; font-size: 20px; font-variant-numeric: tabular-nums; }
+.proximo-quem { display: grid; flex: 1; min-width: 0; }
+.proximo-quem strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+a.botao.redondo { width: 44px; padding: 0; flex: none; }
+@media (min-width: 1280px) {
+  .conteudo:has(.agenda-layout) { max-width: 1320px; }
+  .agenda-layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 24px; align-items: start; }
+  .agenda-layout > .resumo-lateral { position: sticky; top: 84px; }
+}

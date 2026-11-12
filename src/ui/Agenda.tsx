@@ -12,6 +12,8 @@ import CartaoAmanha from './CartaoAmanha';
 import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
 import Painel from './Painel';
+import ResumoLateral from './ResumoLateral';
+import { useTelaLarga } from './animacao';
 import Esqueleto from './Esqueleto';
 import { agruparLivres, type Item } from './semana';
 import { nomeDivergente } from '../lib/nomes';
@@ -56,6 +58,9 @@ export default function Agenda() {
   const [erro, setErro] = useState(false);
 
   const [novos, setNovos] = useState<AgendamentoCompleto[]>([]);
+  const larga = useTelaLarga();
+  // muda quando a agenda grava algo: o resumo lateral recarrega o próximo cliente
+  const [versao, setVersao] = useState(0);
 
   // agendamentos que chegaram pelo link desde a última vez que o dono olhou (neste aparelho)
   const buscarNovos = useCallback(() => {
@@ -183,6 +188,7 @@ export default function Agenda() {
   }
 
   function depoisDeSalvar() {
+    setVersao((v) => v + 1);
     setPainel(null);
     void carregar();
   }
@@ -309,6 +315,29 @@ export default function Agenda() {
     return null;
   }
 
+  const avisoNovos =
+    novos.length > 0 ? (
+        <aside className="aviso-novos" role="status">
+          <strong>
+            {novos.length === 1 ? '1 agendamento novo pelo link' : `${novos.length} agendamentos novos pelo link`}
+          </strong>
+          <ul>
+            {novos.map((a) => {
+              const ini = new Date(a.inicio);
+              const d = dataLocal(ini, config.fuso);
+              return (
+                <li key={a.id}>
+                  {abreviaDia(d)} {ddmm(d)} {horaLocal(ini, config.fuso)} · {a.cliente.nome}
+                </li>
+              );
+            })}
+          </ul>
+          <button type="button" onClick={marcarVisto}>
+            Entendi
+          </button>
+        </aside>
+    ) : null;
+
   return (
     <main className="agenda">
       <div className="agenda-fundo" inert={painel !== null} aria-hidden={painel !== null || undefined}>
@@ -350,30 +379,12 @@ export default function Agenda() {
           </button>
         </div>
 
-        {novos.length > 0 && (
-          <aside className="aviso-novos" role="status">
-            <strong>
-              {novos.length === 1 ? '1 agendamento novo pelo link' : `${novos.length} agendamentos novos pelo link`}
-            </strong>
-            <ul>
-              {novos.map((a) => {
-                const ini = new Date(a.inicio);
-                const d = dataLocal(ini, config.fuso);
-                return (
-                  <li key={a.id}>
-                    {abreviaDia(d)} {ddmm(d)} {horaLocal(ini, config.fuso)} · {a.cliente.nome}
-                  </li>
-                );
-              })}
-            </ul>
-            <button type="button" onClick={marcarVisto}>
-              Entendi
-            </button>
-          </aside>
-        )}
+        {!larga && avisoNovos}
 
-        <CartaoAmanha />
+        {!larga && <CartaoAmanha />}
 
+        <div className="agenda-layout">
+        <div className="agenda-grade">
         {erro && (
           <p role="alert">
             Não foi possível carregar a agenda.{' '}
@@ -455,6 +466,9 @@ export default function Agenda() {
             ))}
           </div>
         )}
+        </div>
+        {larga && <ResumoLateral novos={avisoNovos} versao={versao} />}
+        </div>
       </div>
       <Painel
         aberto={painel !== null}

@@ -99,6 +99,53 @@ const abrirNovo = async (rotulo = 'Marcar ter 17/11 às 09:00') => {
 const salvar = () => userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
 describe('Agenda', () => {
+  // tela larga (≥ 1280px): stub de matchMedia
+  const larga = (sim = true) =>
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: sim && q === '(min-width: 1280px)',
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+
+  it('na tela larga, o resumo mostra o próximo cliente com o WhatsApp', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    const resumo = await screen.findByRole('complementary', { name: 'Resumo' });
+    await within(resumo).findByText('João');
+    expect(resumo).toHaveTextContent('10:00');
+    expect(resumo).toHaveTextContent('em 2 h');
+    expect(within(resumo).getByRole('link', { name: 'WhatsApp de João' })).toHaveAttribute('href', 'https://wa.me/5511987654321?text=');
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, sem próximo hoje, o resumo avisa', async () => {
+    larga();
+    m.listAgendamentos.mockResolvedValue([]);
+    renderComConfig(<Agenda />);
+    const resumo = await screen.findByRole('complementary', { name: 'Resumo' });
+    expect(await within(resumo).findByText('Nenhum cliente até o fim do dia.')).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, o cartão Amanhã fica no resumo e não acima da grade', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    const resumo = await screen.findByRole('complementary', { name: 'Resumo' });
+    expect(within(resumo).getByText(/^Amanhã:/)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Amanhã:/)).toHaveLength(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('abaixo de 1280px não há resumo lateral', async () => {
+    larga(false);
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    expect(screen.queryByRole('complementary', { name: 'Resumo' })).toBeNull();
+    expect(screen.getByText(/^Amanhã:/)).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it('com um painel aberto, a grade continua na tela', async () => {
     renderComConfig(<Agenda />);
     await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
