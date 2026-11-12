@@ -342,3 +342,15 @@ a.botao.redondo { width: 44px; padding: 0; flex: none; }
   .agenda-layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 24px; align-items: start; }
   .agenda-layout > .resumo-lateral { position: sticky; top: 84px; }
 }
+
+/* ===== Painel lateral (tela larga) ===== */
+.painel-camada.lateral { position: static; inset: auto; z-index: auto; }
+.painel-camada.lateral .fundo-escuro, .painel-camada.lateral .alca { display: none; }
+.painel-camada.lateral .painel {
+  position: relative; inset: auto; transform: none; width: auto; max-height: none; margin: 0;
+  border: 1px solid var(--borda); border-radius: var(--raio-cartao); padding: 18px; box-shadow: none;
+  animation: aparece 150ms var(--curva);
+}
+.painel-camada.lateral.saindo .painel { animation: some 150ms var(--curva) forwards; }
+.fechar-painel { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; min-height: 36px; }
+.painel-camada.lateral .painel-conteudo h3 { padding-right: 44px; }

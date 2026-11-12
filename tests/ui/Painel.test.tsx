@@ -116,4 +116,78 @@ describe('Painel', () => {
     act(() => window.dispatchEvent(new PopStateEvent('popstate'))); // Voltar de verdade
     expect(onFechar).toHaveBeenCalledTimes(1);
   });
+
+  describe('modo lateral', () => {
+    function Lateral({ onFechar = () => {}, modo = 'lateral' as 'lateral' | 'sobreposto', aberto = true }) {
+      return (
+        <>
+          <button type="button">fora</button>
+          <Painel aberto={aberto} onFechar={onFechar} rotulo="Teste" modo={modo}>
+            <button type="button">dentro</button>
+            <input aria-label="Cliente" />
+          </Painel>
+        </>
+      );
+    }
+
+    it('é uma região, não um diálogo', () => {
+      render(<Lateral />);
+      const r = screen.getByRole('region', { name: 'Teste' });
+      expect(r).not.toHaveAttribute('aria-modal');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('não mexe no histórico nem trava a rolagem', () => {
+      const push = vi.spyOn(history, 'pushState');
+      document.body.style.overflow = 'auto';
+      render(<Lateral />);
+      expect(push).not.toHaveBeenCalled();
+      expect(document.body.style.overflow).toBe('auto');
+    });
+
+    it('o × (Fechar painel) chama onFechar', async () => {
+      const onFechar = vi.fn();
+      render(<Lateral onFechar={onFechar} />);
+      await userEvent.click(screen.getByRole('button', { name: 'Fechar painel' }));
+      expect(onFechar).toHaveBeenCalledTimes(1);
+    });
+
+    it('Esc com o foco dentro fecha; com o foco fora não fecha', async () => {
+      const onFechar = vi.fn();
+      render(<Lateral onFechar={onFechar} />);
+      screen.getByRole('button', { name: 'fora' }).focus();
+      await userEvent.keyboard('{Escape}');
+      expect(onFechar).not.toHaveBeenCalled();
+      screen.getByRole('button', { name: 'dentro' }).focus();
+      await userEvent.keyboard('{Escape}');
+      expect(onFechar).toHaveBeenCalledTimes(1);
+    });
+
+    it('Esc com o foco num campo de texto do painel não fecha', async () => {
+      const onFechar = vi.fn();
+      render(<Lateral onFechar={onFechar} />);
+      screen.getByLabelText('Cliente').focus();
+      await userEvent.keyboard('{Escape}');
+      expect(onFechar).not.toHaveBeenCalled();
+    });
+
+    it('trocar de sobreposto para lateral com o painel aberto mantém o valor digitado e chama history.back uma vez', async () => {
+      const back = vi.spyOn(history, 'back').mockImplementation(() => {});
+      const { rerender } = render(<Lateral modo="sobreposto" />);
+      await userEvent.type(screen.getByLabelText('Cliente'), 'Jo');
+      rerender(<Lateral modo="lateral" />);
+      expect(screen.getByLabelText('Cliente')).toHaveValue('Jo');
+      expect(back).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('region', { name: 'Teste' })).toBeInTheDocument();
+    });
+
+    it('trocar de lateral para sobreposto com o painel aberto empurra uma entrada', () => {
+      const push = vi.spyOn(history, 'pushState');
+      const { rerender } = render(<Lateral modo="lateral" />);
+      expect(push).not.toHaveBeenCalled();
+      rerender(<Lateral modo="sobreposto" />);
+      expect(push).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('dialog', { name: 'Teste' })).toBeInTheDocument();
+    });
+  });
 });
