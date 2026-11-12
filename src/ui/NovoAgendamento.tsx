@@ -96,7 +96,7 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
 
   if (marcado)
     return (
-      <section role="dialog" aria-label="Agendamento marcado" className="painel">
+      <div className="painel-conteudo">
         <h3>Agendamento marcado</h3>
         <p>{marcado.nome}</p>
         <div className="linha">
@@ -112,11 +112,11 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
             Fechar
           </button>
         </div>
-      </section>
+      </div>
     );
 
   return (
-    <section role="dialog" aria-label={editando ? 'Editar agendamento' : 'Novo agendamento'} className="painel">
+    <div className="painel-conteudo">
       <h3>{editando ? 'Editar agendamento' : 'Novo agendamento'}</h3>
       <form onSubmit={salvar}>
         {agendamento ? (
@@ -189,6 +189,6 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
           </button>
         </div>
       </form>
-    </section>
+    </div>
   );
 }

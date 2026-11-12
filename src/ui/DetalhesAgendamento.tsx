@@ -7,6 +7,7 @@ import { abreviaDia, dataLocal, horaLocal } from '../lib/slots';
 import { waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto, Status } from '../types';
 import { useConfig } from './contexto';
+import { IconeWhatsApp } from './icones';
 
 const NOMES: Record<Status, string> = {
   marcado: 'Marcado',
@@ -65,7 +66,7 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
 
   if (confirmado)
     return (
-      <section role="dialog" aria-label="Agendamento" className="painel">
+      <div className="painel-conteudo">
         <h3>{a.cliente.nome}</h3>
         <p className="sutil">Situação: {NOMES.confirmado}</p>
         <div className="linha">
@@ -76,13 +77,13 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
             Fechar
           </button>
         </div>
-      </section>
+      </div>
     );
 
   if (cancelado) {
     const mensagem = mensagemCancelar(dados, linkAgendamento());
     return (
-      <section role="dialog" aria-label="Agendamento" className="painel">
+      <div className="painel-conteudo">
         <h3>{a.cliente.nome}</h3>
         <p>
           {abreviaDia(data)} {data.slice(8, 10)}/{data.slice(5, 7)} às {horaLocal(inicio, config.fuso)}
@@ -96,12 +97,12 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
             Fechar
           </button>
         </div>
-      </section>
+      </div>
     );
   }
 
   return (
-    <section role="dialog" aria-label="Agendamento" className="painel">
+    <div className="painel-conteudo">
       <h3>{a.cliente.nome}</h3>
       <p>
         {abreviaDia(data)} {data.slice(8, 10)}/{data.slice(5, 7)} às {horaLocal(inicio, config.fuso)} · {a.servico?.nome ?? 'sem serviço'}
@@ -109,10 +110,10 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
       <p className="sutil">Situação: {NOMES[a.status]}</p>
       {a.observacao && <p>{a.observacao}</p>}
       {erro && <p role="alert">{erro}</p>}
-      <div className="linha">
+      <div className="acoes">
         {a.status === 'marcado' && (
-          <button type="button" className="primario" disabled={confirmando} onClick={confirmarNoWhatsApp}>
-            Confirmar no WhatsApp
+          <button type="button" className="primario larga" disabled={confirmando} onClick={confirmarNoWhatsApp}>
+            <IconeWhatsApp /> Confirmar no WhatsApp
           </button>
         )}
         <button type="button" onClick={() => mudar('concluido')}>
@@ -125,7 +126,7 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
           Editar
         </button>
         <a className="botao" href={waLink(a.cliente.telefone, '')} target="_blank" rel="noreferrer">
-          WhatsApp
+          <IconeWhatsApp /> WhatsApp
         </a>
       </div>
       {perguntandoCancelar ? (
@@ -150,6 +151,6 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
           </button>
         </div>
       )}
-    </section>
+    </div>
   );
 }

@@ -99,6 +99,35 @@ const abrirNovo = async (rotulo = 'Marcar ter 17/11 às 09:00') => {
 const salvar = () => userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
 describe('Agenda', () => {
+  it('com um painel aberto, a grade continua na tela', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    expect(screen.getByRole('dialog', { name: 'Agendamento' })).toBeInTheDocument();
+    // a grade continua montada, mas inerte e oculta para leitores de tela enquanto o painel está aberto
+    expect(screen.getByRole('button', { name: 'Marcar ter 17/11 às 09:00', hidden: true })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Marcar ter 17/11 às 09:00' })).toBeNull();
+  });
+
+  it('Esc fecha o painel de horário livre', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    expect(screen.getByRole('dialog', { name: 'Horário livre' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('ações dos detalhes ficam agrupadas e Cancelar fica fora do grupo', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    const dialogo = screen.getByRole('dialog', { name: 'Agendamento' });
+    const acoes = dialogo.querySelector('.acoes') as HTMLElement;
+    expect(acoes).not.toBeNull();
+    for (const nome of ['Concluir', 'Faltou', 'Editar']) expect(within(acoes).getByRole('button', { name: nome })).toBeInTheDocument();
+    expect(within(acoes).getByRole('link', { name: 'WhatsApp' })).toBeInTheDocument();
+    expect(within(acoes).queryByRole('button', { name: 'Cancelar agendamento' })).toBeNull();
+    expect(within(dialogo).getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
+  });
+
   it('visão de dia mostra só hoje', async () => {
     renderComConfig(<Agenda />);
     expect(await screen.findByRole('button', { name: /10:00 João/ })).toBeInTheDocument();

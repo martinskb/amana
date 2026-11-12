@@ -125,6 +125,11 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--couro); }
   .painel-camada.saindo .painel { animation-name: reduz; }
   .painel-camada .alca { display: none; }
 }
+.painel-conteudo h3 { font-size: 24px; }
+.acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+.acoes > * { width: 100%; }
+.acoes .larga { grid-column: 1 / -1; }
+.painel-conteudo .confirmar-cancelar .linha > * { flex: 1; }
 .confirmar-cancelar { border: 1px solid #6b3a38; background: rgba(240, 116, 112, 0.07); border-radius: var(--raio-cartao); padding: 12px 14px; margin-top: 12px; }
 .confirmar-cancelar p { margin: 0 0 10px; font-weight: 600; }
 
