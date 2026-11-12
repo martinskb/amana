@@ -1,4 +1,4 @@
-/* Tokens do tema único (escuro). Ver docs/superpowers/specs/2026-11-12-redesign-visual-design.md, seção 3. */
+/* Tokens do tema único (escuro): cores, fontes, raios e tempos de animação usados em todo o app. */
 :root {
   --fundo: #161412;
   --sup: #211e1b;
