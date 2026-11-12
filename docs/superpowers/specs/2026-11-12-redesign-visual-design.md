@@ -85,7 +85,7 @@ Cada coluna é um cartão. Agendamento compacto: hora (sutil, 13px) em cima e no
 - **Horário livre:** borda tracejada `--borda-i`, texto sutil, "+" couro à direita.
 - **Horário fechado:** listras diagonais sutis, hora riscada.
 - **Cartão "Amanhã":** número grande em Playfair couro, texto e botão "Lembrar" com ícone de sino.
-- **Chave liga/desliga** no lugar das caixas de marcar ("ativo" dos serviços, "Link ligado"), mantendo o `input type="checkbox"` por baixo, com `role="switch"`.
+- **Chave liga/desliga** no lugar das caixas de marcar ("ativo" dos serviços, "Link ligado"), mantendo o `input type="checkbox"` por baixo (papel acessível `checkbox`, sem `role="switch"`, para não mudar o que leitores de tela e testes encontram).
 - **Ícones** SVG embutidos em `src/ui/icones.tsx`: agenda, link, ajustes, WhatsApp, check, x, relógio, sino, setas, mais. Sem biblioteca.
 - **Esqueleto de carregamento** com brilho, no lugar do "Carregando…".
 
@@ -101,7 +101,7 @@ Hoje `Agenda.tsx` troca a tela inteira quando um painel abre (retornos antecipad
   - Foco preso dentro do painel; o foco volta ao elemento que abriu ao fechar.
   - Rolagem do fundo travada enquanto aberto.
   - Mantém `role="dialog"` e `aria-label`, como hoje.
-- Painéis migrados: detalhes, novo/editar, horário livre, fechado, horário extra, lembretes de amanhã.
+- Painéis migrados: detalhes, novo/editar, horário livre, fechado, horário extra. Os lembretes de amanhã continuam se abrindo dentro do próprio cartão "Amanhã", com animação de desdobrar.
 - **Painel de detalhes:** ação principal em largura total; Concluir, Faltou, Editar e WhatsApp numa grade de 2 colunas; Cancelar agendamento separado no rodapé, com a confirmação já implementada ("Cancelar o horário de X?", "Sim, cancelar" / "Não").
 
 ## 7. Telas
@@ -114,8 +114,8 @@ Hoje `Agenda.tsx` troca a tela inteira quando um painel abre (retornos antecipad
   - Nome do negócio em Playfair 40px e subtítulo.
   - Fichas de dia (dia da semana pequeno + número grande) roláveis na horizontal. No celular, degradê na borda direita; a partir de 768px, setas.
   - Horários em grade de pílulas.
-  - O formulário aparece depois de escolher o horário, e o botão diz "Confirmar sexta às 14:30".
-- **Sucesso:** check verde em círculo, *"Pronto, Nome!"* em Playfair itálico, resumo do horário em cartão.
+  - O formulário aparece depois de escolher o horário, com uma linha de resumo acima ("Sexta, 13/11 às 14:30") e o botão "Confirmar horário" (texto atual mantido).
+- **Sucesso:** check verde em círculo, título *"Pronto, Nome!"* em Playfair itálico e, abaixo, "Seu horário: qua 18/11 às 9h." em cartão; o conjunto fica dentro do `role="status"`. O teste que procura a frase inteira passa a procurar o título e a linha do horário separadamente.
 - **Sem conexão, erro e link fechado:** mensagem centralizada em cartão, com o mesmo estilo.
 
 ## 8. Animações
@@ -141,7 +141,7 @@ Só `transform` e `opacity` (e `stroke-dashoffset` no check). Curva padrão `cub
 - Os 321 testes atuais devem continuar passando. Se um teste depender da estrutura antiga dos painéis (tela inteira trocada), ele é atualizado sem perder o que verifica.
 - Novos testes automáticos:
   - Painel: Esc fecha; clicar no fundo fecha; `popstate` fecha; foco vai para dentro ao abrir e volta ao fechar.
-  - Chaves: mantêm o papel de caixa de marcar (`role="switch"`) e o nome acessível.
+  - Chaves: continuam encontráveis como `checkbox` com o mesmo nome acessível ("Link ligado", "Corte ativo").
   - Semana: agrupamento de livres seguidos ("10:00–10:30 livre"); tocar no grupo abre o primeiro horário.
   - `useContador` e `useSaida` com tempo falso; com menos movimento, o contador começa no valor final.
 - Verificação visual: prints T1–T7 em 1280px e 390px, num navegador sem extensões, comparados ao protótipo aprovado.
