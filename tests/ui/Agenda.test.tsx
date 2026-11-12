@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConflitoDeHorarioError } from '../../src/data/erros';
 import { linkAgendamento } from '../../src/lib/link';
-import { renderModelo, waLink } from '../../src/lib/whatsapp';
+import { mensagemCancelar, mensagemConfirmar } from '../../src/lib/mensagens';
+import { waLink } from '../../src/lib/whatsapp';
 import { CONFIG_TESTE } from '../helpers/config';
 import type { AgendamentoCompleto, Status } from '../../src/types';
 import { renderComConfig } from '../helpers/render';
@@ -205,7 +206,6 @@ describe('Agenda', () => {
   });
 
   it.each([
-    ['Confirmar', 'confirmado'],
     ['Concluir', 'concluido'],
     ['Faltou', 'faltou'],
     ['Cancelar agendamento', 'cancelado'],
@@ -360,20 +360,98 @@ describe('Agenda', () => {
     getItem.mockRestore();
   });
 
-  it('depois de cancelar aparece "Avisar no WhatsApp" com a mensagem de cancelamento', async () => {
+  it('depois de cancelar, "Avisar no WhatsApp" usa a mensagem pronta de cancelamento', async () => {
     renderComConfig(<Agenda />);
     await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar agendamento' }));
     const aviso = await screen.findByRole('link', { name: 'Avisar no WhatsApp' });
-    const msg = renderModelo(CONFIG_TESTE.modelo_cancelamento, {
-      nome: 'João',
-      dia: 'ter',
-      hora: '10h',
-      link: linkAgendamento(),
-    });
-    expect(msg).toContain('não vou conseguir te atender ter às 10h');
+    const msg = mensagemCancelar({ nome: 'João', inicio: JOAO_TERCA.inicio, fuso: CONFIG_TESTE.fuso }, linkAgendamento());
+    expect(msg).toContain('não vou conseguir te atender terça-feira (17/11) às 10h');
     expect(aviso).toHaveAttribute('href', waLink('5511987654321', msg));
     expect(screen.getByText(/Cancelado/)).toBeInTheDocument();
+  });
+
+  it('num marcado, "Confirmar no WhatsApp" grava e só depois mostra "Abrir WhatsApp"', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Abrir WhatsApp' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar no WhatsApp' }));
+    expect(m.mudarStatus).toHaveBeenCalledWith({}, 'a1', 'confirmado');
+    expect(await screen.findByRole('link', { name: 'Abrir WhatsApp' })).toHaveAttribute(
+      'href',
+      waLink('5511987654321', mensagemConfirmar({ nome: 'João', inicio: JOAO_TERCA.inicio, fuso: CONFIG_TESTE.fuso })),
+    );
+  });
+
+  it('se a confirmação falhar, mostra o erro e não oferece o WhatsApp', async () => {
+    m.mudarStatus.mockRejectedValue(new Error('rede'));
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar no WhatsApp' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível atualizar');
+    expect(screen.queryByRole('link', { name: 'Abrir WhatsApp' })).not.toBeInTheDocument();
+  });
+
+  it('dois toques em "Confirmar no WhatsApp" gravam uma vez só', async () => {
+    let terminar: () => void = () => {};
+    m.mudarStatus.mockReturnValue(new Promise<void>((r) => (terminar = r)));
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    const botao = screen.getByRole('button', { name: 'Confirmar no WhatsApp' });
+    await userEvent.click(botao);
+    expect(botao).toBeDisabled();
+    await userEvent.click(botao);
+    terminar();
+    await screen.findByRole('link', { name: 'Abrir WhatsApp' });
+    expect(m.mudarStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it('num confirmado, não há "Confirmar no WhatsApp"', async () => {
+    m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, status: 'confirmado' }]);
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    expect(screen.queryByRole('button', { name: 'Confirmar no WhatsApp' })).not.toBeInTheDocument();
+  });
+
+  it('depois de marcar um cliente existente, aparece "Mandar confirmação no WhatsApp"', async () => {
+    renderComConfig(<Agenda />);
+    await abrirNovo();
+    await userEvent.type(screen.getByLabelText('Cliente'), 'Jo');
+    await userEvent.click(await screen.findByRole('button', { name: /João/ }));
+    await salvar();
+    expect(await screen.findByRole('heading', { name: 'Agendamento marcado' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Mandar confirmação no WhatsApp' })).toHaveAttribute(
+      'href',
+      waLink('5511987654321', mensagemConfirmar({ nome: 'João', inicio: '2026-11-17T12:00:00.000Z', fuso: CONFIG_TESTE.fuso })),
+    );
+    const antes = m.listAgendamentos.mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(m.listAgendamentos.mock.calls.length).toBeGreaterThan(antes));
+    expect(screen.queryByRole('heading', { name: 'Agendamento marcado' })).not.toBeInTheDocument();
+  });
+
+  it('depois de marcar um cliente novo, a confirmação vai para o telefone dele', async () => {
+    m.listClientes.mockResolvedValue([]);
+    m.findOrCreateCliente.mockResolvedValue({ id: 'c9', nome: 'Pedro', telefone: '5511977776666', criado_em: '2026-11-01T00:00:00Z' });
+    renderComConfig(<Agenda />);
+    await abrirNovo();
+    await userEvent.type(screen.getByLabelText('Cliente'), 'Pedro');
+    await userEvent.type(screen.getByLabelText('Telefone'), '(11) 97777-6666');
+    await salvar();
+    expect(await screen.findByRole('link', { name: 'Mandar confirmação no WhatsApp' })).toHaveAttribute(
+      'href',
+      waLink('5511977776666', mensagemConfirmar({ nome: 'Pedro', inicio: '2026-11-17T12:00:00.000Z', fuso: CONFIG_TESTE.fuso })),
+    );
+  });
+
+  it('editar um agendamento não mostra o painel "Agendamento marcado"', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    await salvar();
+    await waitFor(() => expect(m.editarAgendamento).toHaveBeenCalled());
+    expect(screen.queryByRole('heading', { name: 'Agendamento marcado' })).not.toBeInTheDocument();
   });
 
   it('ao voltar para o app, busca de novo os agendamentos novos pelo link', async () => {
@@ -384,5 +462,10 @@ describe('Agenda', () => {
     m.listNovosPeloLink.mockResolvedValue([{ ...MARIA_QUARTA, origem: 'link', criado_em: '2026-11-17T10:50:00+00:00' }]);
     act(() => document.dispatchEvent(new Event('visibilitychange')));
     expect(await screen.findByText('1 agendamento novo pelo link')).toBeInTheDocument();
+  });
+
+  it('a Agenda mostra o cartão Amanhã', async () => {
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText(/^Amanhã:/)).toBeInTheDocument();
   });
 });

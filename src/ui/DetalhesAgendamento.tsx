@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { mudarStatus } from '../data/agendamentos';
 import { supabase } from '../data/supabase';
 import { linkAgendamento } from '../lib/link';
-import { abreviaDia, dataLocal, horaCurta, horaLocal } from '../lib/slots';
-import { renderModelo, waLink } from '../lib/whatsapp';
+import { mensagemCancelar, mensagemConfirmar } from '../lib/mensagens';
+import { abreviaDia, dataLocal, horaLocal } from '../lib/slots';
+import { waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto, Status } from '../types';
 import { useConfig } from './contexto';
 
@@ -26,6 +27,24 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
   const { config } = useConfig();
   const [erro, setErro] = useState<string | null>(null);
   const [cancelado, setCancelado] = useState(false);
+  const [confirmado, setConfirmado] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const dados = { nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso };
+
+  // grava antes e só depois oferece o WhatsApp: o Safari não abre janela depois de esperar a rede
+  async function confirmarNoWhatsApp() {
+    if (confirmando) return;
+    setErro(null);
+    setConfirmando(true);
+    try {
+      await mudarStatus(supabase, a.id, 'confirmado');
+      setConfirmado(true);
+    } catch {
+      setErro('Não foi possível atualizar. Confira a internet e tente de novo.');
+    } finally {
+      setConfirmando(false);
+    }
+  }
   const inicio = new Date(a.inicio);
   const data = dataLocal(inicio, config.fuso);
 
@@ -43,13 +62,24 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
     }
   }
 
+  if (confirmado)
+    return (
+      <section role="dialog" aria-label="Agendamento" className="painel">
+        <h3>{a.cliente.nome}</h3>
+        <p className="sutil">Situação: {NOMES.confirmado}</p>
+        <div className="linha">
+          <a className="botao" href={waLink(a.cliente.telefone, mensagemConfirmar(dados))} target="_blank" rel="noreferrer">
+            Abrir WhatsApp
+          </a>
+          <button type="button" onClick={onMudou}>
+            Fechar
+          </button>
+        </div>
+      </section>
+    );
+
   if (cancelado) {
-    const mensagem = renderModelo(config.modelo_cancelamento, {
-      nome: a.cliente.nome,
-      dia: abreviaDia(data),
-      hora: horaCurta(horaLocal(inicio, config.fuso)),
-      link: linkAgendamento(),
-    });
+    const mensagem = mensagemCancelar(dados, linkAgendamento());
     return (
       <section role="dialog" aria-label="Agendamento" className="painel">
         <h3>{a.cliente.nome}</h3>
@@ -80,8 +110,8 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
       {erro && <p role="alert">{erro}</p>}
       <div className="linha">
         {a.status === 'marcado' && (
-          <button type="button" onClick={() => mudar('confirmado')}>
-            Confirmar
+          <button type="button" className="primario" disabled={confirmando} onClick={confirmarNoWhatsApp}>
+            Confirmar no WhatsApp
           </button>
         )}
         <button type="button" onClick={() => mudar('concluido')}>

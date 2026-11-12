@@ -4,7 +4,8 @@ import { findOrCreateCliente, listClientes } from '../data/clientes';
 import { ConflitoDeHorarioError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import { dataLocal, horaLocal, instanteLocal } from '../lib/slots';
-import { MSG_WHATSAPP_INVALIDO, normalizePhone } from '../lib/whatsapp';
+import { mensagemConfirmar } from '../lib/mensagens';
+import { MSG_WHATSAPP_INVALIDO, normalizePhone, waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto, Cliente, Servico } from '../types';
 import { useConfig } from './contexto';
 
@@ -33,6 +34,8 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
   const [telefone, setTelefone] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  // depois de marcar na mão: painel para mandar a confirmação (spec v3, seção 4)
+  const [marcado, setMarcado] = useState<{ nome: string; telefone: string; inicio: string } | null>(null);
 
   useEffect(() => {
     if (editando || cliente || termo.trim().length < 2) {
@@ -64,15 +67,15 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
           observacao: obs,
         });
       } else {
-        let clienteId = cliente?.id;
-        if (!clienteId) {
+        let quem = cliente;
+        if (!quem) {
           if (!termo.trim()) return setErro('Informe o nome do cliente.');
           const tel = normalizePhone(telefone);
           if (!tel) return setErro(MSG_WHATSAPP_INVALIDO);
-          clienteId = (await findOrCreateCliente(supabase, termo.trim(), tel)).id;
+          quem = await findOrCreateCliente(supabase, termo.trim(), tel);
         }
         await criarAgendamento(supabase, {
-          cliente_id: clienteId,
+          cliente_id: quem.id,
           servico_id: servico?.id ?? null,
           inicio: inicio.toISOString(),
           fim: fim.toISOString(),
@@ -80,6 +83,8 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
           observacao: obs,
           origem: 'dono',
         });
+        setMarcado({ nome: quem.nome, telefone: quem.telefone, inicio: inicio.toISOString() });
+        return;
       }
       onSalvo();
     } catch (e) {
@@ -88,6 +93,27 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
       setSalvando(false);
     }
   }
+
+  if (marcado)
+    return (
+      <section role="dialog" aria-label="Agendamento marcado" className="painel">
+        <h3>Agendamento marcado</h3>
+        <p>{marcado.nome}</p>
+        <div className="linha">
+          <a
+            className="botao"
+            href={waLink(marcado.telefone, mensagemConfirmar({ nome: marcado.nome, inicio: marcado.inicio, fuso: config.fuso }))}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Mandar confirmação no WhatsApp
+          </a>
+          <button type="button" onClick={onSalvo}>
+            Fechar
+          </button>
+        </div>
+      </section>
+    );
 
   return (
     <section role="dialog" aria-label={editando ? 'Editar agendamento' : 'Novo agendamento'} className="painel">

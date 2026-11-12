@@ -1,18 +1,21 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { linkAgendamento } from '../../src/lib/link';
 import { CONFIG_TESTE } from '../helpers/config';
 import { renderComConfig } from '../helpers/render';
 
-const { saveConfig, listServicos, saveServico } = vi.hoisted(() => ({
+const { saveConfig, listServicos, saveServico, listClientes, listAgendamentosDoCliente } = vi.hoisted(() => ({
   saveConfig: vi.fn(),
   listServicos: vi.fn(),
   saveServico: vi.fn(),
+  listClientes: vi.fn(),
+  listAgendamentosDoCliente: vi.fn(),
 }));
 vi.mock('../../src/data/supabase', () => ({ supabase: {} }));
 vi.mock('../../src/data/configuracoes', () => ({ saveConfig, getConfig: vi.fn() }));
 vi.mock('../../src/data/servicos', () => ({ listServicos, saveServico }));
+vi.mock('../../src/data/clientes', () => ({ listClientes }));
+vi.mock('../../src/data/agendamentos', () => ({ listAgendamentosDoCliente }));
 
 import Configuracoes from '../../src/ui/Configuracoes';
 
@@ -22,6 +25,8 @@ beforeEach(() => {
   saveConfig.mockReset().mockResolvedValue(undefined);
   listServicos.mockReset().mockResolvedValue([CORTE]);
   saveServico.mockReset().mockImplementation(async (_db, s) => ({ id: 'novo', ...s }));
+  listClientes.mockReset().mockResolvedValue([{ id: 'c1', nome: 'João', telefone: '5511987654321', criado_em: '2026-11-01T00:00:00Z' }]);
+  listAgendamentosDoCliente.mockReset().mockResolvedValue([]);
 });
 
 const salvar = () => userEvent.click(screen.getByRole('button', { name: 'Salvar configurações' }));
@@ -87,23 +92,13 @@ describe('Configurações', () => {
     expect(saveServico).toHaveBeenCalledWith({}, { ...CORTE, ativo: false });
   });
 
-  it('edita modelos de mensagem e nome do negócio', async () => {
+  it('edita o nome do negócio', async () => {
     renderComConfig(<Configuracoes />);
-    for (const [rotulo, valor] of [
-      ['Nome do negócio', 'Barbearia Nova'],
-      ['Mensagem de horários livres', 'Livres: {horarios}'],
-      ['Mensagem de lembrete', 'Oi {nome}, até amanhã!'],
-    ]) {
-      await userEvent.clear(screen.getByLabelText(rotulo));
-      fireEvent.change(screen.getByLabelText(rotulo), { target: { value: valor } });
-    }
+    await userEvent.clear(screen.getByLabelText('Nome do negócio'));
+    fireEvent.change(screen.getByLabelText('Nome do negócio'), { target: { value: 'Barbearia Nova' } });
     await salvar();
     await waitFor(() => expect(saveConfig).toHaveBeenCalled());
-    expect(saveConfig.mock.calls[0][1]).toMatchObject({
-      nome_negocio: 'Barbearia Nova',
-      modelo_livres: 'Livres: {horarios}',
-      modelo_lembrete: 'Oi {nome}, até amanhã!',
-    });
+    expect(saveConfig.mock.calls[0][1]).toMatchObject({ nome_negocio: 'Barbearia Nova' });
   });
 
   it('tem o botão "Baixar backup"', () => {
@@ -115,21 +110,53 @@ describe('Configurações', () => {
 describe('Configurações do link', () => {
   const campo = (rotulo: string, valor: string) => fireEvent.change(screen.getByLabelText(rotulo), { target: { value: valor } });
 
-  it('salva duração, dias do link, liga/desliga, WhatsApp do negócio e mensagem de cancelamento', async () => {
+  it('salva duração, dias do link e WhatsApp do negócio', async () => {
     renderComConfig(<Configuracoes />);
     campo('Duração de cada horário (min)', '40');
     campo('Quantos dias o link mostra', '21');
-    await userEvent.click(screen.getByLabelText('Link de agendamento ligado'));
     campo('WhatsApp do negócio', '(11) 90000-2222');
-    campo('Mensagem de cancelamento', 'Não vai dar, {nome}. {link}');
     await salvar();
     expect(saveConfig.mock.calls[0][1]).toMatchObject({
       passo_min: 40,
       dias_abertos: 21,
-      link_ativo: false,
       telefone_negocio: '5511900002222',
-      modelo_cancelamento: 'Não vai dar, {nome}. {link}',
     });
+  });
+
+  it('não tem a seção Mensagens nem os campos de modelo', () => {
+    renderComConfig(<Configuracoes />);
+    for (const rotulo of ['Mensagem de horários livres', 'Mensagem de lembrete', 'Mensagem de cancelamento']) {
+      expect(screen.queryByLabelText(rotulo)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByRole('heading', { name: 'Mensagens' })).not.toBeInTheDocument();
+  });
+
+  it('não tem a chave do link nem "Copiar link de agendamento" (foram para a aba Link)', () => {
+    renderComConfig(<Configuracoes />);
+    expect(screen.queryByLabelText('Link de agendamento ligado')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copiar link de agendamento' })).not.toBeInTheDocument();
+  });
+
+  it('salvar não manda link_ativo nem os modelos', async () => {
+    renderComConfig(<Configuracoes />);
+    await salvar();
+    expect(Object.keys(saveConfig.mock.calls[0][1]).sort()).toEqual(
+      ['dias_abertos', 'expediente', 'folgas', 'nome_negocio', 'passo_min', 'telefone_negocio'],
+    );
+  });
+
+  it('as seções aparecem na ordem Negócio, Horários, Serviços, Clientes, Backup', () => {
+    renderComConfig(<Configuracoes />);
+    const titulos = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(titulos).toEqual(['Negócio', 'Horários', 'Serviços', 'Clientes', 'Backup']);
+  });
+
+  it('a seção Clientes busca e abre o histórico', async () => {
+    renderComConfig(<Configuracoes />);
+    await userEvent.type(screen.getByLabelText('Buscar'), 'Jo');
+    await waitFor(() => expect(listClientes).toHaveBeenLastCalledWith({}, 'Jo'));
+    await userEvent.click(await screen.findByRole('button', { name: /João/ }));
+    expect(listAgendamentosDoCliente).toHaveBeenCalledWith({}, 'c1');
   });
 
   it('WhatsApp do negócio vazio grava nulo', async () => {
@@ -161,14 +188,5 @@ describe('Configurações do link', () => {
     await salvar();
     expect(screen.getByRole('alert')).toHaveTextContent('A duração de cada horário precisa ficar entre 5 e 240 minutos.');
     expect(saveConfig).not.toHaveBeenCalled();
-  });
-
-  it('"Copiar link de agendamento" copia o link', async () => {
-    const user = userEvent.setup();
-    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
-    renderComConfig(<Configuracoes />);
-    await user.click(screen.getByRole('button', { name: 'Copiar link de agendamento' }));
-    expect(writeText).toHaveBeenCalledWith(linkAgendamento());
-    expect(await screen.findByText('Link copiado!')).toBeInTheDocument();
   });
 });
