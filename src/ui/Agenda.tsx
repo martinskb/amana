@@ -15,7 +15,8 @@ type Painel =
   | { tipo: 'novo'; data: string; hora: string }
   | { tipo: 'detalhes'; agendamento: AgendamentoCompleto }
   | { tipo: 'editar'; agendamento: AgendamentoCompleto }
-  | { tipo: 'livre'; data: string; hora: string }
+  // extraId: o horário só existe por causa de um extra (fora do expediente) e pode ser removido
+  | { tipo: 'livre'; data: string; hora: string; extraId?: string }
   | { tipo: 'fechado'; data: string; hora: string; ajusteId: string }
   | { tipo: 'extra' }
   | null;
@@ -143,6 +144,15 @@ export default function Agenda() {
     return mapa;
   }, [agendamentos, ajustes, config, inicio, ate]);
 
+  /** O extra que sozinho cria este horário (fora do expediente); undefined se o horário é do expediente. */
+  function extraQueCria(data: string, hora: string): string | undefined {
+    const ini = instanteLocal(data, hora, config.fuso).getTime();
+    const extra = ajustes.find((a) => a.tipo === 'extra' && new Date(a.inicio).getTime() === ini);
+    if (!extra) return undefined;
+    const doExpediente = gerarHorarios({ config, ajustes: [], de: data, ate: data }).some((h) => h.inicio.getTime() === ini);
+    return doExpediente ? undefined : extra.id;
+  }
+
   const [erroAjuste, setErroAjuste] = useState<string | null>(null);
   const [extraData, setExtraData] = useState(hoje);
   const [extraHora, setExtraHora] = useState('');
@@ -183,12 +193,18 @@ export default function Agenda() {
           <button type="button" className="primario" onClick={() => setPainel({ tipo: 'novo', data: painel.data, hora: painel.hora })}>
             Marcar cliente
           </button>
-          <button
-            type="button"
-            onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(painel.data, painel.hora, config.fuso).toISOString()))}
-          >
-            Fechar este horário
-          </button>
+          {painel.extraId ? (
+            <button type="button" onClick={() => ajustar(() => removerAjuste(supabase, painel.extraId!))}>
+              Remover horário extra
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(painel.data, painel.hora, config.fuso).toISOString()))}
+            >
+              Fechar este horário
+            </button>
+          )}
           <button type="button" onClick={() => setPainel(null)}>
             Voltar
           </button>
@@ -364,7 +380,7 @@ export default function Agenda() {
                       type="button"
                       className="livre"
                       aria-label={`Marcar ${abreviaDia(data)} ${ddmm(data)} às ${item.hora}`}
-                      onClick={() => setPainel({ tipo: 'livre', data, hora: item.hora })}
+                      onClick={() => setPainel({ tipo: 'livre', data, hora: item.hora, extraId: extraQueCria(data, item.hora) })}
                     >
                       {item.hora} livre
                     </button>

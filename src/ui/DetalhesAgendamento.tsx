@@ -29,6 +29,7 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
   const [cancelado, setCancelado] = useState(false);
   const [confirmado, setConfirmado] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  const [perguntandoCancelar, setPerguntandoCancelar] = useState(false);
   const dados = { nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso };
 
   // grava antes e só depois oferece o WhatsApp: o Safari não abre janela depois de esperar a rede
@@ -127,14 +128,28 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
           WhatsApp
         </a>
       </div>
-      <div className="linha">
-        <button type="button" className="perigo" onClick={() => mudar('cancelado')}>
-          Cancelar agendamento
-        </button>
-        <button type="button" onClick={onFechar}>
-          Fechar
-        </button>
-      </div>
+      {perguntandoCancelar ? (
+        <div className="confirmar-cancelar" role="group" aria-label="Confirmar cancelamento">
+          <p>Cancelar o horário de {a.cliente.nome}?</p>
+          <div className="linha">
+            <button type="button" className="perigo-cheio" onClick={() => mudar('cancelado')}>
+              Sim, cancelar
+            </button>
+            <button type="button" onClick={() => setPerguntandoCancelar(false)}>
+              Não
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="linha">
+          <button type="button" className="perigo" onClick={() => setPerguntandoCancelar(true)}>
+            Cancelar agendamento
+          </button>
+          <button type="button" onClick={onFechar}>
+            Fechar
+          </button>
+        </div>
+      )}
     </section>
   );
 }

@@ -35,6 +35,8 @@ label.inline { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 
 .sugestoes { list-style: none; padding: 0; display: grid; gap: 4px; }
 a.botao { padding: 10px 14px; border-radius: 10px; background: #16a34a; color: #fff; text-decoration: none; }
 button.perigo { color: #b91c1c; border-color: #fecaca; }
+button.perigo-cheio { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+.confirmar-cancelar p { margin: 0.5rem 0; font-weight: 600; }
 .lista button.link { width: 100%; text-align: left; border: 0; background: none; padding: 4px 0; }
 .aviso-backup { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 8px 12px; margin: 8px 0; }
 .publico { max-width: 480px; margin: 0 auto; padding-top: 16px; }
