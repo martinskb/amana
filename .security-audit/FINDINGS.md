@@ -1,34 +1,13 @@
 # Security findings: Agenda Fácil
 
-Last run R1 · commit 5b15bcc · 2026-11-12 · Gate: FAILED · Coverage: Full
+Last run R2 · commit 0515e42 · 2026-11-12 · Gate: PASSED (aguarda assinatura do Product Owner) · Coverage: Full
 
 |            | Critical | High | Medium | Low | Info |
 |------------|----------|------|--------|-----|------|
-| Open       | 0 | 0 | 2 | 4 | 2 |
+| Open       | 0 | 0 | 0 | 4 | 2 |
 | Fixed, awaiting verify | 0 | 0 | 0 | 0 | 0 |
 
-O gate falha por SEC-001 e SEC-002 (Medium): cada uma precisa ser corrigida ou aceita como risco pelo Product Owner, com prazo de até 90 dias.
-
 ## Open
-### SEC-001 · Medium · Link público marca horário em nome de cliente já cadastrado só com o telefone
-- **Where:** supabase/migrations/0002_link_publico.sql:198 (agendar_publico_em)
-- **Category:** A06:2025 · CWE-639 · Confidence: Confirmed
-- **Found by:** AI review
-- **What's wrong:** agendar_publico_em faz insert em clientes com 'on conflict (telefone) do nothing' e reaproveita o cliente existente; o nome digitado é ignorado. Não há prova de que quem agenda é o dono do número.
-- **Impact:** Qualquer pessoa na internet que saiba o WhatsApp de um cliente pode criar agendamentos atribuídos a ele (aparecem com o nome real na agenda do dono), para trote ou para tomar horários. Não vaza dados: a resposta não devolve o nome.
-- **How to fix:** Marcar o agendamento do link como 'a confirmar' quando o telefone já existir com outro nome (ou sempre que vier do link) e mostrar ao dono o nome digitado; alternativa: confirmação por WhatsApp antes de valer.
-- **Owner:** — · **Ticket:** — · **First seen:** R1
-- **Compliance:** LGPD: dado pessoal (nome e WhatsApp) associado a ação que a pessoa não fez
-
-### SEC-002 · Medium · Limite de 3 agendamentos por hora por IP não impede encher a agenda pelo link
-- **Where:** supabase/migrations/0002_link_publico.sql:189 (agendar_publico_em)
-- **Category:** A06:2025 · CWE-770 · Confidence: Likely
-- **Found by:** AI review
-- **What's wrong:** O único limite é por IP (3 por hora, IPv6 agrupado por /64), contado só para agendamentos bem-sucedidos. Quem trocar de IP (proxies residenciais, rede móvel) agenda sem limite; não há limite global por dia nem por telefone.
-- **Impact:** Um atacante com vários IPs pode ocupar todos os horários livres dos próximos 14 dias com nomes e números falsos ou de terceiros, travando o agendamento online do negócio até o dono cancelar um por um.
-- **How to fix:** Somar limites que não dependem do IP: por telefone (ex.: no máximo 2 agendamentos futuros ativos pelo link), um teto global de agendamentos pelo link por hora/dia, e um aviso ao dono quando o teto for atingido.
-- **Owner:** — · **Ticket:** — · **First seen:** R1
-
 ### SEC-003 · Low · Script de restauração desliga a verificação TLS na conexão com o banco
 - **Where:** scripts/restore.ts:23 (main)
 - **Category:** A04:2025 · CWE-295 · Confidence: Confirmed
@@ -97,7 +76,8 @@ O gate falha por SEC-001 e SEC-002 (Medium): cada uma precisa ser corrigida ou a
 
 ## Verified (closed)
 
-(nenhum)
+SEC-001 · Medium · Link público marca horário em nome de cliente já cadastrado só com o telefone · verified R2 (residual: ver evidência em findings.json)
+SEC-002 · Medium · Limite de 3 agendamentos por hora por IP não impede encher a agenda pelo link · verified R2 (residual: ver evidência em findings.json)
 
 ## Triage dismissals (for human review)
 

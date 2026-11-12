@@ -143,7 +143,7 @@ describe('página pública de agendamento', () => {
     await preencher('Ana', '11987654321');
     await confirmar();
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Muitos agendamentos desta rede agora. Tente mais tarde ou chame no WhatsApp.',
+      'Não foi possível marcar pelo link agora. Chame no WhatsApp para marcar seu horário.',
     );
     expect(falar()).toBeInTheDocument();
   });

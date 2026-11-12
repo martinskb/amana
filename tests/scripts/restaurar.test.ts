@@ -61,6 +61,17 @@ describe('restaurar', { timeout: 30_000 }, () => {
     expect({ ...cfg, ultimo_backup: iso(cfg.ultimo_backup) }).toEqual({ id: 1, ...ARQUIVO.configuracoes[0], backup_chave_hash: null, backup_ativo: false });
   });
 
+  it('o nome digitado no link (nome_informado) volta na restauração; backup antigo sem ele também restaura', async () => {
+    const db = await novoBanco();
+    const comNome = {
+      ...ARQUIVO,
+      agendamentos: ARQUIVO.agendamentos.map((a, i) => (i === 1 ? { ...a, nome_informado: 'Fulano' } : a)),
+    };
+    await restaurar(consulta(db), comNome, { confirmarSubstituir: false });
+    const { rows } = await db.query<{ nome_informado: string | null }>('select nome_informado from agendamentos order by id');
+    expect(rows.map((r) => r.nome_informado)).toEqual([null, 'Fulano', null]);
+  });
+
   it('banco com dados e sem confirmação aborta sem alterar nada', async () => {
     const db = await novoBanco();
     await db.query(`insert into clientes (nome, telefone) values ('Já existe', '5511988887777')`);

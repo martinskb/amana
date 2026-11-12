@@ -6,3 +6,9 @@
 {"ts": "2026-11-12T15:30:14Z", "id": "SEC-006", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Low"}
 {"ts": "2026-11-12T15:30:14Z", "id": "SEC-007", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Info"}
 {"ts": "2026-11-12T15:30:14Z", "id": "SEC-008", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Info"}
+{"ts": "2026-11-12T16:15:01Z", "id": "SEC-001", "event": "owner", "to": "kaio", "by": "kaio (git user; usuário não informou outro nome)"}
+{"ts": "2026-11-12T16:15:01Z", "id": "SEC-001", "event": "status", "from": "Open", "to": "Fixed", "by": "kaio (stated: pediu a correção)", "commit": "fcad057", "note": "Root cause: agendar_publico_em reaproveita o cliente pelo telefone (on conflict do nothing) e descarta o nome digitado, sem nenhuma prova de posse do número nem sinal para o dono."}
+{"ts": "2026-11-12T16:15:01Z", "id": "SEC-002", "event": "owner", "to": "kaio", "by": "kaio (git user; usuário não informou outro nome)"}
+{"ts": "2026-11-12T16:15:01Z", "id": "SEC-002", "event": "status", "from": "Open", "to": "Fixed", "by": "kaio (stated: pediu a correção)", "commit": "fcad057", "note": "Root cause: O único freio do link público era por IP (3/hora, só sucessos); quem troca de IP e inventa números agenda sem limite."}
+{"ts": "2026-11-12T16:24:09Z", "id": "SEC-001", "event": "status", "from": "Fixed", "to": "Verified", "run": "R2", "commit": "0515e42"}
+{"ts": "2026-11-12T16:24:09Z", "id": "SEC-002", "event": "status", "from": "Fixed", "to": "Verified", "run": "R2", "commit": "0515e42"}

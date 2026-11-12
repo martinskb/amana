@@ -9,7 +9,7 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 ## 2. Supabase
 
 - [ ] Criar a conta em supabase.com (entrar com a conta Google do negócio) e um projeto na região São Paulo. Guardar a senha do banco **com o cliente**.
-- [ ] Em **SQL Editor**, rodar, nesta ordem, `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_link_publico.sql`, `supabase/migrations/0003_backup_drive.sql` e `supabase/seed.sql`. (Projeto que já existia: rodar só as migrações que faltam, em ordem.)
+- [ ] Em **SQL Editor**, rodar, nesta ordem, `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_link_publico.sql`, `supabase/migrations/0003_backup_drive.sql`, `supabase/migrations/0004_link_seguranca.sql` e `supabase/seed.sql`. (Projeto que já existia: rodar só as migrações que faltam, em ordem.)
 - [ ] Em **Authentication → Users → Add user → Create new user**, criar o dono com o e-mail `<usuario>@dono.agenda` (por exemplo `joao@dono.agenda`), uma senha de **8 ou mais caracteres** e **Auto Confirm User** marcado. No app, o dono entra com o usuário (`joao`) e a senha. Esse e-mail nunca recebe mensagens: se o dono esquecer a senha, troque aqui no painel.
 - [ ] Copiar o **User UID** desse usuário e rodar no SQL Editor:
       `insert into donos (user_id) values ('<User UID>');`

@@ -132,13 +132,14 @@ describe('agendar_publico', { timeout: 30_000 }, () => {
 
   it('quarto agendamento do mesmo IP na mesma hora → limite; outro IP passa; depois de 61 min passa', async () => {
     const { agendar } = await preparar();
-    for (const h of ['09:00', '09:30', '10:30']) {
-      expect((await agendar('Ana', '11912345678', iso(`2026-11-17 ${h}`))).ok).toBe(true);
+    // números diferentes no mesmo IP: o que trava aqui é o limite por IP, não o por WhatsApp
+    for (const [h, tel] of [['09:00', '11912345671'], ['09:30', '11912345672'], ['10:30', '11912345673']]) {
+      expect((await agendar('Ana', tel, iso(`2026-11-17 ${h}`))).ok).toBe(true);
     }
-    expect(await agendar('Ana', '11912345678', iso('2026-11-17 11:00'))).toEqual({ ok: false, erro: 'limite' });
+    expect(await agendar('Ana', '11912345674', iso('2026-11-17 11:00'))).toEqual({ ok: false, erro: 'limite' });
     expect((await agendar('Bia', '11912340000', iso('2026-11-17 11:00'), AGORA, '2.2.2.2')).ok).toBe(true);
     const depois = new Date(AGORA.getTime() + 61 * 60_000);
-    expect((await agendar('Ana', '11912345678', iso('2026-11-17 11:30'), depois)).ok).toBe(true);
+    expect((await agendar('Ana', '11912345674', iso('2026-11-17 11:30'), depois)).ok).toBe(true);
   });
 
   it('horário fora da lista ou ocupado → horario_indisponivel', async () => {
@@ -153,6 +154,46 @@ describe('agendar_publico', { timeout: 30_000 }, () => {
     expect((await agendar('Bia', '5511987654321', NOVE)).ok).toBe(true);
     const { rows } = await db.query(`select nome from clientes where telefone = '5511987654321'`);
     expect(rows).toEqual([{ nome: 'João' }]);
+  });
+
+  // SEC-001: o número identifica o cliente que volta, mas o nome digitado fica guardado para o dono conferir
+  it('o agendamento pelo link guarda o nome digitado, mesmo quando o número já é de outro cliente', async () => {
+    const { db, agendar } = await preparar();
+    expect((await agendar('  Bia  ', '5511987654321', NOVE)).ok).toBe(true);
+    const { rows } = await db.query(
+      `select c.nome, a.nome_informado from agendamentos a join clientes c on c.id = a.cliente_id where a.inicio = $1`, [NOVE]);
+    expect(rows).toEqual([{ nome: 'João', nome_informado: 'Bia' }]);
+  });
+
+  // SEC-002: freios que não dependem do IP
+  it('mesmo WhatsApp: no máximo 2 horários futuros pelo link; o 3º → limite, mesmo de outro IP', async () => {
+    const { agendar } = await preparar();
+    expect((await agendar('Ana', '11912345678', iso('2026-11-17 09:00'), AGORA, '1.1.1.1')).ok).toBe(true);
+    expect((await agendar('Ana', '11912345678', iso('2026-11-17 09:30'), AGORA, '2.2.2.2')).ok).toBe(true);
+    expect(await agendar('Ana', '11912345678', iso('2026-11-17 10:30'), AGORA, '3.3.3.3')).toEqual({ ok: false, erro: 'limite' });
+    expect((await agendar('Bia', '11912340000', iso('2026-11-17 10:30'), AGORA, '3.3.3.3')).ok).toBe(true);
+  });
+
+  it('o limite por WhatsApp conta só horários futuros e ativos: o cliente que volta a cada duas semanas passa', async () => {
+    const { db, agendar } = await preparar();
+    expect((await agendar('Ana', '11912345678', iso('2026-11-17 09:00'), AGORA, '1.1.1.1')).ok).toBe(true);
+    expect((await agendar('Ana', '11912345678', iso('2026-11-17 09:30'), AGORA, '2.2.2.2')).ok).toBe(true);
+    await db.query(`update agendamentos set status = 'cancelado' where inicio = $1`, [iso('2026-11-17 09:30')]);
+    expect((await agendar('Ana', '11912345678', iso('2026-11-17 10:30'), AGORA, '3.3.3.3')).ok).toBe(true);
+    // duas semanas depois, os horários antigos já passaram
+    const depois = sp('2026-11-30 20:00');
+    expect((await agendar('Ana', '11912345678', iso('2026-12-01 09:00'), depois, '4.4.4.4')).ok).toBe(true);
+  });
+
+  it('teto geral: 10 agendamentos pelo link por hora, de IPs e números diferentes; o 11º → limite; 61 min depois passa', async () => {
+    const { db, agendar } = await preparar();
+    const livres = (await livresEm(db, AGORA)).slice(0, 12);
+    for (let i = 0; i < 10; i++) {
+      expect((await agendar(`P${i}`, `119123400${String(i).padStart(2, '0')}`, livres[i], AGORA, `10.0.0.${i}`)).ok).toBe(true);
+    }
+    expect(await agendar('P10', '11912340010', livres[10], AGORA, '10.0.0.10')).toEqual({ ok: false, erro: 'limite' });
+    const depois = new Date(AGORA.getTime() + 61 * 60_000);
+    expect((await agendar('P10', '11912340010', livres[10], depois, '10.0.0.10')).ok).toBe(true);
   });
 
   it('duas reservas no mesmo horário: a segunda é recusada e só existe um agendamento', async () => {
@@ -236,6 +277,15 @@ describe('correções da revisão final', { timeout: 30_000 }, () => {
     );
     expect(f.src).toMatch(/pg_advisory_xact_lock\(\s*hashtext\(\s*'agendar_publico:'\s*\|\|\s*p_ip\s*\)\s*\)/);
     expect(f.src.indexOf('pg_advisory_xact_lock')).toBeLessThan(f.src.indexOf('from tentativas_publicas'));
+  });
+
+  it('o teto geral é serializado por uma trava única antes de contar', async () => {
+    const db = await novoBanco();
+    const { rows: [f] } = await db.query<{ src: string }>(
+      `select prosrc as src from pg_proc where proname = 'agendar_publico_em'`,
+    );
+    expect(f.src).toMatch(/pg_advisory_xact_lock\(\s*hashtext\(\s*'agendar_publico'\s*\)\s*\)/);
+    expect(f.src.search(/hashtext\(\s*'agendar_publico'\s*\)/)).toBeLessThan(f.src.indexOf('from tentativas_publicas'));
   });
 
   it('IPv6 é agrupado por /64; IPv4 e valor estranho ficam como estão', async () => {

@@ -12,6 +12,7 @@ import NovoAgendamento from './NovoAgendamento';
 import Painel from './Painel';
 import Esqueleto from './Esqueleto';
 import { agruparLivres, type Item } from './semana';
+import { nomeDivergente } from '../lib/nomes';
 import SeloStatus from './SeloStatus';
 import { IconeDireita, IconeEsquerda, IconeMais } from './icones';
 import { useAoVoltar } from './useAoVoltar';
@@ -405,6 +406,11 @@ export default function Agenda() {
                             <span className="n">{item.agendamento.cliente.nome}</span>{' '}
                             <span className="s">· {item.agendamento.servico?.nome ?? '—'}</span>
                             {item.agendamento.origem === 'link' && <span className="etiqueta"> pelo link</span>}
+                            {nomeDivergente(item.agendamento.cliente.nome, item.agendamento.nome_informado) && (
+                              <span className="etiqueta alerta">
+                                {' '}digitou: {nomeDivergente(item.agendamento.cliente.nome, item.agendamento.nome_informado)}
+                              </span>
+                            )}
                           </span>{' '}
                           <SeloStatus status={item.agendamento.status} />
                         </button>

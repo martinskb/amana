@@ -39,26 +39,58 @@
       ],
       "agent": "Claude Code, Claude Opus 5.5",
       "gate": "failed"
+    },
+    {
+      "id": "R2",
+      "date": "2026-11-12",
+      "commit": "0515e42",
+      "type": "full",
+      "coverage": "Full",
+      "tools": [
+        {
+          "name": "gitleaks",
+          "version": "8.30.1 (pacote extra; binário informa 'version is set by build process')"
+        },
+        {
+          "name": "semgrep",
+          "version": "1.185.0"
+        },
+        {
+          "name": "osv-scanner",
+          "version": "2.7.0"
+        },
+        {
+          "name": "npm audit",
+          "version": "npm 12.2.2"
+        }
+      ],
+      "agent": "Claude Code, Claude Opus 5.5",
+      "gate": "passed"
     }
   ],
   "findings": [
     {
       "llm": null,
-      "status": "Open",
-      "owner": null,
+      "status": "Verified",
+      "owner": "kaio",
       "firstSeen": {
         "run": "R1",
         "commit": "5b15bcc",
         "date": "2026-11-12"
       },
       "lastSeen": {
-        "run": "R1",
-        "commit": "5b15bcc"
+        "run": "R2",
+        "commit": "0515e42"
       },
-      "rootCause": null,
-      "fixNote": null,
-      "fixCommit": null,
-      "verification": null,
+      "rootCause": "agendar_publico_em reaproveita o cliente pelo telefone (on conflict do nothing) e descarta o nome digitado, sem nenhuma prova de posse do número nem sinal para o dono.",
+      "fixNote": "Migração 0004: agendamentos.nome_informado guarda o nome digitado; a agenda mostra 'digitou: X' e um aviso nos detalhes quando não bate com o cadastro (ignora maiúsculas, espaços e acentos). Testes: tests/db/publico.test.ts (nome guardado), tests/ui/Agenda.test.tsx (alerta e ausência de alarme falso), tests/scripts/restaurar.test.ts (coluna preservada). Residual: sem confirmação por WhatsApp, a posse do número continua não verificada; o dono passa a ver a divergência.",
+      "fixCommit": "fcad057",
+      "verification": {
+        "run": "R2",
+        "commit": "0515e42",
+        "evidence": "0004_link_seguranca.sql: agendar_publico_em grava nome_informado em todo agendamento pelo link; Agenda.tsx e DetalhesAgendamento.tsx mostram 'digitou: X' e aviso role=note quando nomeDivergente() (src/lib/nomes.ts) indica nome diferente do cadastro. Migração aplicada no projeto Supabase em 2026-11-12. Resolve a parte acionável (o dono passa a ver a divergência); a posse do número continua não verificada (sem OTP), registrado como residual.",
+        "test": "added: tests/db/publico.test.ts 'o agendamento pelo link guarda o nome digitado…', tests/ui/Agenda.test.tsx (alerta e ausência de alarme falso), tests/scripts/restaurar.test.ts (coluna preservada) — passam; suíte 379/379"
+      },
       "secret": null,
       "falsePositive": null,
       "acceptedRisk": null,
@@ -79,7 +111,7 @@
           "symbol": "agendar_publico_em",
           "fingerprint": "24c026a79130e382",
           "fpInput": "CWE-639|supabase/migrations/0002_link_publico.sql|agendar_publico_em|insert into clientes (nome, telefone) values (nome_limpo, tel) on conflict (telefone) do nothing;",
-          "resolved": false
+          "resolved": true
         }
       ],
       "sources": [
@@ -91,21 +123,26 @@
     },
     {
       "llm": null,
-      "status": "Open",
-      "owner": null,
+      "status": "Verified",
+      "owner": "kaio",
       "firstSeen": {
         "run": "R1",
         "commit": "5b15bcc",
         "date": "2026-11-12"
       },
       "lastSeen": {
-        "run": "R1",
-        "commit": "5b15bcc"
+        "run": "R2",
+        "commit": "0515e42"
       },
-      "rootCause": null,
-      "fixNote": null,
-      "fixCommit": null,
-      "verification": null,
+      "rootCause": "O único freio do link público era por IP (3/hora, só sucessos); quem troca de IP e inventa números agenda sem limite.",
+      "fixNote": "Migração 0004: além do limite por IP, no máximo 2 horários futuros ativos pelo link por WhatsApp e teto geral de 10 agendamentos pelo link por hora, sob uma trava consultiva única; os três respondem 'limite' com mensagem neutra. Testes: tests/db/publico.test.ts (limite por WhatsApp, cliente recorrente passa, teto geral, trava). Residual: um ataque pode consumir o teto geral (10/h) e bloquear o link por até 1 hora; ocupa no máximo 10 horários por hora em vez da agenda inteira.",
+      "fixCommit": "fcad057",
+      "verification": {
+        "run": "R2",
+        "commit": "0515e42",
+        "evidence": "0004_link_seguranca.sql: além do limite por IP, limite de 2 horários futuros ativos pelo link por WhatsApp e teto geral de 10 por hora (tentativas_publicas), sob pg_advisory_xact_lock(hashtext('agendar_publico')); resposta 'limite' única. Residual: o teto geral pode ser consumido e bloquear o link por até 1 hora (impacto limitado a 10 horários/hora).",
+        "test": "added: tests/db/publico.test.ts (limite por WhatsApp, cliente recorrente passa, teto geral, trava única) — passam; suíte 379/379"
+      },
       "secret": null,
       "falsePositive": null,
       "acceptedRisk": null,
@@ -124,7 +161,7 @@
           "symbol": "agendar_publico_em",
           "fingerprint": "838e1410a9b6e8d7",
           "fpInput": "CWE-770|supabase/migrations/0002_link_publico.sql|agendar_publico_em|where t.ip = p_ip and t.criado_em > p_agora - interval '1 hour') >= 3 then",
-          "resolved": false
+          "resolved": true
         }
       ],
       "sources": [
@@ -144,8 +181,8 @@
         "date": "2026-11-12"
       },
       "lastSeen": {
-        "run": "R1",
-        "commit": "5b15bcc"
+        "run": "R2",
+        "commit": "0515e42"
       },
       "rootCause": null,
       "fixNote": null,
@@ -190,8 +227,8 @@
         "date": "2026-11-12"
       },
       "lastSeen": {
-        "run": "R1",
-        "commit": "5b15bcc"
+        "run": "R2",
+        "commit": "0515e42"
       },
       "rootCause": null,
       "fixNote": null,
@@ -235,8 +272,8 @@
         "date": "2026-11-12"
       },
       "lastSeen": {
-        "run": "R1",
-        "commit": "5b15bcc"
+        "run": "R2",
+        "commit": "0515e42"
       },
       "rootCause": null,
       "fixNote": null,
@@ -283,8 +320,8 @@
         "date": "2026-11-12"
       },
       "lastSeen": {
-        "run": "R1",
-        "commit": "5b15bcc"
+        "run": "R2",
+        "commit": "0515e42"
       },
       "rootCause": null,
       "fixNote": null,
@@ -328,8 +365,8 @@
         "date": "2026-11-12"
       },
       "lastSeen": {
-        "run": "R1",
-        "commit": "5b15bcc"
+        "run": "R2",
+        "commit": "0515e42"
       },
       "rootCause": null,
       "fixNote": null,
@@ -381,8 +418,8 @@
         "date": "2026-11-12"
       },
       "lastSeen": {
-        "run": "R1",
-        "commit": "5b15bcc"
+        "run": "R2",
+        "commit": "0515e42"
       },
       "rootCause": null,
       "fixNote": null,

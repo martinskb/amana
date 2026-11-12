@@ -11,7 +11,8 @@ const DIAS_LONGOS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'
 
 const MENSAGENS: Record<ErroPublico, string> = {
   horario_indisponivel: 'Esse horário acabou de ser ocupado. Escolha outro.',
-  limite: 'Muitos agendamentos desta rede agora. Tente mais tarde ou chame no WhatsApp.',
+  // três limites (IP, WhatsApp, teto geral) com a mesma mensagem: não revela qual foi nem se o número tem horários
+  limite: 'Não foi possível marcar pelo link agora. Chame no WhatsApp para marcar seu horário.',
   link_fechado: 'Agendamento online fechado no momento.',
   dados_invalidos: 'Confira o nome e o WhatsApp.',
 };
