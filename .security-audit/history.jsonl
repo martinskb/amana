@@ -1,0 +1,8 @@
+{"ts": "2026-11-12T15:30:14Z", "id": "SEC-001", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Medium"}
+{"ts": "2026-11-12T15:30:14Z", "id": "SEC-002", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Medium"}
+{"ts": "2026-11-12T15:30:14Z", "id": "SEC-003", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Low"}
+{"ts": "2026-11-12T15:30:14Z", "id": "SEC-004", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Low"}
+{"ts": "2026-11-12T15:30:14Z", "id": "SEC-005", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Low"}
+{"ts": "2026-11-12T15:30:14Z", "id": "SEC-006", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Low"}
+{"ts": "2026-11-12T15:30:14Z", "id": "SEC-007", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Info"}
+{"ts": "2026-11-12T15:30:14Z", "id": "SEC-008", "event": "created", "run": "R1", "commit": "5b15bcc", "severity": "Info"}

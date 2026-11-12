@@ -1,0 +1,440 @@
+{
+  "schema": "security-audit-register/1",
+  "project": "Agenda Fácil",
+  "approver": "Product Owner",
+  "gate": {
+    "blocking": [
+      "Critical",
+      "High"
+    ],
+    "medium": "fix-or-accept",
+    "maxAcceptDays": 90,
+    "criticalAcceptable": false
+  },
+  "nextId": 9,
+  "runs": [
+    {
+      "id": "R1",
+      "date": "2026-11-12",
+      "commit": "5b15bcc",
+      "type": "full",
+      "coverage": "Full",
+      "tools": [
+        {
+          "name": "gitleaks",
+          "version": "8.30.1 (pacote extra; binário informa 'version is set by build process')"
+        },
+        {
+          "name": "semgrep",
+          "version": "1.185.0"
+        },
+        {
+          "name": "osv-scanner",
+          "version": "2.7.0"
+        },
+        {
+          "name": "npm audit",
+          "version": "npm 12.2.2"
+        }
+      ],
+      "agent": "Claude Code, Claude Opus 5.5",
+      "gate": "failed"
+    }
+  ],
+  "findings": [
+    {
+      "llm": null,
+      "status": "Open",
+      "owner": null,
+      "firstSeen": {
+        "run": "R1",
+        "commit": "5b15bcc",
+        "date": "2026-11-12"
+      },
+      "lastSeen": {
+        "run": "R1",
+        "commit": "5b15bcc"
+      },
+      "rootCause": null,
+      "fixNote": null,
+      "fixCommit": null,
+      "verification": null,
+      "secret": null,
+      "falsePositive": null,
+      "acceptedRisk": null,
+      "ticket": null,
+      "compliance": [
+        "LGPD: dado pessoal (nome e WhatsApp) associado a ação que a pessoa não fez"
+      ],
+      "id": "SEC-001",
+      "title": "Link público marca horário em nome de cliente já cadastrado só com o telefone",
+      "severity": "Medium",
+      "confidence": "Confirmed",
+      "owasp": "A06:2025",
+      "cwe": "CWE-639",
+      "locations": [
+        {
+          "file": "supabase/migrations/0002_link_publico.sql",
+          "line": 198,
+          "symbol": "agendar_publico_em",
+          "fingerprint": "24c026a79130e382",
+          "fpInput": "CWE-639|supabase/migrations/0002_link_publico.sql|agendar_publico_em|insert into clientes (nome, telefone) values (nome_limpo, tel) on conflict (telefone) do nothing;",
+          "resolved": false
+        }
+      ],
+      "sources": [
+        "ai-review"
+      ],
+      "evidence": "agendar_publico_em faz insert em clientes com 'on conflict (telefone) do nothing' e reaproveita o cliente existente; o nome digitado é ignorado. Não há prova de que quem agenda é o dono do número.",
+      "impact": "Qualquer pessoa na internet que saiba o WhatsApp de um cliente pode criar agendamentos atribuídos a ele (aparecem com o nome real na agenda do dono), para trote ou para tomar horários. Não vaza dados: a resposta não devolve o nome.",
+      "fix": "Marcar o agendamento do link como 'a confirmar' quando o telefone já existir com outro nome (ou sempre que vier do link) e mostrar ao dono o nome digitado; alternativa: confirmação por WhatsApp antes de valer."
+    },
+    {
+      "llm": null,
+      "status": "Open",
+      "owner": null,
+      "firstSeen": {
+        "run": "R1",
+        "commit": "5b15bcc",
+        "date": "2026-11-12"
+      },
+      "lastSeen": {
+        "run": "R1",
+        "commit": "5b15bcc"
+      },
+      "rootCause": null,
+      "fixNote": null,
+      "fixCommit": null,
+      "verification": null,
+      "secret": null,
+      "falsePositive": null,
+      "acceptedRisk": null,
+      "ticket": null,
+      "compliance": [],
+      "id": "SEC-002",
+      "title": "Limite de 3 agendamentos por hora por IP não impede encher a agenda pelo link",
+      "severity": "Medium",
+      "confidence": "Likely",
+      "owasp": "A06:2025",
+      "cwe": "CWE-770",
+      "locations": [
+        {
+          "file": "supabase/migrations/0002_link_publico.sql",
+          "line": 189,
+          "symbol": "agendar_publico_em",
+          "fingerprint": "838e1410a9b6e8d7",
+          "fpInput": "CWE-770|supabase/migrations/0002_link_publico.sql|agendar_publico_em|where t.ip = p_ip and t.criado_em > p_agora - interval '1 hour') >= 3 then",
+          "resolved": false
+        }
+      ],
+      "sources": [
+        "ai-review"
+      ],
+      "evidence": "O único limite é por IP (3 por hora, IPv6 agrupado por /64), contado só para agendamentos bem-sucedidos. Quem trocar de IP (proxies residenciais, rede móvel) agenda sem limite; não há limite global por dia nem por telefone.",
+      "impact": "Um atacante com vários IPs pode ocupar todos os horários livres dos próximos 14 dias com nomes e números falsos ou de terceiros, travando o agendamento online do negócio até o dono cancelar um por um.",
+      "fix": "Somar limites que não dependem do IP: por telefone (ex.: no máximo 2 agendamentos futuros ativos pelo link), um teto global de agendamentos pelo link por hora/dia, e um aviso ao dono quando o teto for atingido."
+    },
+    {
+      "llm": null,
+      "status": "Open",
+      "owner": null,
+      "firstSeen": {
+        "run": "R1",
+        "commit": "5b15bcc",
+        "date": "2026-11-12"
+      },
+      "lastSeen": {
+        "run": "R1",
+        "commit": "5b15bcc"
+      },
+      "rootCause": null,
+      "fixNote": null,
+      "fixCommit": null,
+      "verification": null,
+      "secret": null,
+      "falsePositive": null,
+      "acceptedRisk": null,
+      "ticket": null,
+      "compliance": [],
+      "id": "SEC-003",
+      "title": "Script de restauração desliga a verificação TLS na conexão com o banco",
+      "severity": "Low",
+      "confidence": "Confirmed",
+      "owasp": "A04:2025",
+      "cwe": "CWE-295",
+      "locations": [
+        {
+          "file": "scripts/restore.ts",
+          "line": 23,
+          "symbol": "main",
+          "fingerprint": "e8b14c2e91aac259",
+          "fpInput": "CWE-295|scripts/restore.ts|main|const cliente = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });",
+          "resolved": false
+        }
+      ],
+      "sources": [
+        "semgrep:problem-based-packs.insecure-transport.js-node.bypass-tls-verification.bypass-tls-verification",
+        "ai-review"
+      ],
+      "evidence": "new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } }) com SUPABASE_DB_URL, que contém a senha do postgres.",
+      "impact": "Em rede hostil (Wi-Fi público), um intermediário pode se passar pelo servidor do Supabase e capturar a senha do banco e o backup enviado. Rebaixado de Medium para Low: ferramenta local, usada raramente pelo implantador.",
+      "fix": "Usar o certificado da CA do Supabase (Project Settings > Database > SSL certificate) com ssl: { ca: readFileSync(...) } ou sslmode=verify-full."
+    },
+    {
+      "llm": null,
+      "status": "Open",
+      "owner": null,
+      "firstSeen": {
+        "run": "R1",
+        "commit": "5b15bcc",
+        "date": "2026-11-12"
+      },
+      "lastSeen": {
+        "run": "R1",
+        "commit": "5b15bcc"
+      },
+      "rootCause": null,
+      "fixNote": null,
+      "fixCommit": null,
+      "verification": null,
+      "secret": null,
+      "falsePositive": null,
+      "acceptedRisk": null,
+      "ticket": null,
+      "compliance": [],
+      "id": "SEC-004",
+      "title": "Sem cabeçalhos de segurança no site (CSP, anti-iframe, nosniff)",
+      "severity": "Low",
+      "confidence": "Confirmed",
+      "owasp": "A02:2025",
+      "cwe": "CWE-1021",
+      "locations": [
+        {
+          "file": "public/_headers",
+          "line": 0,
+          "symbol": "headers",
+          "fingerprint": "02b08cff89e7717c",
+          "fpInput": "CWE-1021|public/_headers|headers",
+          "resolved": false
+        }
+      ],
+      "sources": [
+        "ai-review"
+      ],
+      "evidence": "Não existe public/_headers (Cloudflare Pages) nem meta CSP no index.html. O app do dono pode ser carregado em iframe de outro site e não há CSP limitando scripts.",
+      "impact": "Clickjacking sobre o app do dono e nenhuma segunda barreira se um dia entrar um XSS. Hoje não há sink de XSS no código (React escapa tudo; nenhum innerHTML).",
+      "fix": "Criar public/_headers com Content-Security-Policy (default-src 'self'; connect-src 'self' https://<projeto>.supabase.co; frame-ancestors 'none'), X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin."
+    },
+    {
+      "llm": null,
+      "status": "Open",
+      "owner": null,
+      "firstSeen": {
+        "run": "R1",
+        "commit": "5b15bcc",
+        "date": "2026-11-12"
+      },
+      "lastSeen": {
+        "run": "R1",
+        "commit": "5b15bcc"
+      },
+      "rootCause": null,
+      "fixNote": null,
+      "fixCommit": null,
+      "verification": null,
+      "secret": null,
+      "falsePositive": null,
+      "acceptedRisk": null,
+      "ticket": null,
+      "compliance": [],
+      "id": "SEC-005",
+      "title": "Dependências de build com avisos conhecidos (via vite-plugin-pwa)",
+      "severity": "Low",
+      "confidence": "Confirmed",
+      "owasp": "A03:2025",
+      "cwe": "CWE-1395",
+      "locations": [
+        {
+          "file": "package-lock.json",
+          "line": null,
+          "symbol": "vite-plugin-pwa",
+          "fingerprint": "e35692237448959c",
+          "fpInput": "dep|npm|vite-plugin-pwa",
+          "resolved": false
+        }
+      ],
+      "sources": [
+        "npm-audit",
+        "osv-scanner:GHSA-gcqx-w48m-w2h4",
+        "osv-scanner:GHSA-3g3m-2fjr-6pw4",
+        "osv-scanner:GHSA-g3hv-75wg-m249"
+      ],
+      "evidence": "vite-plugin-pwa (direto, dev) -> workbox-build -> glob 11.1.0 (moderate GHSA-3g3m-2fjr-6pw4), minimatch 10.2.6 (moderate GHSA-g3hv-75wg-m249), @rollup/plugin-node-resolve -> deepmerge 4.3.1 (low GHSA-gcqx-w48m-w2h4).",
+      "impact": "Só rodam no build (não vão para o navegador). Rebaixado de Medium para Low por ser ferramenta de desenvolvimento.",
+      "fix": "Atualizar vite-plugin-pwa/workbox-build quando sair versão que puxe glob/minimatch/deepmerge corrigidos; enquanto isso, npm audit fix sem --force se resolver sem quebra."
+    },
+    {
+      "llm": null,
+      "status": "Open",
+      "owner": null,
+      "firstSeen": {
+        "run": "R1",
+        "commit": "5b15bcc",
+        "date": "2026-11-12"
+      },
+      "lastSeen": {
+        "run": "R1",
+        "commit": "5b15bcc"
+      },
+      "rootCause": null,
+      "fixNote": null,
+      "fixCommit": null,
+      "verification": null,
+      "secret": null,
+      "falsePositive": null,
+      "acceptedRisk": null,
+      "ticket": null,
+      "compliance": [],
+      "id": "SEC-006",
+      "title": "Confirmar que o cadastro público do Supabase Auth está desligado",
+      "severity": "Low",
+      "confidence": "Needs check",
+      "owasp": "A07:2025",
+      "cwe": "CWE-284",
+      "locations": [
+        {
+          "file": "docs/implantacao.md",
+          "line": 15,
+          "symbol": "auth.allow_signup",
+          "fingerprint": "2cd3f5b366266b15",
+          "fpInput": "CWE-284|docs/implantacao.md|auth.allow_signup",
+          "resolved": false
+        }
+      ],
+      "sources": [
+        "ai-review"
+      ],
+      "evidence": "O checklist de implantação manda desligar 'Allow new users to sign up', mas isso é configuração do painel e não dá para confirmar pelo código. Se estiver ligado, qualquer um cria conta com a chave pública.",
+      "impact": "Conta criada por estranho não lê nem escreve nada (RLS exige eh_dono()), mas ocupa a base de usuários e abre espaço para abuso de e-mail/cota.",
+      "fix": "Conferir em Authentication > Sign In / Providers que o cadastro está desligado neste projeto e em cada cliente novo."
+    },
+    {
+      "llm": null,
+      "status": "Open",
+      "owner": null,
+      "firstSeen": {
+        "run": "R1",
+        "commit": "5b15bcc",
+        "date": "2026-11-12"
+      },
+      "lastSeen": {
+        "run": "R1",
+        "commit": "5b15bcc"
+      },
+      "rootCause": null,
+      "fixNote": null,
+      "fixCommit": null,
+      "verification": null,
+      "secret": null,
+      "falsePositive": null,
+      "acceptedRisk": null,
+      "ticket": null,
+      "compliance": [],
+      "id": "SEC-007",
+      "title": "Script de backup: chave no código e acesso total ao Drive",
+      "severity": "Info",
+      "confidence": "Confirmed",
+      "owasp": "A02:2025",
+      "cwe": "CWE-250",
+      "locations": [
+        {
+          "file": "apps-script/Backup.gs",
+          "line": 15,
+          "symbol": "CHAVE_BACKUP",
+          "fingerprint": "059b8250652d4b36",
+          "fpInput": "CWE-250|apps-script/Backup.gs|CHAVE_BACKUP",
+          "resolved": false
+        },
+        {
+          "file": "apps-script/appsscript.json",
+          "line": 6,
+          "symbol": "oauthScopes.drive",
+          "fingerprint": "e62abfb0b4d91044",
+          "fpInput": "CWE-250|apps-script/appsscript.json|oauthScopes.drive",
+          "resolved": false
+        }
+      ],
+      "sources": [
+        "ai-review"
+      ],
+      "evidence": "CHAVE_BACKUP é colada como constante no código do Apps Script (no repositório só há o placeholder). O escopo pedido é https://www.googleapis.com/auth/drive (todo o Drive).",
+      "impact": "Quem tiver acesso de edição ao script vê a chave, que exporta todos os clientes. O escopo amplo dá ao script acesso a todos os arquivos do Drive do negócio.",
+      "fix": "Guardar a chave em PropertiesService.getScriptProperties() e trocar o escopo por https://www.googleapis.com/auth/drive.file (o script só mexe nos arquivos que ele mesmo cria)."
+    },
+    {
+      "llm": null,
+      "status": "Open",
+      "owner": null,
+      "firstSeen": {
+        "run": "R1",
+        "commit": "5b15bcc",
+        "date": "2026-11-12"
+      },
+      "lastSeen": {
+        "run": "R1",
+        "commit": "5b15bcc"
+      },
+      "rootCause": null,
+      "fixNote": null,
+      "fixCommit": null,
+      "verification": null,
+      "secret": null,
+      "falsePositive": null,
+      "acceptedRisk": null,
+      "ticket": null,
+      "compliance": [],
+      "id": "SEC-008",
+      "title": ".gitignore cobre só '.env', não '.env.local' e variantes",
+      "severity": "Info",
+      "confidence": "Confirmed",
+      "owasp": "A02:2025",
+      "cwe": "CWE-538",
+      "locations": [
+        {
+          "file": ".gitignore",
+          "line": 3,
+          "symbol": ".env",
+          "fingerprint": "9f1d28f0fee4f7ba",
+          "fpInput": "CWE-538|.gitignore|.env",
+          "resolved": false
+        }
+      ],
+      "sources": [
+        "ai-review"
+      ],
+      "evidence": "A regra é a linha exata '.env'. O Vite também lê .env.local, .env.production etc., que entrariam no git com um git add -A.",
+      "impact": "Risco de versionar por engano um arquivo de ambiente. Hoje nenhum foi versionado (histórico limpo no Gitleaks).",
+      "fix": "Trocar por '.env' e '.env.*' com exceção '!.env.example'."
+    }
+  ],
+  "triageDismissals": [
+    {
+      "run": "R1",
+      "source": "gitleaks:generic-api-key",
+      "location": ".env:2",
+      "reason": "VITE_SUPABASE_ANON_KEY é uma chave sb_publishable_ (pública por design); .env nunca foi versionado (git log vazio) e está no .gitignore"
+    },
+    {
+      "run": "R1",
+      "source": "ai-review:bundle grep 'sb_secret'",
+      "location": "dist/assets/index-*.js",
+      "reason": "Texto do supabase-js (startsWith('sb_secret_')), não uma chave; nenhum valor com formato de chave secreta no bundle"
+    },
+    {
+      "run": "R1",
+      "source": "ai-review:connection-string",
+      "location": "README.md:32, scripts/restore.ts:4",
+      "reason": "Exemplos com placeholder (senha 'SENHA', host db.XXXX), não credenciais"
+    }
+  ]
+}
