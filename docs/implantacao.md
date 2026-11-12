@@ -9,7 +9,7 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 ## 2. Supabase
 
 - [ ] Criar a conta em supabase.com (entrar com a conta Google do negócio) e um projeto na região São Paulo. Guardar a senha do banco **com o cliente**.
-- [ ] Em **SQL Editor**, rodar, nesta ordem, `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_link_publico.sql` e `supabase/seed.sql`. (Projeto que já tinha a v1: rodar só a `0002`.)
+- [ ] Em **SQL Editor**, rodar, nesta ordem, `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_link_publico.sql`, `supabase/migrations/0003_backup_drive.sql` e `supabase/seed.sql`. (Projeto que já existia: rodar só as migrações que faltam, em ordem.)
 - [ ] Em **Authentication → Users → Add user → Create new user**, criar o dono com o e-mail `<usuario>@dono.agenda` (por exemplo `joao@dono.agenda`), uma senha de **8 ou mais caracteres** e **Auto Confirm User** marcado. No app, o dono entra com o usuário (`joao`) e a senha. Esse e-mail nunca recebe mensagens: se o dono esquecer a senha, troque aqui no painel.
 - [ ] Copiar o **User UID** desse usuário e rodar no SQL Editor:
       `insert into donos (user_id) values ('<User UID>');`
@@ -33,6 +33,20 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 
 - [ ] Entrar com o usuário e a senha do dono. Em **Ajustes**: nome do negócio, **WhatsApp do negócio**, expediente, folgas, **duração de cada horário**, **quantos dias o link mostra**, mensagens (livres com `{link}`, lembrete e cancelamento).
 - [ ] Tocar em **Copiar link de agendamento** e mandar para o dono divulgar.
+
+## 5b. Backup automático (Google Drive)
+
+- [ ] No app, em **Ajustes → Backup**, tocar em **Gerar chave de backup** e copiar a chave (ela aparece uma vez só).
+- [ ] Em **script.google.com**, entrando com a **conta Google do negócio**, criar um projeto chamado "Backup da Agenda".
+- [ ] Copiar para o projeto os arquivos da pasta `apps-script/` do repositório:
+  - `logica.js`, num arquivo de script;
+  - `Backup.gs`, noutro arquivo de script;
+  - o conteúdo de `appsscript.json`, depois de ligar "Mostrar o arquivo de manifesto 'appsscript.json'" nas Configurações do projeto.
+- [ ] No topo do `Backup.gs`, preencher `SUPABASE_URL`, `SUPABASE_ANON_KEY` (a chave pública; **nunca** a `service_role`) e `CHAVE_BACKUP` (a chave do app).
+- [ ] Escolher a função **instalar** e tocar em **Executar**. Autorizar com a conta do negócio. Se aparecer "O Google não verificou este app", tocar em "Avançado" → "Acessar Backup da Agenda": o script é do próprio negócio.
+- [ ] Conferir no Drive a pasta **Backups da Agenda** com a planilha `Backup Agenda AAAA-MM-DD` e o arquivo `backup-agenda-AAAA-MM-DD.json`, e no app, em Ajustes, **Último backup** com a data de agora.
+- [ ] Se um dia gerar uma chave nova no app, colar a nova em `CHAVE_BACKUP` (a antiga para de funcionar na hora).
+- Observação: o acesso semanal do script ao Supabase pode ajudar a evitar a pausa do plano gratuito, mas isso não é garantido. Continua valendo o passo de reativação do manual.
 
 ## 6. Teste no iPhone do cliente
 
