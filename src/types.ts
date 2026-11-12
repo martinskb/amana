@@ -17,6 +17,8 @@ export interface Config {
   link_ativo: boolean;
   telefone_negocio: string | null;
   modelo_cancelamento: string;
+  /** true quando há chave de backup automático (o app nunca vê o hash) */
+  backup_ativo: boolean;
 }
 export interface Servico { id: string; nome: string; duracao_min: number; ativo: boolean }
 export interface Cliente { id: string; nome: string; telefone: string; criado_em: string }

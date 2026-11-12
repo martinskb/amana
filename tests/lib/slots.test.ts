@@ -21,6 +21,7 @@ const config: Config = {
   link_ativo: true,
   telefone_negocio: null,
   modelo_cancelamento: '',
+  backup_ativo: false,
 };
 
 const ag = (inicio: string, fim: string, status: Status = 'marcado'): Agendamento => ({

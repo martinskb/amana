@@ -58,7 +58,7 @@ describe('restaurar', { timeout: 30_000 }, () => {
     expect(ajustes.map((a) => ({ ...a, inicio: iso(a.inicio) }))).toEqual(ARQUIVO.horarios_ajuste);
 
     const [cfg] = (await db.query<Record<string, unknown>>('select * from configuracoes')).rows;
-    expect({ ...cfg, ultimo_backup: iso(cfg.ultimo_backup) }).toEqual({ id: 1, ...ARQUIVO.configuracoes[0] });
+    expect({ ...cfg, ultimo_backup: iso(cfg.ultimo_backup) }).toEqual({ id: 1, ...ARQUIVO.configuracoes[0], backup_chave_hash: null, backup_ativo: false });
   });
 
   it('banco com dados e sem confirmação aborta sem alterar nada', async () => {

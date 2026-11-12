@@ -35,7 +35,11 @@ As mensagens são prontas: você não precisa escrever nada.
 
 No topo da **Agenda**, o cartão **Amanhã** mostra quantos clientes você tem. Toque em **Lembrar**: aparece um botão **WhatsApp** por cliente, com a mensagem pronta.
 
-## Backup (uma vez por semana)
+## Backup
+
+O backup é automático todo domingo, numa pasta do seu Google Drive chamada "Backups da Agenda". Se falhar, chega um e-mail. Você ainda pode baixar um backup na hora em Ajustes.
+
+### Backup na hora
 
 Quando aparecer o aviso amarelo, toque em **Baixar backup**, depois em **Salvar arquivo**, e escolha **Salvar em Arquivos** (iCloud Drive) ou Google Drive. Também dá para fazer em **Ajustes → Backup** a qualquer momento.
 

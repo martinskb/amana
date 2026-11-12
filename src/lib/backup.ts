@@ -1,4 +1,4 @@
-import { saveConfig } from '../data/configuracoes';
+import { COLUNAS_CONFIG, saveConfig } from '../data/configuracoes';
 import { executar } from '../data/erros';
 import type { SupabaseClient } from '../data/supabase';
 import type { Agendamento, Cliente, Config, HorarioAjuste, Servico } from '../types';
@@ -10,7 +10,8 @@ export interface BackupFile {
   clientes: Cliente[];
   servicos: Servico[];
   agendamentos: Agendamento[];
-  configuracoes: Config[];
+  /** sem backup_ativo (coluna gerada) e sem o hash da chave */
+  configuracoes: Omit<Config, 'backup_ativo'>[];
   /** v2: horários fechados e extras. Ausente nos backups da v1. */
   horarios_ajuste?: HorarioAjuste[];
 }
@@ -25,11 +26,11 @@ export function backupIsStale(ultimo: string | null, agora: Date): boolean {
 }
 
 export async function exportBackup(db: SupabaseClient): Promise<BackupFile> {
-  async function tudo<T>(tabela: string): Promise<T[]> {
+  async function tudo<T>(tabela: string, colunas = '*'): Promise<T[]> {
     const linhas: T[] = [];
     for (let de = 0; ; de += PAGINA) {
       const pagina = await executar(
-        db.from(tabela).select('*').order('id').range(de, de + PAGINA - 1).returns<T[]>(),
+        db.from(tabela).select(colunas).order('id').range(de, de + PAGINA - 1).returns<T[]>(),
       );
       linhas.push(...pagina);
       if (pagina.length < PAGINA) return linhas;
@@ -39,7 +40,7 @@ export async function exportBackup(db: SupabaseClient): Promise<BackupFile> {
     tudo<Cliente>('clientes'),
     tudo<Servico>('servicos'),
     tudo<Agendamento>('agendamentos'),
-    tudo<Config>('configuracoes'),
+    tudo<Omit<Config, 'backup_ativo'>>('configuracoes', COLUNAS_CONFIG), // sem o hash da chave de backup
     tudo<HorarioAjuste>('horarios_ajuste'),
   ]);
   return { versao: 1, gerado_em: new Date().toISOString(), clientes, servicos, agendamentos, configuracoes, horarios_ajuste };

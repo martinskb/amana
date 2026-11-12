@@ -17,4 +17,5 @@ export const CONFIG_TESTE: Config = {
   telefone_negocio: '5511900001111',
   modelo_cancelamento:
     'Oi {nome}, infelizmente não vou conseguir te atender {dia} às {hora}. Quer marcar outro horário? {link}',
+  backup_ativo: false,
 };
