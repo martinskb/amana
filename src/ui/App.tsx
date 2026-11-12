@@ -13,6 +13,7 @@ import Configuracoes from './Configuracoes';
 import { ConfigContext } from './contexto';
 import Login from './Login';
 import Navegacao from './Navegacao';
+import Esqueleto from './Esqueleto';
 import Agendar from './publico/Agendar';
 import SemConexao from './SemConexao';
 
@@ -48,7 +49,7 @@ function Telas() {
         <button type="button" onClick={carregar}>Tentar de novo</button>
       </main>
     );
-  if (!config) return <p className="carregando">Carregando…</p>;
+  if (!config) return <Esqueleto />;
 
   return (
     <ConfigContext.Provider value={{ config, recarregar: carregar }}>
@@ -104,7 +105,7 @@ function AppDoDono() {
     return () => data.subscription.unsubscribe();
   }, [lerSessao]);
 
-  if (sessao === undefined) return <p className="carregando">Carregando…</p>;
+  if (sessao === undefined) return <Esqueleto />;
   if (sessao === 'sem-conexao') return <SemConexao onTentarDeNovo={lerSessao} />;
   if (!sessao) return <Login nome={nome} />;
   return <Telas />;

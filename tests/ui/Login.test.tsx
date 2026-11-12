@@ -41,6 +41,16 @@ describe('login e sessão', () => {
     expect(emailDoUsuario('a@b.com')).toBe('a@b.com');
   });
 
+  it('o login mostra o subtítulo', async () => {
+    render(<App />);
+    expect(await screen.findByText('Entre para ver sua agenda')).toBeInTheDocument();
+  });
+
+  it('enquanto lê a sessão, mostra o esqueleto de carregamento', () => {
+    render(<App />);
+    expect(screen.getByRole('status', { name: 'Carregando' })).toBeInTheDocument();
+  });
+
   it('entrar chama signInWithPassword com o e-mail do usuário', async () => {
     render(<App />);
     await entrar('joao', 'segredo123');

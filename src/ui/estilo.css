@@ -210,11 +210,52 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--couro); }
 .sugestoes { list-style: none; padding: 0; display: grid; gap: 4px; }
 
 /* ===== Ajustes e Link ===== */
-.config section, .config fieldset { margin: 16px 0; }
-fieldset { border: 1px solid var(--borda); border-radius: var(--raio-cartao); padding: 8px 12px; }
-label.inline { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 0 auto; }
-.chave { margin: 16px 0 4px; }
+.config section.cartao, .config form > section.cartao { margin: 0 0 14px; }
+.config section h3 { font-family: var(--serif); font-weight: 600; font-size: 21px; color: var(--creme); margin: 0 0 12px; }
+.config h4, .aba-link h4 { margin: 18px 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sutil); font-weight: 600; }
+fieldset { border: 0; border-top: 1px solid var(--borda); border-radius: 0; padding: 10px 0; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+fieldset legend { float: left; width: 88px; font-weight: 600; padding: 0; }
+fieldset .linha { background: var(--fundo); border: 1px solid var(--borda-i); border-radius: var(--raio-pilula); padding: 2px 4px 2px 10px; gap: 4px; flex-wrap: nowrap; }
+fieldset .linha input[type='time'] { border: 0; min-height: 36px; padding: 0 4px; background: transparent; font-variant-numeric: tabular-nums; }
+fieldset .linha button { min-height: 32px; width: 32px; padding: 0; border: 0; background: transparent; color: var(--sutil); }
+fieldset > button { margin-left: auto; min-height: 38px; }
+.config form > button[type='submit'] { width: 100%; margin-bottom: 14px; }
+.config .lista li > label.inline { margin-left: auto; }
+label.inline { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 0 auto; }
 .link-destaque { font-size: 16px; font-weight: 600; word-break: break-all; background: var(--fundo); border: 1px solid var(--borda-i); border-radius: var(--raio-campo); padding: 12px 14px; }
+.aba-link .linha { margin: 12px 0; }
+.aba-link label.inline.chave { margin: 18px 0 6px; font-size: 16px; }
+
+/* chave liga/desliga sobre o checkbox (o papel acessível continua "checkbox") */
+input[type='checkbox'].chave {
+  appearance: none; -webkit-appearance: none; flex: none; cursor: pointer;
+  width: 50px; height: 30px; min-height: 30px; padding: 0; margin: 0; border-radius: var(--raio-pilula);
+  background: var(--sup2); border: 1px solid var(--borda-i); position: relative;
+  transition: background-color var(--rapido) var(--curva), border-color var(--rapido) var(--curva);
+}
+input[type='checkbox'].chave::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--sutil);
+  transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color var(--rapido) var(--curva);
+}
+input[type='checkbox'].chave:checked { background: var(--couro); border-color: var(--couro); }
+input[type='checkbox'].chave:checked::after { transform: translateX(20px); background: var(--couro-txt); }
+input[type='checkbox'].chave:disabled { opacity: 0.55; }
+
+/* esqueleto de carregamento */
+.esqueleto { display: grid; gap: 8px; padding: 16px 0; }
+.esqueleto-linha { height: 52px; border-radius: 14px; background: linear-gradient(90deg, var(--sup) 0%, var(--sup2) 50%, var(--sup) 100%); background-size: 200% 100%; animation: brilho 1.2s linear infinite; }
+@keyframes brilho { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+.login .subtitulo { text-align: center; margin: -4px 0 12px; font-size: 16px; }
+.login form.cartao { padding: 20px; }
+.login form button[type='submit'] { width: 100%; margin-top: 6px; }
+.aviso-conexao.cartao { padding: 22px; }
+.aviso-conexao h1 { font-family: var(--serif); font-weight: 600; color: var(--creme); font-size: 26px; margin: 0 0 10px; }
+
+@media (min-width: 768px) {
+  .config form > section.cartao:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  .config form > section.cartao:first-child h3 { grid-column: 1 / -1; }
+}
 
 /* ===== Página pública ===== */
 .publico { max-width: 640px; margin: 0 auto; padding: 28px 0 40px; }

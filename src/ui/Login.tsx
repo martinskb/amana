@@ -32,7 +32,8 @@ export default function Login({ nome }: { nome: string }) {
   return (
     <main className="login">
       <h1>{nome}</h1>
-      <form onSubmit={entrar}>
+      <p className="sutil subtitulo">Entre para ver sua agenda</p>
+      <form onSubmit={entrar} className="cartao">
         <label>
           Usuário
           <input

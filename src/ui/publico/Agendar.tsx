@@ -4,6 +4,7 @@ import { supabase } from '../../data/supabase';
 import { abreviaDia, dataLocal, diaDaSemana, FUSO, horaCurta, horaLocal } from '../../lib/slots';
 import { MSG_WHATSAPP_INVALIDO, normalizePhone, waLink } from '../../lib/whatsapp';
 import type { ErroPublico, HorariosPublicos } from '../../types';
+import Esqueleto from '../Esqueleto';
 import { IconeDireita, IconeEsquerda } from '../icones';
 
 const DIAS_LONGOS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -115,7 +116,12 @@ export default function Agendar() {
         </button>
       </main>
     );
-  if (!dados) return <p className="carregando">Carregando…</p>;
+  if (!dados)
+    return (
+      <main className="publico">
+        <Esqueleto />
+      </main>
+    );
 
   const titulo = <h1>{dados.nome_negocio}</h1>;
 

@@ -10,6 +10,7 @@ import CartaoAmanha from './CartaoAmanha';
 import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
 import Painel from './Painel';
+import Esqueleto from './Esqueleto';
 import { agruparLivres, type Item } from './semana';
 import SeloStatus from './SeloStatus';
 import { IconeDireita, IconeEsquerda, IconeMais } from './icones';
@@ -377,7 +378,7 @@ export default function Agenda() {
             </button>
           </p>
         )}
-        {!agendamentos && !erro && <p className="carregando">Carregando…</p>}
+        {!agendamentos && !erro && <Esqueleto linhas={6} />}
 
         {agendamentos && (
           <div
