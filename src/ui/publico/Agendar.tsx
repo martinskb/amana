@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { agendarPublico, getHorariosPublicos } from '../../data/publico';
 import { supabase } from '../../data/supabase';
-import { abreviaDia, dataLocal, FUSO, horaCurta, horaLocal } from '../../lib/slots';
+import { abreviaDia, dataLocal, diaDaSemana, FUSO, horaCurta, horaLocal } from '../../lib/slots';
 import { MSG_WHATSAPP_INVALIDO, normalizePhone, waLink } from '../../lib/whatsapp';
 import type { ErroPublico, HorariosPublicos } from '../../types';
+import Esqueleto from '../Esqueleto';
+import { IconeDireita, IconeEsquerda } from '../icones';
+
+const DIAS_LONGOS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
 const MENSAGENS: Record<ErroPublico, string> = {
   horario_indisponivel: 'Esse horário acabou de ser ocupado. Escolha outro.',
@@ -19,6 +23,12 @@ function descrever(iso: string) {
   return { dia: abreviaDia(data), ddmm: `${data.slice(8, 10)}/${data.slice(5, 7)}`, hora: horaCurta(horaLocal(d, FUSO)) };
 }
 
+/** "Quarta, 18/11 às 9h": resumo do horário escolhido, acima do formulário. */
+function resumo(iso: string) {
+  const { ddmm, hora } = descrever(iso);
+  return `${DIAS_LONGOS[diaDaSemana(dataLocal(new Date(iso), FUSO))]}, ${ddmm} às ${hora}`;
+}
+
 /** Página pública /#/agendar: o cliente escolhe um horário livre e informa nome e WhatsApp. Sem login. */
 export default function Agendar() {
   const [dados, setDados] = useState<HorariosPublicos | null>(null);
@@ -31,6 +41,8 @@ export default function Agendar() {
   const [erro, setErro] = useState<string | null>(null);
   const [fechado, setFechado] = useState(false);
   const [marcado, setMarcado] = useState<{ nome: string; inicio: string } | null>(null);
+  const fichas = useRef<HTMLDivElement>(null);
+  const rolarDias = (sentido: -1 | 1) => fichas.current?.scrollBy({ left: sentido * 3 * 70, behavior: 'smooth' });
 
   const carregar = useCallback(async () => {
     setFalhaCarga(false);
@@ -96,13 +108,20 @@ export default function Agendar() {
   if (falhaCarga)
     return (
       <main className="publico">
-        <p role="alert">Não foi possível carregar. Tente de novo em instantes.</p>
+        <p role="alert" className="cartao aviso-publico">
+          Não foi possível carregar. Tente de novo em instantes.
+        </p>
         <button type="button" onClick={carregar}>
           Tentar de novo
         </button>
       </main>
     );
-  if (!dados) return <p className="carregando">Carregando…</p>;
+  if (!dados)
+    return (
+      <main className="publico">
+        <Esqueleto />
+      </main>
+    );
 
   const titulo = <h1>{dados.nome_negocio}</h1>;
 
@@ -111,9 +130,16 @@ export default function Agendar() {
     return (
       <main className="publico">
         {titulo}
-        <p role="status" className="sucesso">
-          Pronto, {marcado.nome}! Seu horário: {d} {ddmm} às {hora}.
-        </p>
+        <div role="status" className="sucesso">
+          <svg className="check" width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+            <circle className="check-circulo" cx="48" cy="48" r="44" />
+            <path className="check-traco" d="M30 49l12 12 24-26" />
+          </svg>
+          <h2>Pronto, {marcado.nome}!</h2>
+          <p className="resumo-sucesso">
+            Seu horário: {d} {ddmm} às {hora}.
+          </p>
+        </div>
         {falar(`Oi! Marquei ${d} ${ddmm} às ${hora} pelo link.`)}
       </main>
     );
@@ -123,7 +149,9 @@ export default function Agendar() {
     return (
       <main className="publico">
         {titulo}
-        <p>{fechado || !dados.link_ativo ? 'Agendamento online fechado no momento.' : 'Sem horários livres nos próximos dias.'}</p>
+        <p className="cartao aviso-publico">
+          {fechado || !dados.link_ativo ? 'Agendamento online fechado no momento.' : 'Sem horários livres nos próximos dias.'}
+        </p>
         {falar('Oi! Quero marcar um horário.')}
       </main>
     );
@@ -131,25 +159,36 @@ export default function Agendar() {
   return (
     <main className="publico">
       {titulo}
-      <p className="sutil">Escolha o dia e o horário:</p>
-      <div className="dias" role="group" aria-label="Dias">
-        {[...porDia.keys()].map((d) => (
-          <button
-            key={d}
-            type="button"
-            aria-pressed={dia === d}
-            onClick={() => {
-              setDia(d);
-              setHorario(null);
-            }}
-          >
-            {abreviaDia(d)} {d.slice(8, 10)}
-          </button>
-        ))}
+      <p className="sutil lead">Escolha o dia e o horário do seu atendimento.</p>
+      <p className="rotulo">Dia</p>
+      <div className="dias-faixa">
+        <button type="button" className="red seta" aria-label="Dias anteriores" onClick={() => rolarDias(-1)}>
+          <IconeEsquerda />
+        </button>
+        <div className="dias" role="group" aria-label="Dias" ref={fichas}>
+          {[...porDia.keys()].map((d) => (
+            <button
+              key={d}
+              type="button"
+              className="ficha"
+              aria-pressed={dia === d}
+              onClick={() => {
+                setDia(d);
+                setHorario(null);
+              }}
+            >
+              <span className="ficha-dia">{abreviaDia(d)}</span> <span className="ficha-num">{d.slice(8, 10)}</span>
+            </button>
+          ))}
+        </div>
+        <button type="button" className="red seta" aria-label="Mais dias" onClick={() => rolarDias(1)}>
+          <IconeDireita />
+        </button>
       </div>
 
+      {dia && porDia.has(dia) && <p className="rotulo">Horário</p>}
       {dia && porDia.has(dia) && (
-        <div className="horarios" role="group" aria-label="Horários">
+        <div key={dia} className="horarios" role="group" aria-label="Horários">
           {porDia.get(dia)!.map((h) => (
             <button key={h} type="button" aria-pressed={horario === h} onClick={() => setHorario(h)}>
               {horaCurta(horaLocal(new Date(h), FUSO))}
@@ -159,7 +198,8 @@ export default function Agendar() {
       )}
 
       {horario && (
-        <form onSubmit={confirmar} className="painel">
+        <form onSubmit={confirmar} className="cartao formulario">
+          <p className="resumo-escolha">{resumo(horario)}</p>
           <label>
             Nome
             <input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={80} />

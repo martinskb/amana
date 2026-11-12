@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
-import { HashRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ehErroDeConexao } from '../data/auth';
 import { getConfig } from '../data/configuracoes';
 import { SemAcessoError, SemConexaoError } from '../data/erros';
@@ -12,6 +12,9 @@ import BackupBanner from './BackupBanner';
 import Configuracoes from './Configuracoes';
 import { ConfigContext } from './contexto';
 import Login from './Login';
+import Navegacao from './Navegacao';
+import TransicaoRota from './TransicaoRota';
+import Esqueleto from './Esqueleto';
 import Agendar from './publico/Agendar';
 import SemConexao from './SemConexao';
 
@@ -47,35 +50,33 @@ function Telas() {
         <button type="button" onClick={carregar}>Tentar de novo</button>
       </main>
     );
-  if (!config) return <p className="carregando">Carregando…</p>;
+  if (!config) return <Esqueleto />;
 
   return (
     <ConfigContext.Provider value={{ config, recarregar: carregar }}>
       <HashRouter>
         <header className="topo">{config.nome_negocio}</header>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <>
-                <BackupBanner />
-                <Agenda />
-              </>
-            }
-          />
-          <Route path="/link" element={<AbaLink />} />
-          <Route path="/config" element={<Configuracoes />} />
-          {/* endereços antigos (v1/v2) */}
-          <Route path="/livres" element={<Navigate to="/link" replace />} />
-          <Route path="/lembretes" element={<Navigate to="/" replace />} />
-          <Route path="/clientes" element={<Navigate to="/config" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <nav className="abas">
-          <NavLink to="/" end>Agenda</NavLink>
-          <NavLink to="/link">Link</NavLink>
-          <NavLink to="/config">Ajustes</NavLink>
-        </nav>
+        <TransicaoRota>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <>
+                  <BackupBanner />
+                  <Agenda />
+                </>
+              }
+            />
+            <Route path="/link" element={<AbaLink />} />
+            <Route path="/config" element={<Configuracoes />} />
+            {/* endereços antigos (v1/v2) */}
+            <Route path="/livres" element={<Navigate to="/link" replace />} />
+            <Route path="/lembretes" element={<Navigate to="/" replace />} />
+            <Route path="/clientes" element={<Navigate to="/config" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </TransicaoRota>
+        <Navegacao nomeNegocio={config.nome_negocio} />
       </HashRouter>
     </ConfigContext.Provider>
   );
@@ -105,7 +106,7 @@ function AppDoDono() {
     return () => data.subscription.unsubscribe();
   }, [lerSessao]);
 
-  if (sessao === undefined) return <p className="carregando">Carregando…</p>;
+  if (sessao === undefined) return <Esqueleto />;
   if (sessao === 'sem-conexao') return <SemConexao onTentarDeNovo={lerSessao} />;
   if (!sessao) return <Login nome={nome} />;
   return <Telas />;

@@ -8,6 +8,7 @@ import { mensagemDivulgar } from '../lib/mensagens';
 import { diasDoLink, formatSlotsMessage, freeSlots } from '../lib/slots';
 import { waLink } from '../lib/whatsapp';
 import { useConfig } from './contexto';
+import { IconeWhatsApp } from './icones';
 import { useAoVoltar } from './useAoVoltar';
 
 const RESUMO_MAX = 8;
@@ -19,6 +20,7 @@ export default function AbaLink() {
   const [ligado, setLigado] = useState(config.link_ativo);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [resumo, setResumo] = useState<string | null>(null);
   const voltas = useAoVoltar();
@@ -47,6 +49,8 @@ export default function AbaLink() {
     try {
       await navigator.clipboard.writeText(link);
       setAviso('Link copiado!');
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
     } catch {
       setAviso(`Não deu para copiar. O link é: ${link}`);
     }
@@ -70,12 +74,12 @@ export default function AbaLink() {
 
   return (
     <main className="aba-link">
-      <h2>Seu link de agendamento</h2>
+      <h2 className="tit">Seu link de agendamento</h2>
       <p className="link-destaque">{link}</p>
       <div className="linha">
         {ligado ? (
           <a className="botao" href={waLink(null, mensagemDivulgar(link))} target="_blank" rel="noreferrer">
-            Mandar no WhatsApp
+            <IconeWhatsApp /> Mandar no WhatsApp
           </a>
         ) : (
           // link desligado: não deixa divulgar um link que mostraria "fechado"
@@ -84,13 +88,13 @@ export default function AbaLink() {
           </button>
         )}
         <button type="button" onClick={copiar}>
-          Copiar link
+          {copiado ? 'Copiado ✓' : 'Copiar link'}
         </button>
       </div>
       {aviso && <p role="status">{aviso}</p>}
 
       <label className="inline chave">
-        <input type="checkbox" checked={ligado} disabled={salvando} onChange={alternar} />
+        <input type="checkbox" className="chave" checked={ligado} disabled={salvando} onChange={alternar} />
         Link ligado
       </label>
       {erro && <p role="alert">{erro}</p>}

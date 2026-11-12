@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SemConexaoError } from '../../src/data/erros';
@@ -73,8 +73,34 @@ describe('página pública de agendamento', () => {
     await confirmar();
     // com "+": o servidor aplica a mesma regra e não confunde com número brasileiro
     expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Ana', '+5511987654321', '2026-11-18T12:00:00Z');
-    expect(await screen.findByText('Pronto, Ana! Seu horário: qua 18/11 às 9h.')).toBeInTheDocument();
+    const status = await screen.findByRole('status');
+    expect(within(status).getByRole('heading', { name: 'Pronto, Ana!' })).toBeInTheDocument();
+    expect(within(status).getByText('Seu horário: qua 18/11 às 9h.')).toBeInTheDocument();
     expect(falar()).toHaveAttribute('href', waLink('5511900001111', 'Oi! Marquei qua 18/11 às 9h pelo link.'));
+  });
+
+  it('fichas de dia mostram o dia da semana e o número, com o mesmo nome acessível', async () => {
+    render(<Agendar />);
+    const ficha = await screen.findByRole('button', { name: 'qua 18' });
+    expect(ficha.querySelector('.ficha-dia')).toHaveTextContent('qua');
+    expect(ficha.querySelector('.ficha-num')).toHaveTextContent('18');
+  });
+
+  it('resumo do horário escolhido aparece acima do formulário', async () => {
+    render(<Agendar />);
+    await escolher9hDeQuarta();
+    expect(screen.getByText('Quarta, 18/11 às 9h')).toBeInTheDocument();
+  });
+
+  it('as setas rolam as fichas de dia', async () => {
+    const rolar = vi.fn();
+    HTMLElement.prototype.scrollBy = rolar;
+    render(<Agendar />);
+    await screen.findByRole('button', { name: 'qua 18' });
+    await userEvent.click(screen.getByRole('button', { name: 'Mais dias' }));
+    expect(rolar).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Dias anteriores' }));
+    expect(rolar).toHaveBeenCalledTimes(2);
   });
 
   it('WhatsApp inválido mostra a mensagem e não envia', async () => {

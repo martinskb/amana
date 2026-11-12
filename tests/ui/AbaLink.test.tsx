@@ -50,6 +50,11 @@ describe('aba Link', () => {
     );
   });
 
+  it('a chave continua sendo um checkbox com o nome Link ligado', async () => {
+    renderComConfig(<AbaLink />);
+    expect(await screen.findByRole('checkbox', { name: 'Link ligado' })).toHaveClass('chave');
+  });
+
   it('desligar a chave grava link_ativo false e recarrega', async () => {
     const { recarregar } = renderComConfig(<AbaLink />);
     await userEvent.click(screen.getByRole('checkbox', { name: 'Link ligado' }));

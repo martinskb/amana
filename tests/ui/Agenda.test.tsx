@@ -99,6 +99,35 @@ const abrirNovo = async (rotulo = 'Marcar ter 17/11 às 09:00') => {
 const salvar = () => userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
 describe('Agenda', () => {
+  it('com um painel aberto, a grade continua na tela', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    expect(screen.getByRole('dialog', { name: 'Agendamento' })).toBeInTheDocument();
+    // a grade continua montada, mas inerte e oculta para leitores de tela enquanto o painel está aberto
+    expect(screen.getByRole('button', { name: 'Marcar ter 17/11 às 09:00', hidden: true })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Marcar ter 17/11 às 09:00' })).toBeNull();
+  });
+
+  it('Esc fecha o painel de horário livre', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    expect(screen.getByRole('dialog', { name: 'Horário livre' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('ações dos detalhes ficam agrupadas e Cancelar fica fora do grupo', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    const dialogo = screen.getByRole('dialog', { name: 'Agendamento' });
+    const acoes = dialogo.querySelector('.acoes') as HTMLElement;
+    expect(acoes).not.toBeNull();
+    for (const nome of ['Concluir', 'Faltou', 'Editar']) expect(within(acoes).getByRole('button', { name: nome })).toBeInTheDocument();
+    expect(within(acoes).getByRole('link', { name: 'WhatsApp' })).toBeInTheDocument();
+    expect(within(acoes).queryByRole('button', { name: 'Cancelar agendamento' })).toBeNull();
+    expect(within(dialogo).getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
+  });
+
   it('visão de dia mostra só hoje', async () => {
     renderComConfig(<Agenda />);
     expect(await screen.findByRole('button', { name: /10:00 João/ })).toBeInTheDocument();
@@ -114,6 +143,22 @@ describe('Agenda', () => {
     expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-17', '2026-11-23');
     await userEvent.click(screen.getByRole('button', { name: 'Dia' }));
     await waitFor(() => expect(screen.queryByRole('button', { name: /15:00 Maria/ })).not.toBeInTheDocument());
+  });
+
+  it('na semana, livres seguidos aparecem agrupados e abrem o primeiro horário', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Semana' }));
+    const grupo = await screen.findByRole('button', { name: 'Marcar ter 17/11 entre 09:00 e 09:30' });
+    expect(grupo).toHaveTextContent('09:00–09:30 livre');
+    expect(screen.queryByRole('button', { name: 'Marcar ter 17/11 às 09:00' })).toBeNull();
+    await userEvent.click(grupo);
+    const painel = screen.getByRole('dialog', { name: 'Horário livre' });
+    expect(within(painel).getByRole('heading', { name: 'ter 17/11 às 09:00' })).toBeInTheDocument();
+  });
+
+  it('agendamento mostra o selo de status com texto', async () => {
+    renderComConfig(<Agenda />);
+    expect(await screen.findByRole('button', { name: /10:00 João/ })).toHaveTextContent('marcado');
   });
 
   it('horário ocupado não aparece como livre', async () => {
@@ -213,7 +258,19 @@ describe('Agenda', () => {
     renderComConfig(<Agenda />);
     await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
     await userEvent.click(screen.getByRole('button', { name: botao }));
+    if (status === 'cancelado') await userEvent.click(screen.getByRole('button', { name: 'Sim, cancelar' }));
     expect(m.mudarStatus).toHaveBeenCalledWith({}, 'a1', status);
+  });
+
+  it('Cancelar agendamento pede confirmação antes de gravar', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar agendamento' }));
+    expect(m.mudarStatus).not.toHaveBeenCalled();
+    expect(screen.getByText('Cancelar o horário de João?')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Não' }));
+    expect(m.mudarStatus).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
   });
 
   it('depois de cancelar, o horário volta a aparecer livre', async () => {
@@ -221,6 +278,7 @@ describe('Agenda', () => {
     await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
     m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, status: 'cancelado' }]);
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar agendamento' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sim, cancelar' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Fechar' }));
     expect(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 10:00' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /10:00 João/ })).not.toBeInTheDocument();
@@ -294,6 +352,25 @@ describe('Agenda', () => {
     expect(m.listAjustes).toHaveBeenCalledWith({}, '2026-11-17', '2026-11-17');
   });
 
+  it('num horário extra fora do expediente, "Remover horário extra" apaga o extra', async () => {
+    m.listAjustes.mockResolvedValue([{ id: 'e1', tipo: 'extra', inicio: '2026-11-17T22:00:00.000Z' }]);
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 19:00' }));
+    expect(screen.queryByRole('button', { name: 'Fechar este horário' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Remover horário extra' }));
+    expect(m.removerAjuste).toHaveBeenCalledWith({}, 'e1');
+    expect(m.fecharHorario).not.toHaveBeenCalled();
+  });
+
+  it('um extra que cai dentro do expediente continua com "Fechar este horário"', async () => {
+    m.listAjustes.mockResolvedValue([{ id: 'e1', tipo: 'extra', inicio: '2026-11-17T12:00:00.000Z' }]);
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    expect(screen.queryByRole('button', { name: 'Remover horário extra' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar este horário' }));
+    expect(m.fecharHorario).toHaveBeenCalledWith({}, '2026-11-17T12:00:00.000Z');
+  });
+
   it('o formulário começa em "Sem serviço" e ocupa um horário (30 min)', async () => {
     renderComConfig(<Agenda />);
     await abrirNovo();
@@ -364,6 +441,7 @@ describe('Agenda', () => {
     renderComConfig(<Agenda />);
     await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar agendamento' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sim, cancelar' }));
     const aviso = await screen.findByRole('link', { name: 'Avisar no WhatsApp' });
     const msg = mensagemCancelar({ nome: 'João', inicio: JOAO_TERCA.inicio, fuso: CONFIG_TESTE.fuso }, linkAgendamento());
     expect(msg).toContain('não vou conseguir te atender terça-feira (17/11) às 10h');

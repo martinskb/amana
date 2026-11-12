@@ -129,11 +129,11 @@ export default function Configuracoes() {
 
   return (
     <main className="config">
-      <h2>Ajustes</h2>
+      <h2 className="tit">Ajustes</h2>
       {erro && <p role="alert">{erro}</p>}
 
       <form onSubmit={salvar}>
-        <section>
+        <section className="cartao">
           <h3>Negócio</h3>
           <label>
             Nome do negócio
@@ -145,7 +145,7 @@ export default function Configuracoes() {
           </label>
         </section>
 
-        <section>
+        <section className="cartao">
           <h3>Horários</h3>
           <label>
             Duração de cada horário (min)
@@ -221,7 +221,7 @@ export default function Configuracoes() {
         {salvo && <p role="status">Salvo!</p>}
       </form>
 
-      <section>
+      <section className="cartao">
         <h3>Serviços</h3>
         <ul className="lista">
           {servicos.map((s) => (
@@ -230,6 +230,7 @@ export default function Configuracoes() {
               <label className="inline">
                 <input
                   type="checkbox"
+                  className="chave"
                   aria-label={`${s.nome} ativo`}
                   checked={s.ativo}
                   onChange={() => gravarServico({ ...s, ativo: !s.ativo })}
@@ -252,11 +253,11 @@ export default function Configuracoes() {
         </form>
       </section>
 
-      <section>
+      <section className="cartao">
         <Clientes />
       </section>
 
-      <section>
+      <section className="cartao">
         <SecaoBackup />
       </section>
     </main>

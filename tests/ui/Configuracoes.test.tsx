@@ -86,6 +86,17 @@ describe('Configurações', () => {
     expect(await screen.findByText('Barba')).toBeInTheDocument();
   });
 
+  it.each(['Negócio', 'Horários', 'Serviços', 'Clientes', 'Backup'])('a seção %s é um cartão', async (titulo) => {
+    renderComConfig(<Configuracoes />);
+    const h = await screen.findByRole('heading', { name: titulo });
+    expect(h.closest('section')).toHaveClass('cartao');
+  });
+
+  it('o ativo do serviço é uma chave (checkbox estilizado)', async () => {
+    renderComConfig(<Configuracoes />);
+    expect(await screen.findByRole('checkbox', { name: 'Corte ativo' })).toHaveClass('chave');
+  });
+
   it('desativar serviço grava ativo=false', async () => {
     renderComConfig(<Configuracoes />);
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Corte ativo' }));
