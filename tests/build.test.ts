@@ -52,6 +52,20 @@ describe('build de produção', { timeout: 120_000 }, () => {
     expect(js).toContain('#/agendar');
   });
 
+  it('manifest usa as cores do tema escuro', () => {
+    const manifest = JSON.parse(readFileSync(join(saida, 'manifest.webmanifest'), 'utf8'));
+    expect(manifest.background_color).toBe('#161412');
+    expect(manifest.theme_color).toBe('#161412');
+  });
+
+  it('embute as fontes latinas no build e no cache do PWA', () => {
+    const fontes = arquivos(saida).filter((f) => f.endsWith('.woff2'));
+    expect(fontes.some((f) => f.includes('playfair-display-latin'))).toBe(true);
+    expect(fontes.some((f) => f.includes('hanken-grotesk-latin'))).toBe(true);
+    expect(fontes.filter((f) => /cyrillic|greek|vietnamese/.test(f))).toEqual([]);
+    expect(readFileSync(join(saida, 'sw.js'), 'utf8')).toContain('.woff2');
+  });
+
   it('o .env não está no repositório', () => {
     expect(readFileSync(join(raiz, '.gitignore'), 'utf8')).toMatch(/^\.env$/m);
   });

@@ -1,0 +1,30 @@
+/* Tokens do tema único (escuro). Ver docs/superpowers/specs/2026-11-12-redesign-visual-design.md, seção 3. */
+:root {
+  --fundo: #161412;
+  --sup: #211e1b;
+  --sup2: #2c2824;
+  --borda: #3b3631; /* só divisórias decorativas */
+  --borda-i: #736a60; /* contorno de tudo que é interativo (≥ 3:1) */
+  --texto: #ede6dc;
+  --sutil: #a39a8f;
+  --creme: #e7d3b8;
+  --couro: #b9894f;
+  --couro-txt: #17120c; /* texto sobre couro e sobre perigo cheio; nunca branco sobre --perigo */
+  --perigo: #f07470;
+  --sucesso: #7cc59a;
+
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans: 'Hanken Grotesk', 'Helvetica Neue', Arial, sans-serif;
+
+  --raio-pilula: 999px;
+  --raio-cartao: 16px;
+  --raio-campo: 12px;
+
+  --curva: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --rapido: 180ms;
+  --medio: 300ms;
+
+  --nav-lateral: 220px;
+
+  color-scheme: dark;
+}
