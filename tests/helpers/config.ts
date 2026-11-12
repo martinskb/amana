@@ -12,4 +12,9 @@ export const CONFIG_TESTE: Config = {
   modelo_livres: 'Horários livres: {horarios}',
   modelo_lembrete: 'Oi {nome}! Lembrete: amanhã ({dia}) às {hora} na {nome_negocio}.',
   ultimo_backup: new Date().toISOString(),
+  dias_abertos: 14,
+  link_ativo: true,
+  telefone_negocio: '5511900001111',
+  modelo_cancelamento:
+    'Oi {nome}, infelizmente não vou conseguir te atender {dia} às {hora}. Quer marcar outro horário? {link}',
 };

@@ -1,14 +1,15 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { linkAgendamento } from '../../src/lib/link';
 import { waLink } from '../../src/lib/whatsapp';
 import { CONFIG_TESTE } from '../helpers/config';
 import { renderComConfig } from '../helpers/render';
 
-const m = vi.hoisted(() => ({ listAgendamentos: vi.fn(), listServicos: vi.fn() }));
+const m = vi.hoisted(() => ({ listAgendamentos: vi.fn(), listAjustes: vi.fn() }));
 vi.mock('../../src/data/supabase', () => ({ supabase: {} }));
 vi.mock('../../src/data/agendamentos', () => ({ listAgendamentos: m.listAgendamentos }));
-vi.mock('../../src/data/servicos', () => ({ listServicos: m.listServicos }));
+vi.mock('../../src/data/ajustes', () => ({ listAjustes: m.listAjustes }));
 
 import HorariosLivres from '../../src/ui/HorariosLivres';
 
@@ -16,10 +17,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-17T11:00:00Z')); // terça 08:00 em São Paulo
   m.listAgendamentos.mockReset().mockResolvedValue([]);
-  m.listServicos.mockReset().mockResolvedValue([
-    { id: 's1', nome: 'Corte', duracao_min: 30, ativo: true },
-    { id: 's2', nome: 'Corte e barba', duracao_min: 60, ativo: true },
-  ]);
+  m.listAjustes.mockReset().mockResolvedValue([]);
 });
 
 afterEach(() => vi.useRealTimers());
@@ -27,21 +25,34 @@ afterEach(() => vi.useRealTimers());
 const texto = () => screen.getByLabelText('Mensagem') as HTMLTextAreaElement;
 
 describe('Horários livres', () => {
-  it('escolher "Amanhã" e "Corte" mostra o texto gerado', async () => {
+  it('escolher "Amanhã" mostra o texto gerado com os horários ofertados', async () => {
     const user = userEvent.setup();
     renderComConfig(<HorariosLivres />);
-    await screen.findByRole('option', { name: /Corte \(30 min\)/ });
-    await user.selectOptions(screen.getByLabelText('Período'), 'amanha');
-    await user.selectOptions(screen.getByLabelText('Serviço'), 's1');
+    await user.selectOptions(await screen.findByLabelText('Período'), 'amanha');
     await waitFor(() => expect(texto().value).toContain('qua 9h, 9h30'));
     expect(texto().value.startsWith('Horários livres: ')).toBe(true);
     expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-18', '2026-11-18');
+    expect(m.listAjustes).toHaveBeenLastCalledWith({}, '2026-11-18', '2026-11-18');
   });
 
-  it('a lista oferece só serviços ativos', async () => {
+  it('não há mais seletor de serviço', async () => {
     renderComConfig(<HorariosLivres />);
-    await screen.findByRole('option', { name: /Corte \(30 min\)/ });
-    expect(m.listServicos).toHaveBeenCalledWith({}, { soAtivos: true });
+    await screen.findByLabelText('Período');
+    expect(screen.queryByLabelText('Serviço')).not.toBeInTheDocument();
+  });
+
+  it('o texto respeita os horários fechados', async () => {
+    const user = userEvent.setup();
+    m.listAjustes.mockResolvedValue([{ id: 'f1', tipo: 'fechado', inicio: '2026-11-18T12:00:00.000Z' }]);
+    renderComConfig(<HorariosLivres />);
+    await user.selectOptions(await screen.findByLabelText('Período'), 'amanha');
+    await waitFor(() => expect(texto().value).toContain('qua 9h30'));
+    expect(texto().value).not.toContain('qua 9h,');
+  });
+
+  it('{link} no modelo vira o link de agendamento', async () => {
+    renderComConfig(<HorariosLivres />, { ...CONFIG_TESTE, modelo_livres: 'Livres: {horarios}\nMarque aqui: {link}' });
+    await waitFor(() => expect(texto().value).toContain(`Marque aqui: ${linkAgendamento()}`));
   });
 
   it('texto é editável e Copiar usa o texto atual', async () => {

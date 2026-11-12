@@ -14,6 +14,7 @@ import HorariosLivres from './HorariosLivres';
 import Lembretes from './Lembretes';
 import { ConfigContext } from './contexto';
 import Login from './Login';
+import Agendar from './publico/Agendar';
 import SemConexao from './SemConexao';
 
 function Telas() {
@@ -83,6 +84,12 @@ function Telas() {
 }
 
 export default function App() {
+  // a página pública não pede login
+  if (window.location.hash.startsWith('#/agendar')) return <Agendar />;
+  return <AppDoDono />;
+}
+
+function AppDoDono() {
   const nome = import.meta.env.VITE_NOME_NEGOCIO || 'Agenda Fácil';
   // undefined = carregando; 'sem-conexao' = não deu para ler/renovar a sessão
   const [sessao, setSessao] = useState<Session | null | 'sem-conexao' | undefined>(undefined);

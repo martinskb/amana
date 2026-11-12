@@ -15,9 +15,7 @@ function metodos(alvo: { sessao: unknown; erroSessao: unknown }) {
       callback = cb;
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     }),
-    signInWithOAuth: vi.fn(async () => ({ data: {}, error: null })),
-    signInWithOtp: vi.fn(async () => ({ data: {}, error: null })),
-    verifyOtp: vi.fn(async () => ({ data: {}, error: null as unknown })),
+    signInWithPassword: vi.fn(async () => ({ data: {}, error: null as unknown })),
     signOut: vi.fn(async () => ({ error: null })),
     emitir: (evento: string, sessao: unknown) => callback?.(evento, sessao),
   };

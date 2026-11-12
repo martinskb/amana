@@ -4,7 +4,7 @@ import { findOrCreateCliente, listClientes } from '../data/clientes';
 import { ConflitoDeHorarioError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import { dataLocal, horaLocal, instanteLocal } from '../lib/slots';
-import { normalizePhone } from '../lib/whatsapp';
+import { MSG_WHATSAPP_INVALIDO, normalizePhone } from '../lib/whatsapp';
 import type { AgendamentoCompleto, Cliente, Servico } from '../types';
 import { useConfig } from './contexto';
 
@@ -23,7 +23,8 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
   const [data, setData] = useState(agendamento ? dataLocal(new Date(agendamento.inicio), config.fuso) : inicial?.data ?? '');
   const [hora, setHora] = useState(agendamento ? horaLocal(new Date(agendamento.inicio), config.fuso) : inicial?.hora ?? '');
   const opcoes = servicos.filter((s) => s.ativo || s.id === agendamento?.servico_id);
-  const [servicoId, setServicoId] = useState(agendamento?.servico_id ?? opcoes[0]?.id ?? '');
+  // '' = sem serviço: ocupa um horário (passo_min)
+  const [servicoId, setServicoId] = useState(agendamento?.servico_id ?? '');
   const [observacao, setObservacao] = useState(agendamento?.observacao ?? '');
 
   const [termo, setTermo] = useState('');
@@ -47,18 +48,17 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
   async function salvar(e: FormEvent) {
     e.preventDefault();
     setErro(null);
-    const servico = servicos.find((s) => s.id === servicoId);
-    if (!servico) return setErro('Escolha o serviço.');
+    const servico = servicos.find((s) => s.id === servicoId) ?? null;
     if (!data || !hora) return setErro('Escolha a data e a hora.');
     const inicio = instanteLocal(data, hora, config.fuso);
-    const fim = new Date(inicio.getTime() + servico.duracao_min * 60_000);
+    const fim = new Date(inicio.getTime() + (servico?.duracao_min ?? config.passo_min) * 60_000);
     const obs = observacao.trim() || null;
 
     setSalvando(true);
     try {
       if (agendamento) {
         await editarAgendamento(supabase, agendamento.id, {
-          servico_id: servico.id,
+          servico_id: servico?.id ?? null,
           inicio: inicio.toISOString(),
           fim: fim.toISOString(),
           observacao: obs,
@@ -68,16 +68,17 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
         if (!clienteId) {
           if (!termo.trim()) return setErro('Informe o nome do cliente.');
           const tel = normalizePhone(telefone);
-          if (!tel) return setErro('Telefone inválido. Use DDD + número, por exemplo (11) 98765-4321.');
+          if (!tel) return setErro(MSG_WHATSAPP_INVALIDO);
           clienteId = (await findOrCreateCliente(supabase, termo.trim(), tel)).id;
         }
         await criarAgendamento(supabase, {
           cliente_id: clienteId,
-          servico_id: servico.id,
+          servico_id: servico?.id ?? null,
           inicio: inicio.toISOString(),
           fim: fim.toISOString(),
           status: 'marcado',
           observacao: obs,
+          origem: 'dono',
         });
       }
       onSalvo();
@@ -130,6 +131,7 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
         <label>
           Serviço
           <select value={servicoId} onChange={(e) => setServicoId(e.target.value)}>
+            <option value="">Sem serviço</option>
             {opcoes.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.nome} ({s.duracao_min} min)

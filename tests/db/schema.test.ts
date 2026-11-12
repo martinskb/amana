@@ -87,3 +87,76 @@ describe('esquema do banco', { timeout: 30_000 }, () => {
     });
   });
 });
+
+describe('esquema v2', { timeout: 30_000 }, () => {
+  const MODELO_CANCELAMENTO =
+    'Oi {nome}, infelizmente não vou conseguir te atender {dia} às {hora}. Quer marcar outro horário? {link}';
+
+  it('configuracoes tem os padrões da v2', async () => {
+    const db = await novoBanco();
+    const { rows } = await db.query('select dias_abertos, link_ativo, telefone_negocio, modelo_cancelamento from configuracoes');
+    expect(rows).toEqual([
+      { dias_abertos: 14, link_ativo: true, telefone_negocio: null, modelo_cancelamento: MODELO_CANCELAMENTO },
+    ]);
+  });
+
+  it('o modelo de horários livres do seed termina com o link', async () => {
+    const db = await novoBanco();
+    const { rows: [c] } = await db.query<{ modelo_livres: string }>('select modelo_livres from configuracoes');
+    expect(c.modelo_livres.endsWith('Marque aqui: {link}')).toBe(true);
+  });
+
+  it('agendamento sem serviço e com origem link é aceito; origem desconhecida é recusada', async () => {
+    const db = await novoBanco();
+    const { rows: [c] } = await db.query<{ id: string }>(
+      `insert into clientes (nome, telefone) values ('Ana', '5511987654321') returning id`,
+    );
+    const inserir = (inicio: string, origem: string) =>
+      db.query(
+        `insert into agendamentos (cliente_id, inicio, fim, origem) values ($1, $2, $2::timestamptz + interval '30 minutes', $3)`,
+        [c.id, inicio, origem],
+      );
+    await inserir('2026-11-17 10:00-03', 'link');
+    const { rows } = await db.query('select servico_id, origem from agendamentos');
+    expect(rows).toEqual([{ servico_id: null, origem: 'link' }]);
+    await expect(inserir('2026-11-17 11:00-03', 'site')).rejects.toMatchObject({ code: '23514' });
+    const { rows: [padrao] } = await db.query<{ column_default: string }>(
+      `select column_default from information_schema.columns where table_name = 'agendamentos' and column_name = 'origem'`,
+    );
+    expect(padrao.column_default).toContain('dono');
+  });
+
+  it('horarios_ajuste aceita fechado e extra, recusa outro tipo e duplicata', async () => {
+    const db = await novoBanco();
+    const ajustar = (tipo: string) =>
+      db.query(`insert into horarios_ajuste (inicio, tipo) values ('2026-11-17 10:00-03', $1)`, [tipo]);
+    await ajustar('fechado');
+    await ajustar('extra');
+    await expect(ajustar('pausa')).rejects.toMatchObject({ code: '23514' });
+    await expect(ajustar('fechado')).rejects.toMatchObject({ code: '23505' });
+  });
+
+  it('telefone internacional é aceito; 7 dígitos é recusado', async () => {
+    const db = await novoBanco();
+    await db.query(`insert into clientes (nome, telefone) values ('Rui', '351912345678')`);
+    await expect(
+      db.query(`insert into clientes (nome, telefone) values ('X', '1234567')`),
+    ).rejects.toMatchObject({ code: '23514' });
+  });
+
+  it('estranho não lê horarios_ajuste; ninguém lê tentativas_publicas pela API', async () => {
+    const db = await novoBanco();
+    await db.exec(`
+      insert into donos (user_id) values ('${DONO}');
+      insert into horarios_ajuste (inicio, tipo) values ('2026-11-17 10:00-03', 'fechado');
+      insert into tentativas_publicas (ip) values ('1.1.1.1');
+    `);
+    await comoUsuario(db, ESTRANHO);
+    expect((await db.query('select * from horarios_ajuste')).rows).toHaveLength(0);
+    await comoUsuario(db, DONO);
+    expect((await db.query('select * from horarios_ajuste')).rows).toHaveLength(1);
+    await expect(db.query('select * from tentativas_publicas')).rejects.toMatchObject({ code: '42501' });
+    await db.exec('reset role; set role anon');
+    await expect(db.query('select * from tentativas_publicas')).rejects.toMatchObject({ code: '42501' });
+  });
+});

@@ -9,15 +9,13 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 ## 2. Supabase
 
 - [ ] Criar a conta em supabase.com (entrar com a conta Google do negócio) e um projeto na região São Paulo. Guardar a senha do banco **com o cliente**.
-- [ ] Em **SQL Editor**, rodar o conteúdo de `supabase/migrations/0001_init.sql` e depois `supabase/seed.sql`.
-- [ ] Em **Authentication → Users → Add user**, criar o usuário do dono com o e-mail da conta Google do negócio.
+- [ ] Em **SQL Editor**, rodar, nesta ordem, `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_link_publico.sql` e `supabase/seed.sql`. (Projeto que já tinha a v1: rodar só a `0002`.)
+- [ ] Em **Authentication → Users → Add user → Create new user**, criar o dono com o e-mail `<usuario>@dono.agenda` (por exemplo `joao@dono.agenda`), uma senha de **8 ou mais caracteres** e **Auto Confirm User** marcado. No app, o dono entra com o usuário (`joao`) e a senha. Esse e-mail nunca recebe mensagens: se o dono esquecer a senha, troque aqui no painel.
 - [ ] Copiar o **User UID** desse usuário e rodar no SQL Editor:
       `insert into donos (user_id) values ('<User UID>');`
       Sem isso o app mostra "Esta conta não tem acesso a esta agenda."
 - [ ] Em **Authentication → Sign In / Providers**, **desligar "Allow new users to sign up"**. Só o dono entra.
-- [ ] Em **Authentication → Emails → Magic Link**, trocar o corpo do e-mail para mandar o código: `Seu código de acesso: {{ .Token }}`. O app pede esse código de 6 dígitos (o link do e-mail abriria no Safari, que não divide o login com o app da Tela de Início).
-- [ ] Login com Google (opcional; o código por e-mail já basta): ativar o provedor Google com um OAuth Client criado no Google Cloud Console da conta do negócio. Se ativar, testar no app **instalado** no iPhone (passo 6), porque o login sai do app e precisa voltar para ele.
-- [ ] Em **Authentication → URL Configuration**, colocar a URL do site (passo 4) em **Site URL** e em **Redirect URLs**.
+- [ ] Não precisa de SMTP, modelo de e-mail nem login com Google: o login é por usuário e senha.
 - [ ] Anotar **Project URL** e a chave **anon / publishable** (Project Settings → API). **Nunca** usar a chave `service_role` no site.
 
 ## 3. GitHub
@@ -33,12 +31,21 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 
 ## 5. Configuração inicial (no app)
 
-- [ ] Entrar com a conta do dono. Em **Ajustes**: nome do negócio, expediente, folgas, serviços com duração, mensagens.
+- [ ] Entrar com o usuário e a senha do dono. Em **Ajustes**: nome do negócio, **WhatsApp do negócio**, expediente, folgas, **duração de cada horário**, **quantos dias o link mostra**, mensagens (livres com `{link}`, lembrete e cancelamento).
+- [ ] Tocar em **Copiar link de agendamento** e mandar para o dono divulgar.
 
 ## 6. Teste no iPhone do cliente
 
+- [ ] **Limite por IP no projeto real** (uma vez por projeto). Com um horário livre do link, chame a função mandando IPs forjados:
+      ```bash
+      curl -s "$VITE_SUPABASE_URL/rest/v1/rpc/agendar_publico" -H "apikey: $VITE_SUPABASE_ANON_KEY" \
+        -H "Content-Type: application/json" -H "X-Forwarded-For: 6.6.6.6" -H "X-Real-IP: 6.6.6.6" \
+        -d '{"nome":"Teste IP","telefone":"11900000000","inicio":"<um horário livre em ISO>"}'
+      ```
+      No SQL Editor, `select ip from tentativas_publicas order by id desc limit 1;` precisa mostrar o **IP real** da sua conexão, não `6.6.6.6`. (Mandar `CF-Connecting-IP` forjado faz a Cloudflare recusar o pedido com "error code: 1000", o esperado.) Repita mais 3 vezes em horários diferentes: a quarta resposta tem que ser `"erro": "limite"`. Depois apague os agendamentos, o cliente "Teste IP" e as tentativas. Verificado no projeto de teste em 2026-11-11.
+- [ ] Abrir o **link de agendamento** no celular de outra pessoa (sem login) e marcar um horário de teste; conferir que ele aparece na agenda como "pelo link".
 - [ ] Abrir o link no Safari → **Adicionar à Tela de Início** → abrir pelo ícone.
-- [ ] Fazer login pelo app instalado (código por e-mail e, se ativado, Google), marcar um horário, gerar horários livres e mandar um lembrete.
+- [ ] Fazer login pelo app instalado com usuário e senha, marcar um horário, gerar horários livres e mandar um lembrete.
 - [ ] Fazer um backup e **testar a restauração** num projeto de teste:
       `SUPABASE_DB_URL='postgresql://…' npx tsx scripts/restore.ts backup.json`
 - [ ] Combinar de abrir o app depois de alguns dias para conferir se o login continua ativo.

@@ -14,11 +14,13 @@ export class BancoNaoVazioError extends Error {
 const COLUNAS = {
   servicos: ['id', 'nome', 'duracao_min', 'ativo'],
   clientes: ['id', 'nome', 'telefone', 'criado_em'],
-  agendamentos: ['id', 'cliente_id', 'servico_id', 'inicio', 'fim', 'status', 'observacao', 'criado_em'],
+  agendamentos: ['id', 'cliente_id', 'servico_id', 'inicio', 'fim', 'status', 'observacao', 'origem', 'criado_em'],
   configuracoes: [
     'nome_negocio', 'fuso', 'expediente', 'folgas', 'passo_min', 'antecedencia_min',
     'modelo_livres', 'modelo_lembrete', 'ultimo_backup',
+    'dias_abertos', 'link_ativo', 'telefone_negocio', 'modelo_cancelamento',
   ],
+  horarios_ajuste: ['id', 'inicio', 'tipo', 'criado_em'],
 } as const;
 const JSON_COLS = new Set(['expediente', 'folgas']);
 type Tabela = keyof typeof COLUNAS;
@@ -48,6 +50,7 @@ export async function restaurar(q: Consulta, arquivo: BackupFile, opcoes: { conf
     const existentes = Number((rows[0] as { n: number | string }).n);
     if (existentes > 0 && !opcoes.confirmarSubstituir) throw new BancoNaoVazioError(existentes);
 
+    await q('delete from horarios_ajuste');
     await q('delete from agendamentos');
     await q('delete from clientes');
     await q('delete from servicos');
@@ -57,6 +60,7 @@ export async function restaurar(q: Consulta, arquivo: BackupFile, opcoes: { conf
     await inserir(q, 'clientes', arquivo.clientes);
     await inserir(q, 'agendamentos', arquivo.agendamentos);
     await inserir(q, 'configuracoes', arquivo.configuracoes);
+    await inserir(q, 'horarios_ajuste', arquivo.horarios_ajuste ?? []);
     await q('commit');
   } catch (e) {
     await q('rollback');

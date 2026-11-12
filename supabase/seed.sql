@@ -8,7 +8,7 @@ values (
   '[]',
   30,
   60,
-  E'Agenda aberta! Horários livres:\n{horarios}\nMe chama aqui para marcar.',
+  E'Agenda aberta! Horários livres:\n{horarios}\nMarque aqui: {link}',
   'Oi {nome}! Passando para lembrar do seu horário amanhã ({dia}) às {hora} na {nome_negocio}. Posso confirmar?'
 )
 on conflict (id) do nothing;

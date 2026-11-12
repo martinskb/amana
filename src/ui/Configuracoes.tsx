@@ -3,6 +3,8 @@ import { saveConfig } from '../data/configuracoes';
 import { listServicos, saveServico } from '../data/servicos';
 import { supabase } from '../data/supabase';
 import type { DiaSemana, Expediente, Intervalo, Servico } from '../types';
+import { linkAgendamento } from '../lib/link';
+import { MSG_WHATSAPP_INVALIDO, normalizePhone } from '../lib/whatsapp';
 import { BotaoBackup } from './BackupBanner';
 import { useConfig } from './contexto';
 
@@ -36,6 +38,21 @@ export default function Configuracoes() {
   const [novaFolga, setNovaFolga] = useState('');
   const [modeloLivres, setModeloLivres] = useState(config.modelo_livres);
   const [modeloLembrete, setModeloLembrete] = useState(config.modelo_lembrete);
+  const [modeloCancelamento, setModeloCancelamento] = useState(config.modelo_cancelamento);
+  const [passo, setPasso] = useState(String(config.passo_min));
+  const [diasAbertos, setDiasAbertos] = useState(String(config.dias_abertos));
+  const [linkAtivo, setLinkAtivo] = useState(config.link_ativo);
+  const [telNegocio, setTelNegocio] = useState(config.telefone_negocio ? `+${config.telefone_negocio}` : '');
+  const [avisoLink, setAvisoLink] = useState<string | null>(null);
+
+  async function copiarLink() {
+    try {
+      await navigator.clipboard.writeText(linkAgendamento());
+      setAvisoLink('Link copiado!');
+    } catch {
+      setAvisoLink(`Não deu para copiar. O link é: ${linkAgendamento()}`);
+    }
+  }
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
 
@@ -72,6 +89,16 @@ export default function Configuracoes() {
       setErro(problema);
       return;
     }
+    const passoMin = Number(passo);
+    if (!Number.isInteger(passoMin) || passoMin < 5 || passoMin > 240) {
+      return setErro('A duração de cada horário precisa ficar entre 5 e 240 minutos.');
+    }
+    const dias = Number(diasAbertos);
+    if (!Number.isInteger(dias) || dias < 1 || dias > 60) {
+      return setErro('Os dias do link precisam ficar entre 1 e 60.');
+    }
+    const tel = telNegocio.trim() ? normalizePhone(telNegocio) : null;
+    if (telNegocio.trim() && !tel) return setErro(MSG_WHATSAPP_INVALIDO);
     setErro(null);
     const ordenado = Object.fromEntries(
       Object.entries(expediente).map(([d, l]) => [d, [...l].sort((a, b) => a.inicio.localeCompare(b.inicio))]),
@@ -83,6 +110,11 @@ export default function Configuracoes() {
         folgas,
         modelo_livres: modeloLivres,
         modelo_lembrete: modeloLembrete,
+        modelo_cancelamento: modeloCancelamento,
+        passo_min: passoMin,
+        dias_abertos: dias,
+        link_ativo: linkAtivo,
+        telefone_negocio: tel,
       });
       await recarregar();
       setSalvo(true);
@@ -125,6 +157,33 @@ export default function Configuracoes() {
             Nome do negócio
             <input value={nome} onChange={(e) => setNome(e.target.value)} />
           </label>
+          <label>
+            WhatsApp do negócio
+            <input type="tel" inputMode="tel" value={telNegocio} onChange={(e) => setTelNegocio(e.target.value)} placeholder="(11) 98765-4321" />
+          </label>
+        </section>
+
+        <section>
+          <h3>Link de agendamento</h3>
+          <label className="inline">
+            <input type="checkbox" checked={linkAtivo} onChange={(e) => setLinkAtivo(e.target.checked)} />
+            Link de agendamento ligado
+          </label>
+          <label>
+            Duração de cada horário (min)
+            <input type="number" inputMode="numeric" value={passo} onChange={(e) => setPasso(e.target.value)} />
+          </label>
+          <label>
+            Quantos dias o link mostra
+            <input type="number" inputMode="numeric" value={diasAbertos} onChange={(e) => setDiasAbertos(e.target.value)} />
+          </label>
+          <div className="linha">
+            <button type="button" onClick={copiarLink}>
+              Copiar link de agendamento
+            </button>
+            {avisoLink && <span role="status">{avisoLink}</span>}
+          </div>
+          <p className="sutil">Mande no WhatsApp, poste no status ou na bio do Instagram.</p>
         </section>
 
         <section>
@@ -193,12 +252,17 @@ export default function Configuracoes() {
             Mensagem de horários livres
             <textarea rows={3} value={modeloLivres} onChange={(e) => setModeloLivres(e.target.value)} />
           </label>
-          <p className="sutil">Use {'{horarios}'} onde entram os horários.</p>
+          <p className="sutil">Use {'{horarios}'} onde entram os horários e {'{link}'} para o link de agendamento.</p>
           <label>
             Mensagem de lembrete
             <textarea rows={3} value={modeloLembrete} onChange={(e) => setModeloLembrete(e.target.value)} />
           </label>
           <p className="sutil">Marcadores: {'{nome}'}, {'{dia}'}, {'{hora}'}, {'{nome_negocio}'}.</p>
+          <label>
+            Mensagem de cancelamento
+            <textarea rows={3} value={modeloCancelamento} onChange={(e) => setModeloCancelamento(e.target.value)} />
+          </label>
+          <p className="sutil">Marcadores: {'{nome}'}, {'{dia}'}, {'{hora}'}, {'{link}'}.</p>
         </section>
 
         <button type="submit" className="primario">

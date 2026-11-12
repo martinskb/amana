@@ -3,8 +3,8 @@ import type { Agendamento, AgendamentoCompleto, Status } from '../types';
 import { executar } from './erros';
 import type { SupabaseClient } from './supabase';
 
-const CAMPOS = 'id, cliente_id, servico_id, inicio, fim, status, observacao';
-const COMPLETO = `${CAMPOS}, cliente:clientes(nome,telefone), servico:servicos(nome)`;
+const CAMPOS = 'id, cliente_id, servico_id, inicio, fim, status, observacao, origem';
+const COMPLETO = `${CAMPOS}, criado_em, cliente:clientes(nome,telefone), servico:servicos(nome)`;
 
 /** Agendamentos com início entre 00:00 de `de` e 24:00 de `ate`, em hora local do negócio. */
 export async function listAgendamentos(db: SupabaseClient, de: string, ate: string): Promise<AgendamentoCompleto[]> {
@@ -26,6 +26,20 @@ export async function listAgendamentosDoCliente(db: SupabaseClient, clienteId: s
       .select(COMPLETO)
       .eq('cliente_id', clienteId)
       .order('inicio', { ascending: false })
+      .returns<AgendamentoCompleto[]>(),
+  );
+}
+
+/** Agendamentos feitos pelo link depois de `desde` (qualquer data de atendimento), sem os cancelados. */
+export async function listNovosPeloLink(db: SupabaseClient, desde: string): Promise<AgendamentoCompleto[]> {
+  return executar(
+    db
+      .from('agendamentos')
+      .select(COMPLETO)
+      .eq('origem', 'link')
+      .gt('criado_em', desde)
+      .neq('status', 'cancelado')
+      .order('inicio')
       .returns<AgendamentoCompleto[]>(),
   );
 }
