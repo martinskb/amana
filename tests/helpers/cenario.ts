@@ -22,6 +22,7 @@ export const CONFIG_CENARIO: Config = {
   link_ativo: true,
   telefone_negocio: '5511900001111',
   modelo_cancelamento: '',
+  backup_ativo: false,
 };
 
 /** Terça 17/11: extra às 19:00, fechado às 10:00, marcado 14:00–14:30, cancelado 15:00–15:30. Sexta 20/11 é folga com extra às 10:00. */
