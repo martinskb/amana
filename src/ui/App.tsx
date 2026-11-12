@@ -1,6 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
-import { HashRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ehErroDeConexao } from '../data/auth';
 import { getConfig } from '../data/configuracoes';
 import { SemAcessoError, SemConexaoError } from '../data/erros';
@@ -12,6 +12,7 @@ import BackupBanner from './BackupBanner';
 import Configuracoes from './Configuracoes';
 import { ConfigContext } from './contexto';
 import Login from './Login';
+import Navegacao from './Navegacao';
 import Agendar from './publico/Agendar';
 import SemConexao from './SemConexao';
 
@@ -53,29 +54,27 @@ function Telas() {
     <ConfigContext.Provider value={{ config, recarregar: carregar }}>
       <HashRouter>
         <header className="topo">{config.nome_negocio}</header>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <>
-                <BackupBanner />
-                <Agenda />
-              </>
-            }
-          />
-          <Route path="/link" element={<AbaLink />} />
-          <Route path="/config" element={<Configuracoes />} />
-          {/* endereços antigos (v1/v2) */}
-          <Route path="/livres" element={<Navigate to="/link" replace />} />
-          <Route path="/lembretes" element={<Navigate to="/" replace />} />
-          <Route path="/clientes" element={<Navigate to="/config" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <nav className="abas">
-          <NavLink to="/" end>Agenda</NavLink>
-          <NavLink to="/link">Link</NavLink>
-          <NavLink to="/config">Ajustes</NavLink>
-        </nav>
+        <div className="conteudo">
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <>
+                  <BackupBanner />
+                  <Agenda />
+                </>
+              }
+            />
+            <Route path="/link" element={<AbaLink />} />
+            <Route path="/config" element={<Configuracoes />} />
+            {/* endereços antigos (v1/v2) */}
+            <Route path="/livres" element={<Navigate to="/link" replace />} />
+            <Route path="/lembretes" element={<Navigate to="/" replace />} />
+            <Route path="/clientes" element={<Navigate to="/config" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+        <Navegacao nomeNegocio={config.nome_negocio} />
       </HashRouter>
     </ConfigContext.Provider>
   );
