@@ -3,3 +3,9 @@ dist/
 .env
 .superpowers/
 coverage/
+
+# Fora do repositório (ficam só no computador)
+docs/superpowers/
+.security-audit/
+scripts/prints.sh
+*.tsbuildinfo
