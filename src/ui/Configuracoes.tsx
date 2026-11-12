@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useState, type FormEvent } from 'react';
 import { saveConfig } from '../data/configuracoes';
 import { listServicos, saveServico } from '../data/servicos';
@@ -129,6 +130,9 @@ export default function Configuracoes() {
 
   return (
     <main className="config">
+      <Link to="/" className="voltar">
+        ‹ Agenda
+      </Link>
       <h2 className="tit">Ajustes</h2>
       {erro && <p role="alert">{erro}</p>}
 
@@ -221,6 +225,7 @@ export default function Configuracoes() {
         {salvo && <p role="status">Salvo!</p>}
       </form>
 
+      <div className="config-direita">
       <section className="cartao">
         <h3>Serviços</h3>
         <ul className="lista">
@@ -260,6 +265,7 @@ export default function Configuracoes() {
       <section className="cartao">
         <SecaoBackup />
       </section>
+      </div>
     </main>
   );
 }

@@ -1,8 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import Navegacao from '../../src/ui/Navegacao';
 import TransicaoRota from '../../src/ui/TransicaoRota';
 
 function App() {
@@ -14,7 +13,8 @@ function App() {
           <Route path="/link" element={<p>tela link</p>} />
         </Routes>
       </TransicaoRota>
-      <Navegacao nomeNegocio="X" />
+      <Link to="/">Agenda</Link>
+      <Link to="/link">Link</Link>
     </MemoryRouter>
   );
 }

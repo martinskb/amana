@@ -97,6 +97,11 @@ describe('Configurações', () => {
     expect(await screen.findByRole('checkbox', { name: 'Corte ativo' })).toHaveClass('chave');
   });
 
+  it('o link "‹ Agenda" volta para a agenda', async () => {
+    renderComConfig(<Configuracoes />);
+    expect((await screen.findByRole('link', { name: '‹ Agenda' })).getAttribute('href')).toBe('/');
+  });
+
   it('desativar serviço grava ativo=false', async () => {
     renderComConfig(<Configuracoes />);
     await userEvent.click(await screen.findByRole('checkbox', { name: 'Corte ativo' }));

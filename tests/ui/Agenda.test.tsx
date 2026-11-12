@@ -99,6 +99,125 @@ const abrirNovo = async (rotulo = 'Marcar ter 17/11 às 09:00') => {
 const salvar = () => userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
 describe('Agenda', () => {
+  // tela larga (≥ 1280px): stub de matchMedia
+  const larga = (sim = true) =>
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: sim && q === '(min-width: 1280px)',
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+
+  it('na tela larga, o resumo mostra o próximo cliente com o WhatsApp', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    const resumo = await screen.findByRole('complementary', { name: 'Resumo' });
+    await within(resumo).findByText('João');
+    expect(resumo).toHaveTextContent('10:00');
+    expect(resumo).toHaveTextContent('em 2 h');
+    expect(within(resumo).getByRole('link', { name: 'WhatsApp de João' })).toHaveAttribute('href', 'https://wa.me/5511987654321?text=');
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, sem próximo hoje, o resumo avisa', async () => {
+    larga();
+    m.listAgendamentos.mockResolvedValue([]);
+    renderComConfig(<Agenda />);
+    const resumo = await screen.findByRole('complementary', { name: 'Resumo' });
+    expect(await within(resumo).findByText('Nenhum cliente até o fim do dia.')).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, o cartão Amanhã fica no resumo e não acima da grade', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    const resumo = await screen.findByRole('complementary', { name: 'Resumo' });
+    expect(within(resumo).getByText(/^Amanhã:/)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Amanhã:/)).toHaveLength(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, clicar num agendamento mostra os detalhes na região, sem diálogo nem histórico', async () => {
+    larga();
+    const push = vi.spyOn(history, 'pushState');
+    renderComConfig(<Agenda />);
+    const joao = await screen.findByRole('button', { name: /10:00 João/ });
+    await userEvent.click(joao);
+    expect(screen.getByRole('region', { name: 'Agendamento' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+    expect(joao).toHaveAttribute('aria-current', 'true');
+    expect(screen.queryByRole('complementary', { name: 'Resumo' })).toBeNull();
+    push.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, a grade continua usável com o painel lateral aberto', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    expect(screen.getByRole('region', { name: 'Horário livre' })).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, "Fechar painel" volta ao resumo e devolve o foco ao horário', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    const joao = await screen.findByRole('button', { name: /10:00 João/ });
+    await userEvent.click(joao);
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar painel' }));
+    expect(await screen.findByRole('complementary', { name: 'Resumo' })).toBeInTheDocument();
+    expect(joao).toHaveFocus();
+    expect(joao).not.toHaveAttribute('aria-current');
+    vi.unstubAllGlobals();
+  });
+
+  it('na tela larga, "+ Novo" abre na região e, ao fechar, o foco volta ao botão', async () => {
+    larga();
+    renderComConfig(<Agenda />);
+    const novo = await screen.findByRole('button', { name: '+ Novo' });
+    await userEvent.click(novo);
+    expect(screen.getByRole('region', { name: 'Novo agendamento' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar painel' }));
+    expect(novo).toHaveFocus();
+    vi.unstubAllGlobals();
+  });
+
+  it('mudar a largura com o novo agendamento aberto mantém o nome digitado', async () => {
+    let ehLarga = true;
+    const ouvintes = new Set<(e: { matches: boolean }) => void>();
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      get matches() {
+        return ehLarga && q === '(min-width: 1280px)';
+      },
+      media: q,
+      addEventListener: (_: string, f: (e: { matches: boolean }) => void) => ouvintes.add(f),
+      removeEventListener: (_: string, f: (e: { matches: boolean }) => void) => ouvintes.delete(f),
+    }));
+    vi.spyOn(history, 'back').mockImplementation(() => {});
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: '+ Novo' }));
+    await userEvent.type(screen.getByLabelText('Cliente'), 'Jo');
+    act(() => {
+      ehLarga = false;
+      ouvintes.forEach((f) => f({ matches: false }));
+    });
+    const dialogo = await screen.findByRole('dialog', { name: 'Novo agendamento' });
+    expect(within(dialogo).getByLabelText('Cliente')).toHaveValue('Jo');
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('abaixo de 1280px não há resumo lateral', async () => {
+    larga(false);
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    expect(screen.queryByRole('complementary', { name: 'Resumo' })).toBeNull();
+    expect(screen.getByText(/^Amanhã:/)).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it('com um painel aberto, a grade continua na tela', async () => {
     renderComConfig(<Agenda />);
     await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
@@ -175,6 +294,19 @@ describe('Agenda', () => {
     expect(botao).not.toHaveTextContent('digitou');
     await userEvent.click(botao);
     expect(within(screen.getByRole('dialog', { name: 'Agendamento' })).queryByRole('note')).toBeNull();
+  });
+
+  it('a agenda começa pelo cabeçalho, sem o título "Agenda"', async () => {
+    renderComConfig(<Agenda />);
+    expect(await screen.findByRole('button', { name: 'Copiar link' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Agenda' })).toBeNull();
+  });
+
+  it('com backup atrasado, o banner aparece depois do cabeçalho', async () => {
+    renderComConfig(<Agenda />, { ...CONFIG_TESTE, ultimo_backup: null });
+    const copiar = await screen.findByRole('button', { name: 'Copiar link' });
+    const banner = screen.getByText('Você ainda não fez nenhum backup.');
+    expect(copiar.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('agendamento mostra o selo de status com texto', async () => {

@@ -35,6 +35,3 @@ export function mensagemCancelar(d: DadosMensagem, link: string): string {
   return `Olá, ${d.nome}. Infelizmente não vou conseguir te atender ${dia} (${ddmm}) às ${hora}. Me desculpe! Para marcar outro horário: ${link}`;
 }
 
-export function mensagemDivulgar(link: string): string {
-  return `📅 Agenda aberta! Escolha seu horário aqui: ${link}`;
-}

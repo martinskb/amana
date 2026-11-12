@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useContador, usePrefereMenosMovimento, useSaida } from '../../src/ui/animacao';
+import { useContador, usePrefereMenosMovimento, useSaida, useTelaLarga } from '../../src/ui/animacao';
 
 type Ouvinte = (e: { matches: boolean }) => void;
 
@@ -97,5 +97,34 @@ describe('usePrefereMenosMovimento', () => {
     expect(result.current).toBe(false);
     act(() => mm.mudar(true));
     expect(result.current).toBe(true);
+  });
+});
+
+describe('useTelaLarga', () => {
+  function stubLargura(inicial: boolean) {
+    let matches = inicial;
+    const ouvintes = new Set<(e: { matches: boolean }) => void>();
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      get matches() {
+        return q === '(min-width: 1280px)' && matches;
+      },
+      media: q,
+      addEventListener: (_: string, f: (e: { matches: boolean }) => void) => ouvintes.add(f),
+      removeEventListener: (_: string, f: (e: { matches: boolean }) => void) => ouvintes.delete(f),
+    }));
+    return { mudar: (v: boolean) => { matches = v; ouvintes.forEach((f) => f({ matches: v })); } };
+  }
+
+  it('é false sem matchMedia', () => {
+    vi.stubGlobal('matchMedia', undefined);
+    expect(renderHook(() => useTelaLarga()).result.current).toBe(false);
+  });
+
+  it('reflete (min-width: 1280px) e acompanha mudanças', () => {
+    const mm = stubLargura(true);
+    const { result } = renderHook(() => useTelaLarga());
+    expect(result.current).toBe(true);
+    act(() => mm.mudar(false));
+    expect(result.current).toBe(false);
   });
 });

@@ -6,7 +6,6 @@ body {
   background: var(--fundo);
   padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom));
 }
-body:has(.abas) { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 h1, h2, h3 { line-height: 1.2; }
 a { color: var(--creme); }
 button, input, select, textarea { font: inherit; font-size: 16px; color: inherit; }
@@ -61,40 +60,6 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--couro); }
 .carregando { text-align: center; color: var(--sutil); margin-top: 30vh; }
 
 /* ===== Estrutura e navegação ===== */
-.topo { position: sticky; top: 0; z-index: 2; padding: 14px 0 8px; background: var(--fundo); font-family: var(--serif); font-weight: 600; font-size: 22px; color: var(--creme); }
-.abas {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-  display: flex; justify-content: space-around;
-  padding: 6px 4px calc(8px + env(safe-area-inset-bottom));
-  background: var(--sup); border-top: 1px solid var(--borda);
-}
-.abas .marca { display: none; }
-.abas a {
-  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 72px;
-  color: var(--sutil); text-decoration: none; font-size: 12px; font-weight: 500;
-  padding: 6px 14px; border-radius: var(--raio-pilula);
-  transition: color var(--rapido) var(--curva), background-color var(--rapido) var(--curva);
-}
-.abas a.active { color: var(--couro); font-weight: 600; }
-.abas a svg { transition: transform var(--rapido) var(--curva); }
-.abas a.active svg { transform: translateY(-1px) scale(1.08); }
-
-@media (min-width: 768px) {
-  body { padding: 0 32px 40px; }
-  body:has(.abas) { padding: 0 32px 40px calc(var(--nav-lateral) + 32px); }
-  .topo { display: none; }
-  .conteudo { max-width: 760px; margin: 0 auto; padding-top: 24px; }
-  .abas {
-    top: 0; right: auto; width: var(--nav-lateral);
-    flex-direction: column; justify-content: flex-start; gap: 4px;
-    padding: 22px 14px; border-top: 0; border-right: 1px solid var(--borda);
-  }
-  .abas .marca { display: block; font-family: var(--serif); font-weight: 600; font-size: 22px; color: var(--creme); padding: 4px 12px 22px; line-height: 1.2; }
-  .abas a { flex-direction: row; gap: 12px; font-size: 15px; padding: 10px 14px; justify-content: flex-start; }
-  .abas a.active { background: rgba(185, 137, 79, 0.12); }
-  .abas a.active svg { transform: none; }
-}
-
 /* ===== Painéis ===== */
 .painel { background: var(--sup); border: 1px solid var(--borda); border-radius: var(--raio-cartao); padding: 14px 16px; margin-top: 12px; }
 .painel h3 { font-family: var(--serif); font-weight: 600; font-size: 22px; color: var(--creme); margin: 0 0 6px; }
@@ -330,4 +295,69 @@ p[role='alert'] { animation: treme 300ms var(--curva); }
   .check-circulo, .check-traco { animation: none !important; stroke-dashoffset: 0; }
   .esqueleto-linha { animation: none !important; }
   button:not(:disabled):active, a.botao:active { transform: none; }
+}
+
+/* ===== Cabeçalho da agenda (nome, link, ajustes) ===== */
+.cab { position: sticky; top: 0; z-index: 6; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: calc(12px + env(safe-area-inset-top)) 0 10px; background: var(--fundo); }
+.cab-nome { flex: 1; min-width: 0; font-family: var(--serif); font-weight: 600; font-size: 22px; color: var(--creme); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip { min-height: 44px; padding: 0 16px; border-radius: var(--raio-pilula); border: 1px solid var(--borda-i); background: var(--sup); color: var(--texto); font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; white-space: nowrap; }
+.chip.redondo { width: 44px; padding: 0; }
+.ponto { width: 10px; height: 10px; border-radius: 50%; background: var(--sucesso); box-shadow: 0 0 0 3px rgba(124, 197, 154, 0.2); transition: background-color var(--rapido) var(--curva), box-shadow var(--rapido) var(--curva); }
+.chip.fechado .ponto { background: #7b736a; box-shadow: none; }
+.cab-aviso { flex-basis: 100%; margin: 0; font-size: 14px; color: var(--sutil); animation: aparece 200ms var(--curva); }
+.cab-aviso[role='alert'] { color: var(--perigo); }
+@media (max-width: 767px) {
+  .cab .chip:not(.redondo) { width: 44px; padding: 0; }
+  .cab .chip-texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* ===== Ajustes: volta e duas colunas na tela larga ===== */
+.voltar { display: inline-flex; align-items: center; gap: 6px; margin: 16px 0 4px; color: var(--sutil); font-weight: 500; text-decoration: none; min-height: 44px; }
+.voltar:hover { color: var(--creme); }
+@media (min-width: 1280px) {
+  .conteudo:has(.config) { max-width: 1320px; }
+  .config { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; align-items: start; }
+  .config > .voltar, .config > .tit, .config > [role='alert'] { grid-column: 1 / -1; }
+  .config > form { grid-column: 1; }
+  .config > .config-direita { grid-column: 2; }
+}
+
+/* ===== Contêiner das telas do dono (sem navegação) ===== */
+.conteudo { max-width: 760px; margin: 0 auto; }
+@media (min-width: 768px) {
+  body { padding: 0 32px 40px; }
+}
+
+/* ===== Agenda em duas colunas (tela larga) ===== */
+.resumo-lateral { display: grid; gap: 12px; align-content: start; }
+.resumo-lateral .cartao-amanha, .resumo-lateral .aviso-novos { margin: 0; }
+.proximo-cliente .rotulo { margin: 0 0 10px; }
+.proximo { flex-wrap: nowrap; gap: 12px; }
+.proximo-hora { font-weight: 600; font-size: 20px; font-variant-numeric: tabular-nums; }
+.proximo-quem { display: grid; flex: 1; min-width: 0; }
+.proximo-quem strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+a.botao.redondo { width: 44px; padding: 0; flex: none; }
+@media (min-width: 1280px) {
+  .conteudo:has(.agenda-layout) { max-width: 1320px; }
+  .agenda-layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 24px; align-items: start; }
+  .agenda-layout > .resumo-lateral { position: sticky; top: 84px; }
+}
+
+/* ===== Painel lateral (tela larga) ===== */
+.painel-camada.lateral { position: static; inset: auto; z-index: auto; }
+.painel-camada.lateral .fundo-escuro, .painel-camada.lateral .alca { display: none; }
+.painel-camada.lateral .painel {
+  position: relative; inset: auto; transform: none; width: auto; max-height: none; margin: 0;
+  border: 1px solid var(--borda); border-radius: var(--raio-cartao); padding: 18px; box-shadow: none;
+  animation: aparece 150ms var(--curva);
+}
+.painel-camada.lateral.saindo .painel { animation: some 150ms var(--curva) forwards; }
+.fechar-painel { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; min-height: 36px; }
+.painel-camada.lateral .painel-conteudo h3 { padding-right: 44px; }
+
+/* ===== Seleção e 2ª coluna (tela larga) ===== */
+.grade button.selecionado { outline: 2px solid var(--couro); outline-offset: 2px; }
+@media (min-width: 1280px) {
+  .agenda-layout > .agenda-grade { grid-column: 1; grid-row: 1; }
+  .agenda-layout > .resumo-lateral, .agenda-layout > .painel-camada.lateral { grid-column: 2; grid-row: 1; position: sticky; top: 84px; }
 }
