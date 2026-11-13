@@ -216,7 +216,37 @@ export default function Agendar() {
               placeholder="(11) 98765-4321"
             />
           </label>
-          <p className="sutil">Seu nome e WhatsApp são usados só para este agendamento.</p>
+          <p className="sutil">
+            Seu nome e WhatsApp ficam só com {dados.nome_negocio}, para marcar e lembrar seus horários.
+          </p>
+          <details className="privacidade sutil" aria-label="Como usamos seus dados">
+            <summary>Como usamos seus dados</summary>
+            <ul>
+              <li>
+                Guardamos seu nome, WhatsApp e os horários que você marcar, para confirmar o atendimento e mandar
+                lembretes. Isso não é vendido nem repassado a ninguém.
+              </li>
+              <li>
+                Os dados ficam em serviços de nuvem usados pela agenda (banco de dados e cópia de segurança no
+                Google Drive). O histórico de cada horário é apagado 1 ano depois do atendimento.
+              </li>
+              <li>
+                Para ver, corrigir ou apagar seus dados, é só{' '}
+                {telNegocio ? (
+                  <a
+                    href={waLink(telNegocio, 'Oi! Quero ver, corrigir ou apagar meus dados da agenda.')}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    pedir pelo WhatsApp
+                  </a>
+                ) : (
+                  <>falar com {dados.nome_negocio}</>
+                )}
+                .
+              </li>
+            </ul>
+          </details>
           <button type="submit" className="primario" disabled={enviando}>
             Confirmar horário
           </button>
