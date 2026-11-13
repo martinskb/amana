@@ -190,6 +190,9 @@ export function carregarScript(google: ReturnType<typeof criarGoogleFalso>, conf
   const ctx = vm.createContext({ ...google.globais, Date: globalThis.Date });
   vm.runInContext(readFileSync(resolve(raiz, 'apps-script/logica.js'), 'utf8'), ctx, { filename: 'logica.js' });
   vm.runInContext(readFileSync(resolve(raiz, 'apps-script/Backup.gs'), 'utf8'), ctx, { filename: 'Backup.gs' });
-  Object.assign((ctx as Record<string, any>).CONFIG, config);
+  // a chave de backup fica nas Propriedades do script, não no CONFIG
+  const { CHAVE_BACKUP, ...resto } = config;
+  if (CHAVE_BACKUP !== undefined) google.globais.PropertiesService.getScriptProperties().setProperty('CHAVE_BACKUP', CHAVE_BACKUP);
+  Object.assign((ctx as Record<string, any>).CONFIG, resto);
   return ctx as Record<string, any>;
 }
