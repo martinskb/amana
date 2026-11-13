@@ -47,7 +47,7 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 - [ ] Escolher a função **instalar** e tocar em **Executar**. Autorizar com a conta do negócio. Se aparecer "O Google não verificou este app", tocar em "Avançado" → "Acessar Backup da Agenda": o script é do próprio negócio.
 - [ ] Conferir no Drive a pasta **Backups da Agenda** com a planilha `Backup Agenda AAAA-MM-DD` e o arquivo `backup-agenda-AAAA-MM-DD.json`, e no app, em Ajustes, **Último backup** com a data de agora.
 - [ ] Se um dia gerar uma chave nova no app, trocar o valor da propriedade `CHAVE_BACKUP` (a antiga para de funcionar na hora).
-- [ ] Ao autorizar, o Google pede acesso só aos arquivos que o próprio script cria (`drive.file`), não ao Drive inteiro.
+- [ ] Ao autorizar, o Google pede acesso ao Drive inteiro: o `DriveApp` do Apps Script não funciona com o acesso restrito (`drive.file`). O script só mexe na pasta "Backups da Agenda"; use de preferência uma conta Google só do negócio.
 - Observação: o acesso semanal do script ao Supabase pode ajudar a evitar a pausa do plano gratuito, mas isso não é garantido. Continua valendo o passo de reativação do manual.
 
 ## 6. Teste no iPhone do cliente

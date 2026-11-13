@@ -176,9 +176,9 @@ describe('Backup.gs', () => {
     expect(config).not.toContain('CHAVE_BACKUP');
   });
 
-  it('o manifesto pede só drive.file, não o Drive inteiro (SEC-007)', () => {
+  it('o manifesto pede o Drive inteiro: o DriveApp não funciona com drive.file (risco aceito no SEC-007)', () => {
     const manifesto = JSON.parse(readFileSync(resolve(__dirname, '../../apps-script/appsscript.json'), 'utf8'));
-    expect(manifesto.oauthScopes).toContain('https://www.googleapis.com/auth/drive.file');
-    expect(manifesto.oauthScopes).not.toContain('https://www.googleapis.com/auth/drive');
+    expect(manifesto.oauthScopes).toContain('https://www.googleapis.com/auth/drive');
+    expect(manifesto.oauthScopes).not.toContain('https://www.googleapis.com/auth/drive.file');
   });
 });
