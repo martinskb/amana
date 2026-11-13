@@ -158,7 +158,9 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--couro); }
 
 /* semana: compacta; em 7 colunas a partir de 1100px */
 .semana .grade { gap: 6px; }
-.semana .ag { min-height: 44px; padding: 6px 10px; flex-wrap: wrap; gap: 0 8px; }
+.semana .ag { min-height: 44px; padding: 6px 6px 6px 8px; flex-wrap: wrap; gap: 0 8px; }
+/* coluna estreita: o nome quebra em linhas em vez de virar "Brun…" */
+.semana .ag .n { white-space: normal; overflow: visible; text-overflow: clip; font-size: 14px; line-height: 1.2; overflow-wrap: anywhere; }
 .semana .ag .h { font-size: 13px; font-weight: 500; color: var(--sutil); min-width: 0; }
 .semana .ag .quem { flex-basis: 100%; }
 .semana .ag .s, .semana .ag .etiqueta, .semana .ag .selo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -167,8 +169,8 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--couro); }
 @media (min-width: 1100px) {
   .conteudo:has(.dias-grade.semana) { max-width: 1180px; }
   .dias-grade.semana { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; }
-  .dias-grade.semana .dia { background: var(--sup); border: 1px solid var(--borda); border-radius: var(--raio-cartao); padding: 4px 10px 10px; min-width: 0; }
-  .dias-grade.semana .dia h3 { margin: 10px 0 8px; }
+  .dias-grade.semana .dia { background: var(--sup); border: 1px solid var(--borda); border-radius: var(--raio-cartao); padding: 4px 6px 8px; min-width: 0; }
+  .dias-grade.semana .dia h3 { margin: 10px 4px 8px; }
   .dias-grade.semana .ag { background: var(--sup2); }
 }
 
