@@ -8,11 +8,13 @@ Para entrar, digite o **usuário** e a **senha** que você recebeu e toque em **
 
 ## Link de agendamento (o cliente marca sozinho)
 
-O app tem três abas: **Agenda**, **Link** e **Ajustes**.
+No topo da **Agenda**, toque em **Copiar link** e cole onde quiser: no status do WhatsApp, numa conversa ou na bio do Instagram.
 
-Na aba **Link**, toque em **Mandar no WhatsApp** (para o status ou uma conversa) ou em **Copiar link** e cole na bio do Instagram. O cliente abre o link, escolhe o dia e o horário e informa nome e WhatsApp. O horário já fica marcado e aparece na sua agenda com a etiqueta **pelo link**. Ao abrir a Agenda, um aviso azul mostra quem marcou pelo link desde a última vez.
+O cliente abre o link, escolhe o **serviço**, o dia e o horário e informa nome e WhatsApp. Ele só vê os horários em que o serviço cabe inteiro: um "Corte + barba" de 60 minutos não aparece às 11h30 se o almoço começa ao meio-dia. O horário já fica marcado na sua agenda, com o serviço e a duração certa, e com a etiqueta **pelo link**. Ao abrir a Agenda, um aviso mostra quem marcou pelo link desde a última vez; toque em **Entendi** para guardar.
 
-O link só mostra os horários livres, nunca o nome de outros clientes. Para fechar o link (férias, por exemplo), desligue **Link ligado** na aba Link. Lá você também vê os próximos horários livres, do jeito que o cliente vai ver.
+Se você não tiver nenhum serviço ativo, o link não pede serviço e cada agendamento ocupa um horário.
+
+O link só mostra os horários livres, nunca o nome de outros clientes. Para fechar o link (férias, por exemplo), toque em **Link aberto** no topo da Agenda: ele vira **Link fechado** e quem abrir o link vê "Agendamento online fechado no momento.". Toque de novo para abrir.
 
 ## Fechar ou abrir horários
 
@@ -52,4 +54,4 @@ Usar a agenda todo dia evita a pausa.
 
 ## Ajustes
 
-Em **Ajustes** você muda o nome e o WhatsApp do negócio, a duração de cada horário, quantos dias o link mostra, o expediente de cada dia (pode ter mais de um intervalo, por exemplo manhã e tarde), as folgas e os serviços. A lista de **Clientes** (busca e histórico) e o **Backup** também ficam em Ajustes.
+Em **Ajustes** você muda o nome e o WhatsApp do negócio, a duração de cada horário, quantos dias o link mostra, o expediente de cada dia (pode ter mais de um intervalo, por exemplo manhã e tarde), as folgas e os serviços (nome e duração; desligar um serviço tira ele do link). A lista de **Clientes** (busca e histórico) e o **Backup** também ficam em Ajustes.
