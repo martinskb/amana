@@ -258,6 +258,13 @@ input[type='checkbox'].chave:disabled { opacity: 0.55; }
 .formulario { margin-top: 18px; animation: desdobra var(--medio) var(--curva); }
 .resumo-escolha { margin: 0 0 14px; font-weight: 600; color: var(--creme); }
 .formulario button[type='submit'] { width: 100%; }
+.privacidade { margin: -4px 0 14px; }
+.privacidade summary { list-style: none; cursor: pointer; color: var(--texto); min-height: 44px; display: flex; align-items: center; }
+.privacidade summary::-webkit-details-marker { display: none; }
+.privacidade summary::before { content: '›'; display: inline-block; width: 14px; color: var(--couro); transition: transform var(--rapido) var(--curva); }
+.privacidade[open] summary::before { transform: rotate(90deg); }
+.privacidade ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; line-height: 1.45; }
+.privacidade a { color: var(--couro); }
 .publico .sucesso { text-align: center; padding-top: 6vh; }
 .publico .sucesso h2 { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 40px; color: var(--creme); margin: 22px 0 10px; animation: cascata 400ms var(--curva) 650ms both; }
 .resumo-sucesso { display: inline-block; background: var(--sup); border: 1px solid var(--borda); border-radius: var(--raio-cartao); padding: 12px 18px; font-weight: 500; animation: cascata 400ms var(--curva) 750ms both; }

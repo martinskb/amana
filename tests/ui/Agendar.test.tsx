@@ -65,10 +65,33 @@ describe('página pública de agendamento', () => {
     expect(screen.queryByRole('button', { name: '10h' })).not.toBeInTheDocument();
   });
 
+  it('aviso de privacidade: o que é guardado, por quanto tempo e como pedir para apagar (LGPD)', async () => {
+    render(<Agendar />);
+    await escolher9hDeQuarta();
+    await userEvent.click(screen.getByText('Como usamos seus dados'));
+    const aviso = screen.getByRole('group', { name: 'Como usamos seus dados' });
+    expect(within(aviso).getByText(/não é vendido nem repassado/)).toBeInTheDocument();
+    expect(within(aviso).getByText(/apagado 1 ano depois/)).toBeInTheDocument();
+    expect(within(aviso).getByRole('link', { name: 'pedir pelo WhatsApp' })).toHaveAttribute(
+      'href',
+      waLink('5511900001111', 'Oi! Quero ver, corrigir ou apagar meus dados da agenda.'),
+    );
+  });
+
+  it('aviso de privacidade sem WhatsApp do negócio: orienta a falar com o negócio, sem link quebrado', async () => {
+    m.getHorariosPublicos.mockResolvedValue({ ...DADOS, telefone_negocio: null });
+    render(<Agendar />);
+    await escolher9hDeQuarta();
+    await userEvent.click(screen.getByText('Como usamos seus dados'));
+    const aviso = screen.getByRole('group', { name: 'Como usamos seus dados' });
+    expect(within(aviso).queryByRole('link')).not.toBeInTheDocument();
+    expect(within(aviso).getByText(/falar com Barbearia do João/)).toBeInTheDocument();
+  });
+
   it('marca com nome e WhatsApp e mostra a confirmação', async () => {
     render(<Agendar />);
     await escolher9hDeQuarta();
-    expect(screen.getByText('Seu nome e WhatsApp são usados só para este agendamento.')).toBeInTheDocument();
+    expect(screen.getByText('Seu nome e WhatsApp ficam só com Barbearia do João, para marcar e lembrar seus horários.')).toBeInTheDocument();
     await preencher('Ana', '(11) 98765-4321');
     await confirmar();
     // com "+": o servidor aplica a mesma regra e não confunde com número brasileiro
