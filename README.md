@@ -19,7 +19,7 @@ npm test
 - `src/lib/` regras puras: horários livres, telefone e WhatsApp, backup
 - `src/data/` acesso ao Supabase
 - `src/ui/` telas
-- `scripts/restore.ts` restauração de backup (roda no computador, com `SUPABASE_DB_URL` no ambiente)
+- `scripts/restore.ts` restauração de backup (roda no computador, com `SUPABASE_DB_URL` e `SUPABASE_CA_CERT` no ambiente)
 
 ## Implantação e uso
 
@@ -30,7 +30,10 @@ npm test
 
 ```bash
 SUPABASE_DB_URL='postgresql://postgres:SENHA@db.XXXX.supabase.co:5432/postgres' \
+SUPABASE_CA_CERT=prod-ca-2021.crt \
   npx tsx scripts/restore.ts backup-agenda-AAAA-MM-DD.json
 ```
+
+O `SUPABASE_CA_CERT` é o certificado da CA do Supabase (Project Settings → Database → SSL Configuration), para a conexão verificar o servidor.
 
 Se o banco já tiver dados, o script para e pede `--confirmar-substituir`, que apaga tudo antes de restaurar.
