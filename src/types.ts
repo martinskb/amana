@@ -41,12 +41,22 @@ export interface AgendamentoCompleto extends Agendamento {
   criado_em: string;
 }
 export interface HorarioAjuste { id: string; inicio: string; tipo: 'fechado' | 'extra' }
-export type ErroPublico = 'link_fechado' | 'dados_invalidos' | 'limite' | 'horario_indisponivel';
+export type ErroPublico = 'link_fechado' | 'dados_invalidos' | 'limite' | 'horario_indisponivel' | 'servico_invalido';
 export type ResultadoPublico = { ok: true; inicio: string } | { ok: false; erro: ErroPublico };
+/** Serviço ativo no link, com os horários em que ele cabe inteiro. */
+export interface ServicoPublico {
+  id: string;
+  nome: string;
+  duracao_min: number;
+  horarios: string[];
+}
 export interface HorariosPublicos {
   nome_negocio: string;
   telefone_negocio: string | null;
   link_ativo: boolean;
+  /** Horários de um bloco: usados quando o negócio não tem serviço ativo. */
   horarios: string[];
+  /** Ausente se o banco ainda não tem a migração 0005. */
+  servicos?: ServicoPublico[];
 }
 export interface Slot { data: string; hora: string; inicio: Date } // "YYYY-MM-DD", "HH:MM"

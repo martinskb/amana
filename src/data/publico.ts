@@ -13,6 +13,9 @@ export async function agendarPublico(
   nome: string,
   telefone: string,
   inicio: string,
+  servico: string | null = null,
 ): Promise<ResultadoPublico> {
-  return executar(db.rpc('agendar_publico', { nome, telefone, inicio }));
+  // sem serviço, não manda o campo: o banco sem a migração 0005 não conhece esse parâmetro
+  const params = servico ? { nome, telefone, inicio, servico } : { nome, telefone, inicio };
+  return executar(db.rpc('agendar_publico', params));
 }

@@ -36,11 +36,15 @@ describe('horarios_publicos', { timeout: 30_000 }, () => {
     expect(r.j).toMatchObject({ link_ativo: false, horarios: [] });
   });
 
-  it('horarios_publicos traz só nome, telefone do negócio, link_ativo e horários', async () => {
+  it('horarios_publicos traz só nome, telefone do negócio, link_ativo, horários e serviços', async () => {
     const db = await novoBanco();
     await inserirCenario(db);
     const { rows: [r] } = await db.query<{ j: Record<string, unknown> }>('select horarios_publicos() j');
-    expect(Object.keys(r.j).sort()).toEqual(['horarios', 'link_ativo', 'nome_negocio', 'telefone_negocio']);
+    expect(Object.keys(r.j).sort()).toEqual(['horarios', 'link_ativo', 'nome_negocio', 'servicos', 'telefone_negocio']);
+    // serviços: só o que a página precisa, nunca dado de cliente
+    for (const s of r.j.servicos as Record<string, unknown>[]) {
+      expect(Object.keys(s).sort()).toEqual(['duracao_min', 'horarios', 'id', 'nome']);
+    }
     expect(r.j).toMatchObject({ nome_negocio: 'Barbearia do Teste', telefone_negocio: '5511900001111', link_ativo: true });
     expect((r.j.horarios as string[]).every((h) => /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(h))).toBe(true);
   });

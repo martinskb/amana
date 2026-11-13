@@ -252,6 +252,11 @@ input[type='checkbox'].chave:disabled { opacity: 0.55; }
 .ficha[aria-pressed='true'] { background: var(--couro); border-color: var(--couro); color: var(--couro-txt); box-shadow: 0 0 0 4px rgba(185, 137, 79, 0.18); animation: pulsa 300ms var(--curva); }
 .ficha[aria-pressed='true'] .ficha-dia { color: var(--couro-txt); }
 @keyframes pulsa { 50% { transform: scale(1.06); } }
+.publico .servicos { display: grid; gap: 8px; margin: 0; }
+.publico .servicos button { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; text-align: left; animation: cascata 260ms var(--curva) both; }
+.publico .servicos .servico-duracao { color: var(--sutil); font-size: 14px; font-variant-numeric: tabular-nums; }
+.publico .servicos button[aria-pressed='true'] { background: var(--couro); border-color: var(--couro); color: var(--couro-txt); font-weight: 600; }
+.publico .servicos button[aria-pressed='true'] .servico-duracao { color: var(--couro-txt); }
 .publico .horarios { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin: 0; }
 .publico .horarios button { font-variant-numeric: tabular-nums; animation: cascata 260ms var(--curva) both; }
 .publico .horarios button[aria-pressed='true'] { background: var(--couro); border-color: var(--couro); color: var(--couro-txt); font-weight: 600; }
@@ -296,7 +301,7 @@ p[role='alert'] { animation: treme 300ms var(--curva); }
     transition-duration: 0ms !important;
     scroll-behavior: auto !important;
   }
-  .conteudo.entra, .entra-dir, .entra-esq, .cascata .grade > li, .ficha, .publico .horarios button, .formulario,
+  .conteudo.entra, .entra-dir, .entra-esq, .cascata .grade > li, .ficha, .publico .horarios button, .publico .servicos button, .formulario,
   .desdobra, .publico h1, .publico .sucesso h2, .resumo-sucesso, .config .lista li, fieldset .linha,
   .painel-camada .painel, .painel-camada.saindo .painel { animation-name: aparece !important; }
   .painel-camada.saindo .painel, .painel-camada.saindo .fundo-escuro { animation-name: some !important; }
