@@ -319,6 +319,13 @@ p[role='alert'] { animation: treme 300ms var(--curva); }
 @media (max-width: 767px) {
   .cab .chip:not(.redondo) { width: 44px; padding: 0; }
   .cab .chip-texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Expediente: fieldset não encolhe abaixo do conteúdo e o campo de hora do Android ("9:00 AM" + seta)
+     é largo; sem isto a linha passava da borda do cartão. Cada intervalo ocupa a linha toda e os dois
+     campos dividem o espaço. */
+  fieldset { min-width: 0; }
+  fieldset .linha { flex: 1 1 100%; min-width: 0; }
+  fieldset .linha input[type='time'] { flex: 1 1 0; width: 0; min-width: 0; }
+  fieldset .linha span { flex: none; }
 }
 
 /* ===== Ajustes: volta e duas colunas na tela larga ===== */
