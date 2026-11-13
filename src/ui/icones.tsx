@@ -24,28 +24,6 @@ function Icone({ tamanho = 20, espessura = 1.8, children }: Props & { espessura?
   );
 }
 
-export const IconeAgenda = (p: Props) => (
-  <Icone {...p}>
-    <rect x="3" y="5" width="18" height="16" rx="3" />
-    <path d="M3 10h18M8 3v4M16 3v4" />
-  </Icone>
-);
-
-export const IconeLink = (p: Props) => (
-  <Icone {...p}>
-    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
-    <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
-  </Icone>
-);
-
-export const IconeAjustes = (p: Props) => (
-  <Icone {...p}>
-    <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
-    <circle cx="16" cy="7" r="2" />
-    <circle cx="10" cy="17" r="2" />
-  </Icone>
-);
-
 export const IconeWhatsApp = (p: Props) => (
   <Icone {...p}>
     <path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z" />
