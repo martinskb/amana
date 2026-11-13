@@ -23,6 +23,7 @@ export async function novoBanco(): Promise<PGlite> {
   await db.exec(readFileSync(resolve(raiz, 'supabase/migrations/0002_link_publico.sql'), 'utf8'));
   await db.exec(readFileSync(resolve(raiz, 'supabase/migrations/0003_backup_drive.sql'), 'utf8'));
   await db.exec(readFileSync(resolve(raiz, 'supabase/migrations/0004_link_seguranca.sql'), 'utf8'));
+  await db.exec(readFileSync(resolve(raiz, 'supabase/migrations/0005_servico_no_link.sql'), 'utf8'));
   await db.exec(readFileSync(resolve(raiz, 'supabase/seed.sql'), 'utf8'));
   return db;
 }

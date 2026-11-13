@@ -95,7 +95,7 @@ describe('página pública de agendamento', () => {
     await preencher('Ana', '(11) 98765-4321');
     await confirmar();
     // com "+": o servidor aplica a mesma regra e não confunde com número brasileiro
-    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Ana', '+5511987654321', '2026-11-18T12:00:00Z');
+    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Ana', '+5511987654321', '2026-11-18T12:00:00Z', null);
     const status = await screen.findByRole('status');
     expect(within(status).getByRole('heading', { name: 'Pronto, Ana!' })).toBeInTheDocument();
     expect(within(status).getByText('Seu horário: qua 18/11 às 9h.')).toBeInTheDocument();
@@ -216,6 +216,90 @@ describe('página pública de agendamento', () => {
     await escolher9hDeQuarta();
     await preencher('Rui', '+351 912 345 678');
     await confirmar();
-    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Rui', '+351912345678', '2026-11-18T12:00:00Z');
+    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Rui', '+351912345678', '2026-11-18T12:00:00Z', null);
+  });
+});
+
+// Corte cabe às 9h, 9h30 (qua) e 10h (qui); Corte + barba (60 min) só às 9h de quarta.
+const COM_SERVICOS: HorariosPublicos = {
+  ...DADOS,
+  servicos: [
+    { id: 's1', nome: 'Corte', duracao_min: 30, horarios: DADOS.horarios },
+    { id: 's2', nome: 'Corte + barba', duracao_min: 60, horarios: ['2026-11-18T12:00:00Z'] },
+    { id: 's3', nome: 'Luzes', duracao_min: 120, horarios: [] },
+  ],
+};
+
+describe('página pública com serviços', () => {
+  beforeEach(() => m.getHorariosPublicos.mockResolvedValue(COM_SERVICOS));
+
+  it('pede o serviço antes do dia, com a duração de cada um', async () => {
+    render(<Agendar />);
+    const grupo = await screen.findByRole('group', { name: 'Serviços' });
+    expect(within(grupo).getByRole('button', { name: 'Corte 30 min' })).toBeInTheDocument();
+    expect(within(grupo).getByRole('button', { name: 'Corte + barba 60 min' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'qua 18' })).not.toBeInTheDocument();
+  });
+
+  it('serviço sem horário que caiba aparece desligado', async () => {
+    render(<Agendar />);
+    expect(await screen.findByRole('button', { name: 'Luzes sem horário' })).toBeDisabled();
+  });
+
+  it('os dias e horários são os do serviço escolhido', async () => {
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte + barba 60 min' }));
+    expect(screen.queryByRole('button', { name: 'qui 19' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'qua 18' }));
+    expect(screen.getByRole('button', { name: '9h' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '9h30' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Corte 30 min' }));
+    expect(screen.getByRole('button', { name: 'qui 19' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '9h30' })).toBeInTheDocument();
+  });
+
+  it('trocar de serviço desfaz o horário escolhido', async () => {
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte 30 min' }));
+    await escolher9hDeQuarta();
+    expect(screen.getByLabelText('Nome')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Corte + barba 60 min' }));
+    expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument();
+  });
+
+  it('marca com o serviço e mostra o serviço no resumo e na confirmação', async () => {
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte + barba 60 min' }));
+    await escolher9hDeQuarta();
+    expect(screen.getByText(/Corte \+ barba · 60 min/)).toBeInTheDocument();
+    await preencher('Ana', '11987654321');
+    await confirmar();
+    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Ana', '+5511987654321', '2026-11-18T12:00:00Z', 's2');
+    const status = await screen.findByRole('status');
+    expect(within(status).getByText('Corte + barba: qua 18/11 às 9h.')).toBeInTheDocument();
+    expect(falar()).toHaveAttribute('href', waLink('5511900001111', 'Oi! Marquei Corte + barba qua 18/11 às 9h pelo link.'));
+  });
+
+  it('serviço desativado no meio do caminho: avisa, volta à escolha do serviço e recarrega', async () => {
+    m.agendarPublico.mockResolvedValue({ ok: false, erro: 'servico_invalido' });
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte + barba 60 min' }));
+    await escolher9hDeQuarta();
+    await preencher('Ana', '11987654321');
+    await confirmar();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Esse serviço não está mais disponível. Escolha outro.');
+    expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'qua 18' })).not.toBeInTheDocument();
+    expect(m.getHorariosPublicos).toHaveBeenCalledTimes(2);
+  });
+
+  it('nenhum serviço com horário: mostra "sem horários"', async () => {
+    m.getHorariosPublicos.mockResolvedValue({
+      ...COM_SERVICOS,
+      servicos: COM_SERVICOS.servicos!.map((s) => ({ ...s, horarios: [] })),
+    });
+    render(<Agendar />);
+    expect(await screen.findByText('Sem horários livres nos próximos dias.')).toBeInTheDocument();
   });
 });

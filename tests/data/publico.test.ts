@@ -24,6 +24,18 @@ describe('dados do link público', () => {
     expect(corpo).toEqual({ nome: 'Ana', telefone: '5511987654321', inicio: '2026-11-18T12:00:00Z' });
   });
 
+  it('agendarPublico com serviço envia { nome, telefone, inicio, servico }', async () => {
+    let corpo: unknown;
+    servidor.use(
+      http.post(`${REST}/rpc/agendar_publico`, async ({ request }) => {
+        corpo = await request.json();
+        return HttpResponse.json({ ok: true, inicio: '2026-11-18T12:00:00Z' });
+      }),
+    );
+    await agendarPublico(db, 'Ana', '5511987654321', '2026-11-18T12:00:00Z', 's2');
+    expect(corpo).toEqual({ nome: 'Ana', telefone: '5511987654321', inicio: '2026-11-18T12:00:00Z', servico: 's2' });
+  });
+
   it('getHorariosPublicos devolve o JSON da função', async () => {
     const j = { nome_negocio: 'B', telefone_negocio: null, link_ativo: true, horarios: ['2026-11-18T12:00:00Z'] };
     servidor.use(http.post(`${REST}/rpc/horarios_publicos`, () => HttpResponse.json(j)));

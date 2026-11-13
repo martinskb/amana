@@ -15,6 +15,7 @@ const MENSAGENS: Record<ErroPublico, string> = {
   limite: 'Não foi possível marcar pelo link agora. Chame no WhatsApp para marcar seu horário.',
   link_fechado: 'Agendamento online fechado no momento.',
   dados_invalidos: 'Confira o nome e o WhatsApp.',
+  servico_invalido: 'Esse serviço não está mais disponível. Escolha outro.',
 };
 
 /** "qua 18/11 às 9h" a partir de um instante. */
@@ -34,6 +35,7 @@ function resumo(iso: string) {
 export default function Agendar() {
   const [dados, setDados] = useState<HorariosPublicos | null>(null);
   const [falhaCarga, setFalhaCarga] = useState(false);
+  const [servicoId, setServicoId] = useState<string | null>(null);
   const [dia, setDia] = useState<string | null>(null);
   const [horario, setHorario] = useState<string | null>(null);
   const [nome, setNome] = useState('');
@@ -41,7 +43,7 @@ export default function Agendar() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [fechado, setFechado] = useState(false);
-  const [marcado, setMarcado] = useState<{ nome: string; inicio: string } | null>(null);
+  const [marcado, setMarcado] = useState<{ nome: string; inicio: string; servico: string | null } | null>(null);
   const fichas = useRef<HTMLDivElement>(null);
   const rolarDias = (sentido: -1 | 1) => fichas.current?.scrollBy({ left: sentido * 3 * 70, behavior: 'smooth' });
 
@@ -58,14 +60,22 @@ export default function Agendar() {
     void carregar();
   }, [carregar]);
 
+  // Com serviços ativos, o cliente escolhe um e os horários são os em que ele cabe inteiro.
+  // Sem nenhum (ou banco sem a 0005), segue como antes: blocos simples, sem serviço.
+  const servicos = dados?.servicos ?? [];
+  const comServico = servicos.length > 0;
+  const servico = servicos.find((s) => s.id === servicoId) ?? null;
+  const horariosVisiveis = comServico ? (servico?.horarios ?? []) : (dados?.horarios ?? []);
+  const temHorario = comServico ? servicos.some((s) => s.horarios.length > 0) : (dados?.horarios.length ?? 0) > 0;
+
   const porDia = useMemo(() => {
     const mapa = new Map<string, string[]>();
-    for (const h of dados?.horarios ?? []) {
+    for (const h of horariosVisiveis) {
       const d = dataLocal(new Date(h), FUSO);
       mapa.set(d, [...(mapa.get(d) ?? []), h]);
     }
     return mapa;
-  }, [dados]);
+  }, [horariosVisiveis]);
 
   async function confirmar(e: FormEvent) {
     e.preventDefault();
@@ -79,14 +89,18 @@ export default function Agendar() {
     setEnviando(true);
     try {
       // com "+": o servidor normaliza de novo e um número estrangeiro não vira brasileiro
-      const r = await agendarPublico(supabase, nomeLimpo, `+${tel}`, horario);
+      const r = await agendarPublico(supabase, nomeLimpo, `+${tel}`, horario, servico?.id ?? null);
       if (r.ok) {
-        setMarcado({ nome: nomeLimpo, inicio: r.inicio });
+        setMarcado({ nome: nomeLimpo, inicio: r.inicio, servico: servico?.nome ?? null });
       } else if (r.erro === 'link_fechado') {
         setFechado(true);
       } else {
         setErro(MENSAGENS[r.erro]);
-        if (r.erro === 'horario_indisponivel') {
+        if (r.erro === 'servico_invalido') {
+          setServicoId(null);
+          setDia(null);
+        }
+        if (r.erro === 'horario_indisponivel' || r.erro === 'servico_invalido') {
           setHorario(null);
           void carregar();
         }
@@ -138,15 +152,20 @@ export default function Agendar() {
           </svg>
           <h2>Pronto, {marcado.nome}!</h2>
           <p className="resumo-sucesso">
-            Seu horário: {d} {ddmm} às {hora}.
+            {marcado.servico ? `${marcado.servico}: ` : 'Seu horário: '}
+            {d} {ddmm} às {hora}.
           </p>
         </div>
-        {falar(`Oi! Marquei ${d} ${ddmm} às ${hora} pelo link.`)}
+        {falar(
+          marcado.servico
+            ? `Oi! Marquei ${marcado.servico} ${d} ${ddmm} às ${hora} pelo link.`
+            : `Oi! Marquei ${d} ${ddmm} às ${hora} pelo link.`,
+        )}
       </main>
     );
   }
 
-  if (fechado || !dados.link_ativo || porDia.size === 0)
+  if (fechado || !dados.link_ativo || !temHorario)
     return (
       <main className="publico">
         {titulo}
@@ -160,8 +179,37 @@ export default function Agendar() {
   return (
     <main className="publico">
       {titulo}
-      <p className="sutil lead">Escolha o dia e o horário do seu atendimento.</p>
-      <p className="rotulo">Dia</p>
+      <p className="sutil lead">
+        {comServico ? 'Escolha o serviço, o dia e o horário.' : 'Escolha o dia e o horário do seu atendimento.'}
+      </p>
+      {comServico && (
+        <>
+          <p className="rotulo">Serviço</p>
+          <div className="servicos" role="group" aria-label="Serviços">
+            {servicos.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                aria-pressed={servicoId === s.id}
+                disabled={s.horarios.length === 0}
+                onClick={() => {
+                  setServicoId(s.id);
+                  setHorario(null);
+                  setErro(null);
+                }}
+              >
+                <span className="servico-nome">{s.nome}</span>{' '}
+                <span className="servico-duracao">
+                  {s.horarios.length === 0 ? 'sem horário' : `${s.duracao_min} min`}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {(!comServico || servico) && <p className="rotulo">Dia</p>}
+      {(!comServico || servico) && (
       <div className="dias-faixa">
         <button type="button" className="red seta" aria-label="Dias anteriores" onClick={() => rolarDias(-1)}>
           <IconeEsquerda />
@@ -186,6 +234,7 @@ export default function Agendar() {
           <IconeDireita />
         </button>
       </div>
+      )}
 
       {dia && porDia.has(dia) && <p className="rotulo">Horário</p>}
       {dia && porDia.has(dia) && (
@@ -200,7 +249,11 @@ export default function Agendar() {
 
       {horario && (
         <form onSubmit={confirmar} className="cartao formulario">
-          <p className="resumo-escolha">{resumo(horario)}</p>
+          <p className="resumo-escolha">
+            {servico ? `${servico.nome} · ${servico.duracao_min} min` : null}
+            {servico ? <br /> : null}
+            {resumo(horario)}
+          </p>
           <label>
             Nome
             <input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={80} />
