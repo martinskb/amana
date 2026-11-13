@@ -61,7 +61,8 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 - [ ] Abrir o link no Safari → **Adicionar à Tela de Início** → abrir pelo ícone.
 - [ ] Fazer login pelo app instalado com usuário e senha, marcar um horário, gerar horários livres e mandar um lembrete.
 - [ ] Fazer um backup e **testar a restauração** num projeto de teste:
-      `SUPABASE_DB_URL='postgresql://…' npx tsx scripts/restore.ts backup.json`
+      `SUPABASE_DB_URL='postgresql://…' SUPABASE_CA_CERT=prod-ca-2021.crt npx tsx scripts/restore.ts backup.json`
+      (o certificado da CA se baixa em Project Settings → Database → SSL Configuration)
 - [ ] Combinar de abrir o app depois de alguns dias para conferir se o login continua ativo.
 
 ## 7. Entrega

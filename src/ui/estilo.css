@@ -127,7 +127,8 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--couro); }
 @keyframes desdobra { from { opacity: 0; transform: translateY(-6px); } }
 
 .dia h3 { margin: 18px 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sutil); font-weight: 600; }
-.grade { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.grade { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.grade > li { min-width: 0; }
 .grade button { width: 100%; justify-content: flex-start; text-align: left; border-radius: 14px; font-variant-numeric: tabular-nums; gap: 12px; }
 .grade .ag { background: var(--sup); border-color: var(--borda); border-left: 4px solid var(--couro); min-height: 56px; padding: 8px 14px; }
 .grade .ag.confirmado, .grade .ag.concluido { border-left-color: var(--sucesso); }
