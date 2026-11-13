@@ -32,7 +32,8 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 ## 5. Configuração inicial (no app)
 
 - [ ] Entrar com o usuário e a senha do dono. Em **Ajustes**: nome do negócio, **WhatsApp do negócio**, expediente, folgas, **duração de cada horário**, **quantos dias o link mostra**, mensagens (livres com `{link}`, lembrete e cancelamento).
-- [ ] Tocar em **Copiar link de agendamento** e mandar para o dono divulgar.
+- [ ] Em **Ajustes → Serviços**, cadastrar os serviços com a duração de cada um (o link pede o serviço quando há algum ativo).
+- [ ] No topo da Agenda, tocar em **Copiar link** e mandar para o dono divulgar.
 
 ## 5b. Backup automático (Google Drive)
 

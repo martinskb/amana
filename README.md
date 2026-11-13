@@ -1,32 +1,83 @@
 # Agenda Fácil
 
-Agenda para pequenos negócios de serviço, feita para usar no iPhone como app (PWA): agenda do dia e da semana, **link de agendamento** para o cliente marcar sozinho (`/#/agendar`), texto de horários livres para o WhatsApp, lembretes de amanhã, clientes e backup.
+Agenda online para pequenos negócios de serviço, como barbearias, salões e estúdios, feita para quem atende sozinho e organiza tudo pelo celular.
 
-Roda inteiro nas contas do cliente: Supabase (banco, login e regras de acesso) e Cloudflare Pages (site estático).
+O dono instala a agenda na tela de início do celular, como um aplicativo. O cliente recebe um link, escolhe o serviço, o dia e o horário e marca sozinho, sem baixar nada nem criar conta. Do outro lado, o dono vê o horário aparecer na agenda e conversa com o cliente pelo WhatsApp com mensagens já prontas.
 
-## Rodar localmente
+## O que ela faz
+
+**Para o dono**
+- Agenda do dia e da semana, com os horários livres à mostra.
+- Marcar, confirmar, concluir, editar e cancelar atendimentos, com mensagens de WhatsApp prontas para cada caso.
+- Lembrete dos clientes de amanhã com um toque.
+- Expediente por dia da semana (manhã e tarde, por exemplo), folgas, horários fechados e horários extras.
+- Serviços com duração própria: um "Corte + barba" de 60 minutos ocupa uma hora inteira na agenda.
+- Lista de clientes com busca e histórico.
+- Backup automático toda semana no Google Drive, e backup manual quando quiser.
+
+**Para o cliente, pelo link de agendamento**
+- Escolhe o serviço, o dia e um horário em que esse serviço cabe por inteiro.
+- Informa só o nome e o WhatsApp.
+- Nunca vê dados de outros clientes, só os horários livres.
+
+## Como funciona por dentro
+
+| Parte | Ferramenta |
+|---|---|
+| Aplicativo | React + TypeScript, empacotado com Vite e instalável como PWA |
+| Banco, login e regras de acesso | Supabase (Postgres com RLS) |
+| Hospedagem do site | Cloudflare, que publica cada mudança na `main` |
+| Backup automático | Google Apps Script no Drive do próprio negócio |
+
+Cada negócio tem tudo nas próprias contas (Google, Supabase, GitHub e Cloudflare). Não existe servidor central nem dado de um cliente misturado com o de outro.
+
+As regras importantes ficam no banco, não só no aplicativo. A página pública não lê nenhuma tabela: ela só chama duas funções, `horarios_publicos()` e `agendar_publico()`. É no banco que se confere de novo se o horário está livre, se o serviço está ativo e se o pedido respeita os limites contra abuso (por IP, por WhatsApp e no total por hora). Assim, dois clientes nunca ficam com o mesmo horário, mesmo marcando ao mesmo tempo.
+
+## Rodar no computador
+
+Precisa de Node 22 ou mais novo.
 
 ```bash
 npm install
 cp .env.example .env   # preencha VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY e VITE_NOME_NEGOCIO
-npm run dev
-npm test
+npm run dev            # abre o app em modo de desenvolvimento
+npm test               # roda todos os testes
+npm run build          # gera o site em dist/
 ```
 
-## Estrutura
+Os testes de banco usam o PGlite, um Postgres que roda dentro do próprio processo, com as mesmas migrações da produção. Não é preciso ter um Supabase para rodá-los.
 
-- `supabase/` esquema do banco (RLS: só o dono cadastrado em `donos` lê e escreve; a página pública só chama `horarios_publicos()` e `agendar_publico()`) e configuração inicial
-- `src/lib/` regras puras: horários livres, telefone e WhatsApp, backup
-- `src/data/` acesso ao Supabase
-- `src/ui/` telas
-- `scripts/restore.ts` restauração de backup (roda no computador, com `SUPABASE_DB_URL` e `SUPABASE_CA_CERT` no ambiente)
+## Organização do código
+
+```
+src/
+  lib/        regras sem dependência de tela: horários livres, telefone, WhatsApp, backup
+  data/       acesso ao Supabase
+  ui/         telas do dono
+  ui/publico/ página de agendamento do cliente
+supabase/
+  migrations/ esquema do banco, em ordem (0001, 0002, …)
+  seed.sql    configuração inicial
+apps-script/  backup automático no Google Drive
+scripts/      restauração de backup
+tests/        testes de regras, dados, banco e telas
+docs/         guia de implantação e manual do cliente
+```
+
+## Mudanças no banco
+
+Cada mudança no banco vira um arquivo novo em `supabase/migrations/`, numerado em sequência. Arquivos que já foram aplicados não são editados.
+
+Para atualizar um projeto que já está no ar, rode no **SQL Editor** do Supabase só as migrações que ainda faltam, em ordem. Quando uma migração muda o que a página pública recebe ou envia, publique o site primeiro e aplique a migração depois. Assim, quem estiver com a página aberta não é pego no meio da troca.
 
 ## Implantação e uso
 
-- Checklist de implantação: [`docs/implantacao.md`](docs/implantacao.md)
-- Manual do cliente: [`docs/manual-cliente.md`](docs/manual-cliente.md)
+- [Guia de implantação](docs/implantacao.md): passo a passo para colocar a agenda no ar para um novo negócio.
+- [Manual do cliente](docs/manual-cliente.md): guia curto para o dono do negócio usar no dia a dia.
 
 ## Restaurar um backup
+
+O backup é um arquivo JSON com clientes, serviços, agendamentos, configurações e horários fechados ou extras. Para colocá-lo de volta no banco:
 
 ```bash
 SUPABASE_DB_URL='postgresql://postgres:SENHA@db.XXXX.supabase.co:5432/postgres' \
@@ -34,6 +85,6 @@ SUPABASE_CA_CERT=prod-ca-2021.crt \
   npx tsx scripts/restore.ts backup-agenda-AAAA-MM-DD.json
 ```
 
-O `SUPABASE_CA_CERT` é o certificado da CA do Supabase (Project Settings → Database → SSL Configuration), para a conexão verificar o servidor.
+`SUPABASE_CA_CERT` é o certificado do Supabase (Project Settings → Database → SSL Configuration). Com ele, a conexão confere que está mesmo falando com o seu banco.
 
-Se o banco já tiver dados, o script para e pede `--confirmar-substituir`, que apaga tudo antes de restaurar.
+Se o banco já tiver dados, o script para e pede `--confirmar-substituir`. Essa opção apaga tudo antes de restaurar, então use só quando tiver certeza.
