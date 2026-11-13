@@ -42,10 +42,12 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
   - `logica.js`, num arquivo de script;
   - `Backup.gs`, noutro arquivo de script;
   - o conteúdo de `appsscript.json`, depois de ligar "Mostrar o arquivo de manifesto 'appsscript.json'" nas Configurações do projeto.
-- [ ] No topo do `Backup.gs`, preencher `SUPABASE_URL`, `SUPABASE_ANON_KEY` (a chave pública; **nunca** a `service_role`) e `CHAVE_BACKUP` (a chave do app).
+- [ ] No topo do `Backup.gs`, preencher `SUPABASE_URL` e `SUPABASE_ANON_KEY` (a chave pública; **nunca** a `service_role`).
+- [ ] Em **Configurações do projeto → Propriedades do script**, adicionar a propriedade `CHAVE_BACKUP` com a chave do app. Ela não vai no código.
 - [ ] Escolher a função **instalar** e tocar em **Executar**. Autorizar com a conta do negócio. Se aparecer "O Google não verificou este app", tocar em "Avançado" → "Acessar Backup da Agenda": o script é do próprio negócio.
 - [ ] Conferir no Drive a pasta **Backups da Agenda** com a planilha `Backup Agenda AAAA-MM-DD` e o arquivo `backup-agenda-AAAA-MM-DD.json`, e no app, em Ajustes, **Último backup** com a data de agora.
-- [ ] Se um dia gerar uma chave nova no app, colar a nova em `CHAVE_BACKUP` (a antiga para de funcionar na hora).
+- [ ] Se um dia gerar uma chave nova no app, trocar o valor da propriedade `CHAVE_BACKUP` (a antiga para de funcionar na hora).
+- [ ] Ao autorizar, o Google pede acesso só aos arquivos que o próprio script cria (`drive.file`), não ao Drive inteiro.
 - Observação: o acesso semanal do script ao Supabase pode ajudar a evitar a pausa do plano gratuito, mas isso não é garantido. Continua valendo o passo de reativação do manual.
 
 ## 6. Teste no iPhone do cliente

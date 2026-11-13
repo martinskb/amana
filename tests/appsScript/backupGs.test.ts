@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { carregarScript, criarGoogleFalso } from '../helpers/appsScript';
 
@@ -157,5 +159,26 @@ describe('Backup.gs', () => {
     expect(g.emails).toHaveLength(1);
     expect(g.emails[0].corpo).toContain('Service error: Drive');
     expect(g.chamadas.some((c) => c.url.endsWith('concluir_backup'))).toBe(false);
+  });
+  it('sem a propriedade CHAVE_BACKUP: nada é exportado e chega e-mail explicando (SEC-007)', () => {
+    const g = criarGoogleFalso({ responder: ok });
+    const { CHAVE_BACKUP: _, ...semChave } = CONFIG;
+    const s = carregarScript(g, semChave);
+    const r = s.fazerBackup();
+    expect(r.ok).toBe(false);
+    expect(g.chamadas).toEqual([]);
+    expect(g.emails[0].corpo).toContain('CHAVE_BACKUP');
+  });
+
+  it('a chave de backup não fica no código: CONFIG não tem CHAVE_BACKUP (SEC-007)', () => {
+    const codigo = readFileSync(resolve(__dirname, '../../apps-script/Backup.gs'), 'utf8');
+    const config = codigo.slice(codigo.indexOf('var CONFIG'), codigo.indexOf('};', codigo.indexOf('var CONFIG')));
+    expect(config).not.toContain('CHAVE_BACKUP');
+  });
+
+  it('o manifesto pede só drive.file, não o Drive inteiro (SEC-007)', () => {
+    const manifesto = JSON.parse(readFileSync(resolve(__dirname, '../../apps-script/appsscript.json'), 'utf8'));
+    expect(manifesto.oauthScopes).toContain('https://www.googleapis.com/auth/drive.file');
+    expect(manifesto.oauthScopes).not.toContain('https://www.googleapis.com/auth/drive');
   });
 });

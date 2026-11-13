@@ -2,8 +2,10 @@
  * Agenda Fácil — backup semanal no Google Drive.
  *
  * Instalação (uma vez, na conta Google do negócio): veja docs/implantacao.md, passo "Backup automático".
- *   1. Preencha os três campos de CONFIG abaixo.
- *   2. Rode a função "instalar" e autorize.
+ *   1. Preencha os dois campos de CONFIG abaixo.
+ *   2. Em Configurações do projeto → Propriedades do script, adicione a propriedade CHAVE_BACKUP
+ *      com a chave gerada no app (Ajustes → Backup → Gerar chave de backup). Ela fica fora do código.
+ *   3. Rode a função "instalar" e autorize.
  * Depois disso, todo domingo às 3h o Google roda "fazerBackup" sozinho.
  */
 var CONFIG = {
@@ -11,9 +13,18 @@ var CONFIG = {
   SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',
   // Supabase → Project Settings → API → chave anon / publishable (nunca a service_role)
   SUPABASE_ANON_KEY: 'COLE_AQUI_A_CHAVE_PUBLICA',
-  // No app: Ajustes → Backup → Gerar chave de backup
-  CHAVE_BACKUP: 'COLE_AQUI_A_CHAVE_DE_BACKUP',
 };
+
+/** A chave de backup exporta todos os clientes: fica nas Propriedades do script, não no código. */
+var PROPRIEDADE_CHAVE = 'CHAVE_BACKUP';
+
+function chaveDeBackup() {
+  var chave = String(PropertiesService.getScriptProperties().getProperty(PROPRIEDADE_CHAVE) || '').trim();
+  if (!chave) {
+    throw new Error('falta a propriedade do script CHAVE_BACKUP (Configurações do projeto → Propriedades do script)');
+  }
+  return chave;
+}
 
 var NOME_PASTA = 'Backups da Agenda';
 var FUSO = 'America/Sao_Paulo';
@@ -26,7 +37,7 @@ function chamarSupabase(funcao) {
     method: 'post',
     contentType: 'application/json',
     headers: { apikey: anon, Authorization: 'Bearer ' + anon },
-    payload: JSON.stringify({ chave: String(CONFIG.CHAVE_BACKUP).trim() }),
+    payload: JSON.stringify({ chave: chaveDeBackup() }),
     muteHttpExceptions: true,
   });
   var codigo = resposta.getResponseCode();
