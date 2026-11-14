@@ -30,29 +30,9 @@ export const IconeWhatsApp = (p: Props) => (
   </Icone>
 );
 
-export const IconeCheck = (p: Props) => (
-  <Icone espessura={2.6} {...p}>
-    <path d="M5 12l5 5 9-10" />
-  </Icone>
-);
-
 export const IconeX = (p: Props) => (
   <Icone espessura={2.6} {...p}>
     <path d="M6 6l12 12M18 6L6 18" />
-  </Icone>
-);
-
-export const IconeRelogio = (p: Props) => (
-  <Icone espessura={2.2} {...p}>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 7v5l3 2" />
-  </Icone>
-);
-
-export const IconeSino = (p: Props) => (
-  <Icone {...p}>
-    <path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z" />
-    <path d="M10 21h4" />
   </Icone>
 );
 

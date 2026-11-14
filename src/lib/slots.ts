@@ -155,4 +155,13 @@ export function abreviaDia(data: string): string {
   return DIAS[diaDaSemana(data)];
 }
 
+const DIAS_LONGOS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/** Dia por extenso, como o título da agenda: "sábado, 14"; com `comMes`, "sábado, 14 de novembro". */
+export function nomeDiaExtenso(data: string, comMes = false): string {
+  const dia = `${DIAS_LONGOS[diaDaSemana(data)]}, ${Number(data.slice(8, 10))}`;
+  return comMes ? `${dia} de ${MESES[Number(data.slice(5, 7)) - 1]}` : dia;
+}
+
 export { horaCurta };

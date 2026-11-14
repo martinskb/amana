@@ -7,7 +7,6 @@ import { waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto } from '../types';
 import { useContador } from './animacao';
 import { useConfig } from './contexto';
-import { IconeSino } from './icones';
 import { useAoVoltar } from './useAoVoltar';
 
 /** Cartão "Amanhã" na Agenda (spec v3, seção 2.1): substitui a antiga aba Lembretes. */
@@ -30,36 +29,28 @@ export default function CartaoAmanha() {
   const contagem = useContador(lista?.length ?? 0);
 
   if (erro) return <p className="sutil">Não foi possível carregar os clientes de amanhã.</p>;
-  // enquanto carrega, ocupa o mesmo lugar: a grade não pula quando a resposta chega
-  if (!lista)
-    return (
-      <aside className="cartao-amanha">
-        <div className="linha">
-          <span className="num" aria-hidden="true">
-            {contagem}
-          </span>
-          <strong>Amanhã: …</strong>
-        </div>
-      </aside>
-    );
 
-  const n = lista.length;
-  const titulo = n === 0 ? 'Amanhã: nenhum cliente' : n === 1 ? 'Amanhã: 1 cliente' : `Amanhã: ${n} clientes`;
+  const n = lista?.length ?? 0;
+  // enquanto carrega, ocupa o mesmo lugar: a grade não pula quando a resposta chega
+  const resumo = !lista ? '…' : n === 0 ? 'nenhum cliente' : n === 1 ? '1 cliente pra lembrar' : `${n} clientes pra lembrar`;
 
   return (
-    <aside className={`cartao-amanha${n > 0 ? ' com-clientes' : ''}`}>
+    <aside className={`cartao-amanha${n > 0 ? ' com-clientes' : ''}`} aria-label="Amanhã">
       <div className="linha">
         <span className="num" aria-hidden="true">
           {contagem}
         </span>
-        <strong>{titulo}</strong>
+        <div className="amanha-texto">
+          <strong>amanhã</strong>
+          <span className="sutil">{resumo}</span>
+        </div>
         {n > 0 && !aberto && (
           <button type="button" className="lembrar" onClick={() => setAberto(true)}>
-            <IconeSino /> Lembrar
+            Lembrar
           </button>
         )}
       </div>
-      {aberto && (
+      {aberto && lista && (
         <div className="desdobra">
           <ul className="lista">
             {lista.map((a) => (

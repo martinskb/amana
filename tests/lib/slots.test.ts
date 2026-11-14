@@ -1,6 +1,6 @@
 import { fromZonedTime } from 'date-fns-tz';
 import { describe, expect, it } from 'vitest';
-import { diasDoLink, diasDoPeriodo, formatSlotsMessage, freeSlots, gerarHorarios } from '../../src/lib/slots';
+import { diasDoLink, diasDoPeriodo, formatSlotsMessage, freeSlots, gerarHorarios, nomeDiaExtenso } from '../../src/lib/slots';
 import type { Agendamento, Config, HorarioAjuste, Slot, Status } from '../../src/types';
 
 const FUSO = 'America/Sao_Paulo';
@@ -183,5 +183,13 @@ describe('diasDoPeriodo', () => {
 
   it('amanhã às 23:30 de São Paulo usa a data local', () => {
     expect(diasDoPeriodo('amanha', sp(`${TERCA} 23:30`), FUSO)).toEqual({ de: '2026-11-18', ate: '2026-11-18' });
+  });
+});
+
+describe('nomeDiaExtenso', () => {
+  it('escreve o dia por extenso, sem zero à esquerda, e com o mês quando pedido', () => {
+    expect(nomeDiaExtenso('2026-11-14')).toBe('sábado, 14');
+    expect(nomeDiaExtenso('2026-11-09')).toBe('segunda, 9');
+    expect(nomeDiaExtenso('2026-03-01', true)).toBe('domingo, 1 de março');
   });
 });
