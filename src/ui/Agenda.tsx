@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { listNovosPeloLink } from '../data/agendamentos';
 import { criarExtra, fecharHorario, removerAjuste } from '../data/ajustes';
 import { listServicos } from '../data/servicos';
 import { supabase } from '../data/supabase';
@@ -21,6 +20,7 @@ import SeloStatus from './SeloStatus';
 import { IconeDireita, IconeEsquerda, IconeMais } from './icones';
 import { useAoVoltar } from './useAoVoltar';
 import { useAgendaSemana } from './useAgendaSemana';
+import { useNovosPeloLink } from './useNovosPeloLink';
 import FaixaSemConexao from './FaixaSemConexao';
 import { diasDaSemana, segundaDe } from '../lib/semanaCalendario';
 
@@ -43,7 +43,6 @@ function chaveDoPainel(p: Exclude<EstadoPainel, null>): string | null {
 }
 
 const ddmm = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
-const CHAVE_VISITA = 'agenda:ultimaVisita';
 
 export default function Agenda() {
   const { config, recarregar: recarregarConfig, semConexao: configSemConexao } = useConfig();
@@ -78,7 +77,6 @@ export default function Agenda() {
   const [erroServicos, setErroServicos] = useState(false);
   const erro = erroAgenda || erroServicos;
 
-  const [novos, setNovos] = useState<AgendamentoCompleto[]>([]);
   const larga = useTelaLarga();
   // muda quando a agenda grava algo: o resumo lateral recarrega o próximo cliente
   const [versao, setVersao] = useState(0);
@@ -88,36 +86,8 @@ export default function Agenda() {
   const atual = (chave: string) => larga && painel !== null && chaveDoPainel(painel) === chave;
   const sel = (chave: string) => (atual(chave) ? ' selecionado' : '');
 
-  // agendamentos que chegaram pelo link desde a última vez que o dono olhou (neste aparelho)
-  const buscarNovos = useCallback(() => {
-    let ultima: string | null = null;
-    try {
-      ultima = localStorage.getItem(CHAVE_VISITA);
-      if (!ultima) localStorage.setItem(CHAVE_VISITA, new Date().toISOString());
-    } catch {
-      return; // sem armazenamento (navegação privada): sem aviso
-    }
-    if (!ultima) return;
-    listNovosPeloLink(supabase, ultima).then(setNovos, () => setNovos([]));
-  }, []);
-
-  useEffect(() => {
-    buscarNovos();
-  }, [buscarNovos]);
-
-  function marcarVisto() {
-    // o criado_em mais recente mostrado (relógio do servidor): o que chegar depois ainda aparece
-    const maisRecente = novos.reduce(
-      (max, a) => (new Date(a.criado_em).getTime() > new Date(max).getTime() ? a.criado_em : max),
-      novos[0]?.criado_em ?? new Date().toISOString(),
-    );
-    try {
-      localStorage.setItem(CHAVE_VISITA, maisRecente);
-    } catch {
-      /* sem armazenamento: só esconde */
-    }
-    setNovos([]);
-  }
+  // agendamentos novos pelo link, vistos por agendamento (busca a cada 30 s e ao voltar, como a semana)
+  const { novos, ver, verTodos, buscar: buscarNovos } = useNovosPeloLink();
 
   const ate = somarDias(segunda, 6);
 
@@ -131,7 +101,7 @@ export default function Agenda() {
   }, [carregarServicos]);
 
   // ao reabrir o app: se virou o dia e a tela estava em "hoje", vai para o novo hoje (talvez numa semana nova).
-  // A agenda em si é buscada de novo pelo useAgendaSemana.
+  // A agenda em si e os novos pelo link são buscados de novo pelos seus hooks.
   const voltas = useAoVoltar();
   const hojeAnterior = useRef(hoje);
   useEffect(() => {
@@ -142,7 +112,6 @@ export default function Agenda() {
       hojeAnterior.current = novoHoje;
       setDiaSelecionado((atual) => (atual === antigo ? novoHoje : atual));
     }
-    buscarNovos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voltas]);
 
@@ -208,6 +177,7 @@ export default function Agenda() {
     setVersao((v) => v + 1);
     setPainel(null);
     void carregar();
+    void buscarNovos();
   }
 
   // durante a animação de saída o painel já é null: continua mostrando o último conteúdo
@@ -324,7 +294,10 @@ export default function Agenda() {
         <DetalhesAgendamento
           agendamento={p.agendamento}
           onEditar={() => setPainel({ tipo: 'editar', agendamento: p.agendamento })}
-          onMudou={depoisDeSalvar}
+          onMudou={() => {
+            ver(p.agendamento.id);
+            depoisDeSalvar();
+          }}
           onFechar={() => setPainel(null)}
         />
       );
@@ -349,7 +322,7 @@ export default function Agenda() {
               );
             })}
           </ul>
-          <button type="button" onClick={marcarVisto}>
+          <button type="button" onClick={verTodos}>
             Entendi
           </button>
         </aside>
@@ -449,7 +422,10 @@ export default function Agenda() {
                           type="button"
                           className={`ag ${item.agendamento.status}${sel(`ag:${item.agendamento.id}`)}`}
                           aria-current={atual(`ag:${item.agendamento.id}`) || undefined}
-                          onClick={() => setPainel({ tipo: 'detalhes', agendamento: item.agendamento })}
+                          onClick={() => {
+                            ver(item.agendamento.id);
+                            setPainel({ tipo: 'detalhes', agendamento: item.agendamento });
+                          }}
                         >
                           <span className="h">{item.hora}</span>{' '}
                           <span className="quem">

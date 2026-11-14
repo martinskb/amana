@@ -8,7 +8,7 @@ import { waLink } from '../../src/lib/whatsapp';
 import { CONFIG_TESTE } from '../helpers/config';
 import type { AgendamentoCompleto, Status } from '../../src/types';
 import { renderComConfig } from '../helpers/render';
-import { gravar } from '../../src/lib/cache';
+import { gravar, ler } from '../../src/lib/cache';
 
 const m = vi.hoisted(() => ({
   listAgendamentos: vi.fn(),
@@ -654,15 +654,17 @@ describe('Agenda', () => {
     expect(botao).toHaveTextContent('pelo link');
   });
 
-  it('na primeira abertura grava a visita e não mostra aviso', async () => {
+  it('na primeira abertura grava o corte = agora e não mostra aviso', async () => {
+    m.listNovosPeloLink.mockResolvedValue([{ ...MARIA_QUARTA, origem: 'link', criado_em: '2026-11-16T22:00:00+00:00' }]);
     renderComConfig(<Agenda />);
     await screen.findByRole('button', { name: /10:00 João/ });
-    expect(localStorage.getItem('agenda:ultimaVisita')).toBe('2026-11-17T11:00:00.000Z');
-    expect(m.listNovosPeloLink).not.toHaveBeenCalled();
+    await waitFor(() => expect(m.listNovosPeloLink).toHaveBeenCalledWith({}, '2026-11-17T11:00:00.000Z'));
+    expect(ler('corte-novos')?.valor).toBe('2026-11-17T11:00:00.000Z');
+    expect(screen.queryByText(/novos? pelo link/)).not.toBeInTheDocument();
   });
 
-  it('mostra quantos agendamentos chegaram pelo link desde a última visita e some ao tocar', async () => {
-    localStorage.setItem('agenda:ultimaVisita', '2026-11-16T10:00:00.000Z');
+  it('mostra quantos agendamentos chegaram pelo link desde o corte e some ao tocar', async () => {
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
     m.listNovosPeloLink.mockResolvedValue([
       { ...MARIA_QUARTA, origem: 'link', criado_em: '2026-11-17T10:30:00+00:00' },
       { ...JOAO_TERCA, origem: 'link', criado_em: '2026-11-16T22:00:00+00:00' },
@@ -672,15 +674,80 @@ describe('Agenda', () => {
     expect(m.listNovosPeloLink).toHaveBeenCalledWith({}, '2026-11-16T10:00:00.000Z');
     await userEvent.click(screen.getByRole('button', { name: 'Entendi' }));
     expect(screen.queryByText(/novos? pelo link/)).not.toBeInTheDocument();
-    // guarda o criado_em mais recente mostrado (relógio do servidor), não a hora do celular
-    expect(localStorage.getItem('agenda:ultimaVisita')).toBe('2026-11-17T10:30:00+00:00');
+    // o corte vira o criado_em mais recente buscado (relógio do servidor), não a hora do celular
+    expect(ler('corte-novos')?.valor).toBe('2026-11-17T10:30:00+00:00');
+    expect(ler('vistos')?.valor).toEqual([]);
   });
 
   it('um só usa o singular', async () => {
-    localStorage.setItem('agenda:ultimaVisita', '2026-11-16T10:00:00.000Z');
-    m.listNovosPeloLink.mockResolvedValue([{ ...MARIA_QUARTA, origem: 'link' }]);
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    m.listNovosPeloLink.mockResolvedValue([{ ...MARIA_QUARTA, origem: 'link', criado_em: '2026-11-17T10:30:00+00:00' }]);
     renderComConfig(<Agenda />);
     expect(await screen.findByText('1 agendamento novo pelo link')).toBeInTheDocument();
+  });
+
+  it('abrir um agendamento novo pelo link tira ele da lista e guarda em vistos', async () => {
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, origem: 'link' }]);
+    m.listNovosPeloLink.mockResolvedValue([
+      { ...JOAO_TERCA, origem: 'link', criado_em: '2026-11-16T22:00:00+00:00' },
+      { ...MARIA_QUARTA, origem: 'link', criado_em: '2026-11-17T10:30:00+00:00' },
+    ]);
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText('2 agendamentos novos pelo link')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /10:00 João/ }));
+    expect(screen.getByText('1 agendamento novo pelo link')).toBeInTheDocument();
+    expect(ler('vistos')?.valor).toEqual(['a1']);
+  });
+
+  it('mudar o status de um novo pelo link tira ele da lista', async () => {
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, origem: 'link' }]);
+    const novo = { ...JOAO_TERCA, origem: 'link' as const, criado_em: '2026-11-16T22:00:00+00:00' };
+    m.listNovosPeloLink.mockResolvedValue([novo]);
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText('1 agendamento novo pelo link')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /10:00 João/ }));
+    // marcado como visto ao abrir; mudar o status também chama ver (e a busca seguinte não o traz de volta)
+    m.listNovosPeloLink.mockResolvedValue([{ ...novo, status: 'confirmado' }]);
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar no WhatsApp' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(m.listNovosPeloLink.mock.calls.length).toBeGreaterThan(1));
+    expect(screen.queryByText(/novos? pelo link/)).not.toBeInTheDocument();
+  });
+
+  it('na tela larga, o "Entendi" do resumo marca todos como vistos', async () => {
+    larga();
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    m.listNovosPeloLink.mockResolvedValue([
+      { ...MARIA_QUARTA, origem: 'link', criado_em: '2026-11-17T10:30:00+00:00' },
+      { ...JOAO_TERCA, origem: 'link', criado_em: '2026-11-16T22:00:00+00:00' },
+    ]);
+    renderComConfig(<Agenda />);
+    const resumo = await screen.findByRole('complementary', { name: 'Resumo' });
+    expect(await within(resumo).findByText('2 agendamentos novos pelo link')).toBeInTheDocument();
+    await userEvent.click(within(resumo).getByRole('button', { name: 'Entendi' }));
+    expect(screen.queryByText(/novos? pelo link/)).not.toBeInTheDocument();
+    expect(ler('corte-novos')?.valor).toBe('2026-11-17T10:30:00+00:00');
+    vi.unstubAllGlobals();
+  });
+
+  it('com os detalhes abertos, a busca de 30 s (com um novo chegando) não fecha o painel', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-17T11:00:00Z'));
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    renderComConfig(<Agenda />);
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    fireEvent.click(screen.getByRole('button', { name: /10:00 João/ }));
+    expect(screen.getByRole('button', { name: 'Confirmar no WhatsApp' })).toBeInTheDocument();
+    const buscasSemana = m.listAgendamentos.mock.calls.length;
+    const buscasNovos = m.listNovosPeloLink.mock.calls.length;
+    m.listNovosPeloLink.mockResolvedValue([{ ...MARIA_QUARTA, origem: 'link', criado_em: '2026-11-17T11:00:10+00:00' }]);
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(m.listAgendamentos.mock.calls.length).toBeGreaterThan(buscasSemana);
+    expect(m.listNovosPeloLink.mock.calls.length).toBeGreaterThan(buscasNovos);
+    expect(screen.getByText('1 agendamento novo pelo link')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar no WhatsApp' })).toBeInTheDocument();
   });
 
   it('localStorage indisponível não quebra a Agenda', async () => {
@@ -788,7 +855,7 @@ describe('Agenda', () => {
   });
 
   it('ao voltar para o app, busca de novo os agendamentos novos pelo link', async () => {
-    localStorage.setItem('agenda:ultimaVisita', '2026-11-16T10:00:00.000Z');
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
     renderComConfig(<Agenda />);
     await screen.findByRole('button', { name: /10:00 João/ });
     expect(screen.queryByText(/novos? pelo link/)).not.toBeInTheDocument();

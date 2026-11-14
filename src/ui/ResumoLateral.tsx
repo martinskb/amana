@@ -11,7 +11,7 @@ import { IconeWhatsApp } from './icones';
 import { useAoVoltar } from './useAoVoltar';
 
 interface Props {
-  /** Aviso de agendamentos novos pelo link (ou null). */
+  /** Aviso de agendamentos novos pelo link (ou null); o "Entendi" dele marca todos como vistos (verTodos). */
   novos: ReactNode;
   /** Muda quando a agenda gravou algo: recarrega o próximo cliente. */
   versao: number;
