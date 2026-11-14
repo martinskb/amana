@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.png', 'icon-512.png'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       workbox: { globPatterns: ['**/*.{js,css,html,png,woff2}'] },
       manifest: {
         name: 'Amana',

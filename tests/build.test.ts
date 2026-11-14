@@ -34,6 +34,11 @@ describe('build de produção', { timeout: 120_000 }, () => {
     expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(['192x192', '512x512']);
   });
 
+  it('publica o favicon da gota', () => {
+    expect(readFileSync(join(saida, 'favicon.svg'), 'utf8')).toContain('<path');
+    expect(readFileSync(join(saida, 'index.html'), 'utf8')).toContain('rel="icon" href="/favicon.svg"');
+  });
+
   it('gera o service worker', () => {
     expect(existsSync(join(saida, 'sw.js'))).toBe(true);
   });
