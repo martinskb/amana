@@ -33,6 +33,11 @@ const salvar = () => userEvent.click(screen.getByRole('button', { name: 'Salvar 
 const hora = (rotulo: string, valor: string) => fireEvent.change(screen.getByLabelText(rotulo), { target: { value: valor } });
 
 describe('Configurações', () => {
+  it('tem a seção para instalar na tela inicial', async () => {
+    renderComConfig(<Configuracoes />, CONFIG_TESTE);
+    expect(await screen.findByRole('heading', { name: 'Tela inicial' })).toBeInTheDocument();
+  });
+
   it('edita expediente de terça com dois intervalos e salva', async () => {
     const config = { ...CONFIG_TESTE, expediente: { ...CONFIG_TESTE.expediente, 2: [] } };
     const { recarregar } = renderComConfig(<Configuracoes />, config);
@@ -86,7 +91,7 @@ describe('Configurações', () => {
     expect(await screen.findByText('Barba')).toBeInTheDocument();
   });
 
-  it.each(['Negócio', 'Horários', 'Serviços', 'Clientes', 'Backup'])('a seção %s é um cartão', async (titulo) => {
+  it.each(['Negócio', 'Horários', 'Serviços', 'Clientes', 'Backup', 'Tela inicial'])('a seção %s é um cartão', async (titulo) => {
     renderComConfig(<Configuracoes />);
     const h = await screen.findByRole('heading', { name: titulo });
     expect(h.closest('section')).toHaveClass('cartao');
@@ -161,10 +166,10 @@ describe('Configurações do link', () => {
     );
   });
 
-  it('as seções aparecem na ordem Negócio, Horários, Serviços, Clientes, Backup', () => {
+  it('as seções aparecem na ordem Negócio, Horários, Serviços, Clientes, Backup, Tela inicial', () => {
     renderComConfig(<Configuracoes />);
     const titulos = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
-    expect(titulos).toEqual(['Negócio', 'Horários', 'Serviços', 'Clientes', 'Backup']);
+    expect(titulos).toEqual(['Negócio', 'Horários', 'Serviços', 'Clientes', 'Backup', 'Tela inicial']);
   });
 
   it('a seção Clientes busca e abre o histórico', async () => {

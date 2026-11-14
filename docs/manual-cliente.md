@@ -1,8 +1,12 @@
-# Agenda — manual rápido
+# Amana — manual rápido
 
 ## Abrir no iPhone
 
 Abra o link da agenda no **Safari**, toque em **Compartilhar** (quadrado com seta) e depois em **Adicionar à Tela de Início**. A partir daí, abra pelo ícone.
+
+## Abrir no Android
+
+Entre na agenda pelo **Chrome**, vá em **Ajustes** e toque em **Instalar na tela inicial**. Se o botão não aparecer, use o menu do Chrome (⋮) → **Instalar app** ou **Adicionar à tela inicial**.
 
 Para entrar, digite o **usuário** e a **senha** que você recebeu e toque em **Entrar**. Esqueceu a senha? Fale com quem instalou o sistema.
 

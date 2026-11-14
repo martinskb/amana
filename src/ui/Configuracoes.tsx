@@ -6,6 +6,7 @@ import { supabase } from '../data/supabase';
 import type { DiaSemana, Expediente, Intervalo, Servico } from '../types';
 import { MSG_WHATSAPP_INVALIDO, normalizePhone } from '../lib/whatsapp';
 import SecaoBackup from './SecaoBackup';
+import SecaoInstalar from './SecaoInstalar';
 import Clientes from './Clientes';
 import { useConfig } from './contexto';
 
@@ -264,6 +265,10 @@ export default function Configuracoes() {
 
       <section className="cartao">
         <SecaoBackup />
+      </section>
+
+      <section className="cartao">
+        <SecaoInstalar />
       </section>
       </div>
     </main>
