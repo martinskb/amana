@@ -366,15 +366,16 @@ button.texto:hover { color: var(--titulo); }
 .titulo-dia h1.semana { font-size: 34px; }
 .titulo-dia .atualizando { font-size: 13px; }
 .alterna { display: inline-flex; flex: none; border: 1px solid var(--borda); border-radius: var(--raio-pilula); padding: 2px; }
-.alterna button { position: relative; min-height: 30px; padding: 0 12px; border: 0; background: transparent; color: var(--sutil); font-size: 13px; font-weight: 500; }
+.alterna button { position: relative; min-width: 44px; min-height: 30px; padding: 0 12px; border: 0; background: transparent; color: var(--sutil); font-size: 13px; font-weight: 500; }
 .alterna button::after { content: ''; position: absolute; inset: -8px 0; } /* toque de 46px sem crescer o desenho */
 .alterna button[aria-pressed='true'] { background: var(--sup2); color: var(--texto); }
 .acoes-topo { display: flex; gap: 16px; margin: 4px 0 0 -4px; }
 @media (min-width: 1280px) { .faixa-semana { max-width: 560px; } }
 
 /* faixa da semana: 7 dias, o escolhido cheio; bolinha = tem cliente, risco = novo pelo link */
-.faixa-semana { display: flex; align-items: stretch; gap: 2px; margin: 14px -8px 8px; }
-.faixa-seta { flex: none; width: 30px; min-height: 56px; padding: 0; border: 0; border-radius: 10px; background: none; color: var(--sutil); }
+/* as setas ocupam o espaço da margem da tela: 44px de toque sem apertar os dias */
+.faixa-semana { display: flex; align-items: stretch; gap: 2px; margin: 14px -16px 8px; }
+.faixa-seta { flex: none; width: 44px; min-height: 56px; padding: 0; border: 0; border-radius: 10px; background: none; color: var(--sutil); }
 .faixa-dias { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
 .faixa-dia { flex-direction: column; justify-content: flex-start; gap: 1px; min-height: 56px; padding: 7px 0 0; border: 0; border-radius: 12px; background: transparent; color: var(--sutil); font-size: 11px; font-weight: 500; }
 .faixa-dia .fd-num { font-size: 17px; font-weight: 600; line-height: 1.15; color: var(--texto); font-variant-numeric: tabular-nums; }
