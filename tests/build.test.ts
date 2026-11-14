@@ -74,6 +74,7 @@ describe('build de produção', { timeout: 120_000 }, () => {
     expect(css).not.toContain('playfair');
     expect(css).not.toContain('hanken');
     expect(css).not.toContain('#b9894f');
+    expect(css).not.toContain('#2a2219'); // degradê marrom dos cartões de destaque
     expect(css).toContain('#b272de');
   });
 

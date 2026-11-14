@@ -107,7 +107,7 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--marca); }
 .ou { text-align: center; color: var(--sutil); margin: 0; }
 .aviso-conexao { max-width: 420px; margin: 10vh auto 0; }
 .aviso-backup, .aviso-novos, .cartao-amanha { background: var(--sup); border: 1px solid var(--borda); border-radius: var(--raio-cartao); padding: 12px 16px; margin: 10px 0; }
-.aviso-backup { border-color: #5c4566; background: linear-gradient(135deg, #2a2219, var(--sup) 60%); }
+.aviso-backup { border-color: #5c4566; background: linear-gradient(135deg, #261b2c, var(--sup) 60%); }
 .aviso-novos { border-color: #4a3556; }
 .aviso-novos ul { margin: 6px 0; padding-left: 18px; }
 
@@ -120,7 +120,7 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--marca); }
 
 .cartao-amanha .linha { flex-wrap: nowrap; }
 .cartao-amanha strong { flex: 1; }
-.cartao-amanha.com-clientes { background: linear-gradient(135deg, #2a2219, var(--sup) 60%); border-color: #4a3556; }
+.cartao-amanha.com-clientes { background: linear-gradient(135deg, #261b2c, var(--sup) 60%); border-color: #4a3556; }
 .cartao-amanha:not(.com-clientes) .num { display: none; }
 .cartao-amanha .num { font-family: var(--fonte-titulo); font-weight: 800; font-size: 34px; line-height: 1; color: var(--marca); min-width: 28px; font-variant-numeric: tabular-nums; }
 .desdobra { animation: desdobra var(--medio) var(--curva); transform-origin: top; }
