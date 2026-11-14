@@ -76,7 +76,7 @@ export default function App() {
 }
 
 function AppDoDono() {
-  const nome = import.meta.env.VITE_NOME_NEGOCIO || 'Agenda Fácil';
+  const nome = import.meta.env.VITE_NOME_NEGOCIO || 'Amana';
   // undefined = carregando; 'sem-conexao' = não deu para ler/renovar a sessão
   const [sessao, setSessao] = useState<Session | null | 'sem-conexao' | undefined>(undefined);
 

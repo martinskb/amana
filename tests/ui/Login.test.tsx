@@ -29,6 +29,13 @@ beforeEach(() => {
 });
 
 describe('login e sessão', () => {
+  it('o login mostra a marca Amana, o nome do negócio e a frase', async () => {
+    render(<App />);
+    expect(await screen.findByRole('img', { name: 'Amana' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('chega de "tem horário?"')).toBeInTheDocument();
+  });
+
   // um cliente que troque o endereço da página pública não chega a nenhuma tela do dono
   it.each(['#/config', '#/', '#/link', '#/qualquer'])('%s sem sessão mostra o login', async (hash) => {
     window.location.hash = hash;

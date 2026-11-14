@@ -17,4 +17,10 @@ describe('App', () => {
     render(<App />);
     expect(await screen.findByText('Barbearia Teste')).toBeInTheDocument();
   });
+
+  it('sem VITE_NOME_NEGOCIO o login mostra "Amana"', async () => {
+    vi.stubEnv('VITE_NOME_NEGOCIO', '');
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Amana', level: 1 })).toBeInTheDocument();
+  });
 });

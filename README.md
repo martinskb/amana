@@ -1,4 +1,6 @@
-# Agenda Fácil
+# Amana
+
+*Amana* quer dizer "chuva" em tupi. Em Belém, a chuva da tarde é o alívio depois do mormaço; a Amana é o alívio de quem passa o dia respondendo "tem horário?" no WhatsApp.
 
 Agenda online para pequenos negócios de serviço, como barbearias, salões e estúdios, feita para quem atende sozinho e organiza tudo pelo celular.
 

@@ -303,3 +303,34 @@ describe('página pública com serviços', () => {
     expect(await screen.findByText('Sem horários livres nos próximos dias.')).toBeInTheDocument();
   });
 });
+
+describe('assinatura da Amana', () => {
+  function conferirAssinatura() {
+    const rodape = screen.getByRole('contentinfo');
+    expect(within(rodape).getByText(/agendado com/)).toBeInTheDocument();
+    expect(within(rodape).getByRole('img', { name: 'Amana' })).toBeInTheDocument();
+  }
+
+  it('aparece no rodapé da escolha de horário e a aba mostra o nome do negócio', async () => {
+    render(<Agendar />);
+    await screen.findByRole('button', { name: 'qua 18' });
+    conferirAssinatura();
+    expect(document.title).toBe('Barbearia do João');
+  });
+
+  it('aparece na confirmação', async () => {
+    render(<Agendar />);
+    await escolher9hDeQuarta();
+    await preencher('Ana', '(11) 98765-4321');
+    await confirmar();
+    await screen.findByRole('status');
+    conferirAssinatura();
+  });
+
+  it('aparece com o link fechado', async () => {
+    m.getHorariosPublicos.mockResolvedValue({ ...DADOS, link_ativo: false, horarios: [] });
+    render(<Agendar />);
+    await screen.findByText('Agendamento online fechado no momento.');
+    conferirAssinatura();
+  });
+});
