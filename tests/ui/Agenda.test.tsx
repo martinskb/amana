@@ -8,6 +8,7 @@ import { waLink } from '../../src/lib/whatsapp';
 import { CONFIG_TESTE } from '../helpers/config';
 import type { AgendamentoCompleto, Status } from '../../src/types';
 import { renderComConfig } from '../helpers/render';
+import { gravar } from '../../src/lib/cache';
 
 const m = vi.hoisted(() => ({
   listAgendamentos: vi.fn(),
@@ -247,11 +248,13 @@ describe('Agenda', () => {
     expect(within(dialogo).getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
   });
 
-  it('visão de dia mostra só hoje', async () => {
+  it('visão de dia mostra só hoje, mas busca a semana inteira (seg–dom)', async () => {
     renderComConfig(<Agenda />);
     expect(await screen.findByRole('button', { name: /10:00 João/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /15:00 Maria/ })).not.toBeInTheDocument();
-    expect(m.listAgendamentos).toHaveBeenCalledWith({}, '2026-11-17', '2026-11-17');
+    expect(screen.getByRole('heading', { name: 'ter 17/11' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'qua 18/11' })).toBeNull();
+    expect(m.listAgendamentos).toHaveBeenCalledWith({}, '2026-11-16', '2026-11-22');
   });
 
   it('visão de semana mostra os agendamentos da semana na grade', async () => {
@@ -259,7 +262,10 @@ describe('Agenda', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Semana' }));
     expect(await screen.findByRole('button', { name: /15:00 Maria/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /10:00 João/ })).toBeInTheDocument();
-    expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-17', '2026-11-23');
+    expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-16', '2026-11-22');
+    // a semana do calendário: de segunda a domingo
+    const dias = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(dias).toEqual(['seg 16/11', 'ter 17/11', 'qua 18/11', 'qui 19/11', 'sex 20/11', 'sáb 21/11', 'dom 22/11']);
     await userEvent.click(screen.getByRole('button', { name: 'Dia' }));
     await waitFor(() => expect(screen.queryByRole('button', { name: /15:00 Maria/ })).not.toBeInTheDocument());
   });
@@ -452,8 +458,104 @@ describe('Agenda', () => {
     await screen.findByRole('button', { name: /10:00 João/ });
     vi.setSystemTime(new Date('2026-11-18T11:00:00Z')); // quarta 08:00
     act(() => document.dispatchEvent(new Event('visibilitychange')));
-    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-18', '2026-11-18'));
+    expect(await screen.findByRole('heading', { name: 'qua 18/11' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /15:00 Maria/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'ter 17/11' })).toBeNull();
+  });
+
+  it('virada de domingo para segunda, com a tela em "hoje", vai para a semana nova', async () => {
+    vi.setSystemTime(new Date('2026-11-22T11:00:00Z')); // domingo 08:00
+    renderComConfig(<Agenda />);
+    await screen.findByRole('heading', { name: 'dom 22/11' });
+    vi.setSystemTime(new Date('2026-11-23T11:00:00Z')); // segunda 08:00
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    expect(await screen.findByRole('heading', { name: 'seg 23/11' })).toBeInTheDocument();
+    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-23', '2026-11-29'));
+  });
+
+  it('virada de dia com a tela em outro dia não muda o dia escolhido', async () => {
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    await userEvent.click(screen.getByRole('button', { name: 'Anterior' }));
+    await screen.findByRole('heading', { name: 'seg 16/11' });
+    vi.setSystemTime(new Date('2026-11-18T11:00:00Z'));
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(m.listAgendamentos.mock.calls.length).toBeGreaterThan(1));
+    expect(screen.getByRole('heading', { name: 'seg 16/11' })).toBeInTheDocument();
+  });
+
+  it('na semana, as setas andam 7 dias, de segunda a segunda, e "Hoje" volta para a semana atual', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Semana' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Próximo' }));
+    expect(await screen.findByRole('heading', { name: 'seg 23/11' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'dom 29/11' })).toBeInTheDocument();
+    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-23', '2026-11-29'));
+    await userEvent.click(screen.getByRole('button', { name: 'Anterior' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Anterior' }));
+    expect(await screen.findByRole('heading', { name: 'seg 09/11' })).toBeInTheDocument();
+    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-09', '2026-11-15'));
+    await userEvent.click(screen.getByRole('button', { name: 'Hoje' }));
+    expect(await screen.findByRole('heading', { name: 'seg 16/11' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /15:00 Maria/ })).toBeInTheDocument();
+    // "Hoje" seleciona o dia de hoje: no modo dia aparece terça
+    await userEvent.click(screen.getByRole('button', { name: 'Dia' }));
+    expect(screen.getByRole('heading', { name: 'ter 17/11' })).toBeInTheDocument();
+  });
+
+  it('no modo dia, as setas andam um dia e só buscam de novo ao trocar de semana', async () => {
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    const antes = m.listAgendamentos.mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Próximo' }));
+    expect(await screen.findByRole('button', { name: /15:00 Maria/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'qua 18/11' })).toBeInTheDocument();
+    expect(m.listAgendamentos.mock.calls.length).toBe(antes);
+    for (let i = 0; i < 5; i++) await userEvent.click(screen.getByRole('button', { name: 'Próximo' }));
+    expect(await screen.findByRole('heading', { name: 'seg 23/11' })).toBeInTheDocument();
+    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-23', '2026-11-29'));
+  });
+
+  it('com a semana guardada, mostra o guardado na hora, sem esqueleto', async () => {
+    gravar('agenda:2026-11-16', { agendamentos: [JOAO_TERCA], ajustes: [] });
+    m.listAgendamentos.mockReturnValue(new Promise(() => {}));
+    renderComConfig(<Agenda />);
+    expect(screen.getByRole('button', { name: /10:00 João/ })).toBeInTheDocument();
+  });
+
+  it('se a busca falha e havia semana guardada, mostra a faixa "sem conexão" com a hora salva', async () => {
+    vi.setSystemTime(new Date('2026-11-17T10:00:00Z')); // 07:00 em São Paulo
+    gravar('agenda:2026-11-16', { agendamentos: [JOAO_TERCA], ajustes: [] });
+    vi.setSystemTime(new Date('2026-11-17T11:00:00Z'));
+    m.listAgendamentos.mockRejectedValue(new Error('rede'));
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText('sem conexão · mostrando o que estava salvo às 07:00')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /10:00 João/ })).toBeInTheDocument();
+    expect(screen.queryByText('Não foi possível carregar a agenda.')).toBeNull();
+    m.listAgendamentos.mockResolvedValue([JOAO_TERCA]);
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    await waitFor(() => expect(screen.queryByText(/sem conexão/)).toBeNull());
+  });
+
+  it('sem semana guardada, falha mostra o erro com "Tentar de novo"', async () => {
+    m.listAgendamentos.mockRejectedValue(new Error('rede'));
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText(/Não foi possível carregar a agenda/)).toBeInTheDocument();
+    m.listAgendamentos.mockResolvedValue([JOAO_TERCA]);
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(await screen.findByRole('button', { name: /10:00 João/ })).toBeInTheDocument();
+  });
+
+  it('com a semana guardada há mais de 1 min, mostra "atualizando…" enquanto busca', async () => {
+    vi.setSystemTime(new Date('2026-11-17T10:00:00Z'));
+    gravar('agenda:2026-11-16', { agendamentos: [JOAO_TERCA], ajustes: [] });
+    vi.setSystemTime(new Date('2026-11-17T11:00:00Z'));
+    let terminar: (v: AgendamentoCompleto[]) => void = () => {};
+    m.listAgendamentos.mockReturnValue(new Promise((r) => (terminar = r)));
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText('atualizando…')).toBeInTheDocument();
+    await act(async () => terminar([JOAO_TERCA]));
+    expect(screen.queryByText('atualizando…')).toBeNull();
   });
 
   it('ao voltar para o app, recarrega mesmo no mesmo dia', async () => {
@@ -502,7 +604,7 @@ describe('Agenda', () => {
     m.listAjustes.mockResolvedValue([{ id: 'e1', tipo: 'extra', inicio: '2026-11-17T22:00:00.000Z' }]);
     renderComConfig(<Agenda />);
     expect(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 19:00' })).toBeInTheDocument();
-    expect(m.listAjustes).toHaveBeenCalledWith({}, '2026-11-17', '2026-11-17');
+    expect(m.listAjustes).toHaveBeenCalledWith({}, '2026-11-16', '2026-11-22');
   });
 
   it('num horário extra fora do expediente, "Remover horário extra" apaga o extra', async () => {

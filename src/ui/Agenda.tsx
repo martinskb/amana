@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { listAgendamentos, listNovosPeloLink } from '../data/agendamentos';
-import { criarExtra, fecharHorario, listAjustes, removerAjuste } from '../data/ajustes';
+import { listNovosPeloLink } from '../data/agendamentos';
+import { criarExtra, fecharHorario, removerAjuste } from '../data/ajustes';
 import { listServicos } from '../data/servicos';
 import { supabase } from '../data/supabase';
 import { abreviaDia, dataLocal, freeSlots, gerarHorarios, horaLocal, instanteLocal, somarDias } from '../lib/slots';
-import type { AgendamentoCompleto, HorarioAjuste, Servico } from '../types';
+import type { AgendamentoCompleto, Servico } from '../types';
 import { useConfig } from './contexto';
 import BackupBanner from './BackupBanner';
 import CabecalhoAgenda from './CabecalhoAgenda';
@@ -20,6 +20,9 @@ import { nomeDivergente } from '../lib/nomes';
 import SeloStatus from './SeloStatus';
 import { IconeDireita, IconeEsquerda, IconeMais } from './icones';
 import { useAoVoltar } from './useAoVoltar';
+import { useAgendaSemana } from './useAgendaSemana';
+import FaixaSemConexao from './FaixaSemConexao';
+import { diasDaSemana, segundaDe } from '../lib/semanaCalendario';
 
 type EstadoPainel =
   | { tipo: 'novo'; data: string; hora: string }
@@ -43,11 +46,21 @@ const ddmm = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
 const CHAVE_VISITA = 'agenda:ultimaVisita';
 
 export default function Agenda() {
-  const { config } = useConfig();
+  const { config, recarregar: recarregarConfig, semConexao: configSemConexao } = useConfig();
   const hoje = dataLocal(new Date(), config.fuso);
   const [modo, setModo] = useState<'dia' | 'semana'>('dia');
-  const [inicio, setInicio] = useState(hoje);
-  const [agendamentos, setAgendamentos] = useState<AgendamentoCompleto[] | null>(null);
+  const [diaSelecionado, setDiaSelecionado] = useState(hoje);
+  // a semana do calendário (seg–dom) do dia escolhido; o hook sempre busca a semana inteira
+  const segunda = segundaDe(diaSelecionado);
+  const {
+    agendamentos,
+    ajustes,
+    atualizando,
+    salvoEm,
+    semConexao,
+    erro: erroAgenda,
+    recarregar: carregar,
+  } = useAgendaSemana(segunda);
   // para onde a grade desliza ao trocar de dia/semana (null: sem deslize)
   const [direcao, setDirecao] = useState<'esq' | 'dir' | null>(null);
   // a cascata dos horários só acontece na primeira vez que a grade aparece
@@ -55,14 +68,15 @@ export default function Agenda() {
   useEffect(() => {
     if (agendamentos) primeiraCarga.current = false;
   }, [agendamentos]);
+  // semana: anda uma semana do calendário, de segunda a segunda; dia: anda um dia (trocando de semana se precisar)
   function andar(passo: -1 | 1) {
     setDirecao(passo < 0 ? 'esq' : 'dir');
-    setInicio((d) => somarDias(d, passo * dias));
+    setDiaSelecionado((d) => (modo === 'semana' ? somarDias(segundaDe(d), passo * 7) : somarDias(d, passo)));
   }
-  const [ajustes, setAjustes] = useState<HorarioAjuste[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [painel, setPainel] = useState<EstadoPainel>(null);
-  const [erro, setErro] = useState(false);
+  const [erroServicos, setErroServicos] = useState(false);
+  const erro = erroAgenda || erroServicos;
 
   const [novos, setNovos] = useState<AgendamentoCompleto[]>([]);
   const larga = useTelaLarga();
@@ -105,29 +119,19 @@ export default function Agenda() {
     setNovos([]);
   }
 
-  const dias = modo === 'dia' ? 1 : 7;
-  const ate = somarDias(inicio, dias - 1);
+  const ate = somarDias(segunda, 6);
 
-  const carregar = useCallback(async () => {
-    setErro(false);
-    try {
-      const [ags, ajs] = await Promise.all([listAgendamentos(supabase, inicio, ate), listAjustes(supabase, inicio, ate)]);
-      setAjustes(ajs);
-      setAgendamentos(ags);
-    } catch {
-      setErro(true);
-    }
-  }, [inicio, ate]);
-
-  useEffect(() => {
-    void carregar();
-  }, [carregar]);
-
-  useEffect(() => {
-    listServicos(supabase).then(setServicos, () => setErro(true));
+  const carregarServicos = useCallback(() => {
+    setErroServicos(false);
+    listServicos(supabase).then(setServicos, () => setErroServicos(true));
   }, []);
 
-  // ao reabrir o app: se virou o dia e a tela estava em "hoje", vai para o novo hoje; e recarrega
+  useEffect(() => {
+    carregarServicos();
+  }, [carregarServicos]);
+
+  // ao reabrir o app: se virou o dia e a tela estava em "hoje", vai para o novo hoje (talvez numa semana nova).
+  // A agenda em si é buscada de novo pelo useAgendaSemana.
   const voltas = useAoVoltar();
   const hojeAnterior = useRef(hoje);
   useEffect(() => {
@@ -136,16 +140,16 @@ export default function Agenda() {
     if (novoHoje !== hojeAnterior.current) {
       const antigo = hojeAnterior.current;
       hojeAnterior.current = novoHoje;
-      setInicio((atual) => (atual === antigo ? novoHoje : atual));
+      setDiaSelecionado((atual) => (atual === antigo ? novoHoje : atual));
     }
-    void carregar();
     buscarNovos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voltas]);
 
+  // a semana inteira (seg–dom); o modo dia mostra só o dia escolhido
   const porDia = useMemo(() => {
     const mapa = new Map<string, Item[]>();
-    for (let d = inicio; d <= ate; d = somarDias(d, 1)) mapa.set(d, []);
+    for (const d of diasDaSemana(segunda)) mapa.set(d, []);
     if (!agendamentos) return mapa;
     const visiveis = agendamentos.filter((a) => a.status !== 'cancelado');
     for (const a of visiveis) {
@@ -156,14 +160,14 @@ export default function Agenda() {
       config: { ...config, antecedencia_min: 0 },
       agendamentos: visiveis,
       ajustes,
-      de: inicio,
+      de: segunda,
       ate,
       agora: new Date(),
     });
     for (const s of livres) mapa.get(s.data)?.push({ tipo: 'livre', hora: s.hora });
     const passo = config.passo_min * 60_000;
     const fechados = ajustes.filter((a) => a.tipo === 'fechado');
-    for (const h of gerarHorarios({ config, ajustes, de: inicio, ate })) {
+    for (const h of gerarHorarios({ config, ajustes, de: segunda, ate })) {
       if (!h.fechado) continue;
       const ini = h.inicio.getTime();
       const ajuste = fechados.find((f) => {
@@ -174,7 +178,8 @@ export default function Agenda() {
     }
     for (const itens of mapa.values()) itens.sort((x, y) => x.hora.localeCompare(y.hora));
     return mapa;
-  }, [agendamentos, ajustes, config, inicio, ate]);
+  }, [agendamentos, ajustes, config, segunda, ate]);
+  const diasVisiveis = modo === 'dia' ? [[diaSelecionado, porDia.get(diaSelecionado) ?? []] as const] : [...porDia];
 
   /** O extra que sozinho cria este horário (fora do expediente); undefined se o horário é do expediente. */
   function extraQueCria(data: string, hora: string): string | undefined {
@@ -370,8 +375,8 @@ export default function Agenda() {
           <button
             type="button"
             onClick={() => {
-              setDirecao(hoje < inicio ? 'esq' : hoje > inicio ? 'dir' : null);
-              setInicio(hoje);
+              setDirecao(hoje < diaSelecionado ? 'esq' : hoje > diaSelecionado ? 'dir' : null);
+              setDiaSelecionado(hoje);
             }}
           >
             Hoje
@@ -382,14 +387,25 @@ export default function Agenda() {
           <button
             type="button"
             className="primario"
-            onClick={() => setPainel({ tipo: 'novo', data: inicio, hora: '' })}
+            onClick={() => setPainel({ tipo: 'novo', data: diaSelecionado, hora: '' })}
           >
             + Novo
           </button>
           <button type="button" onClick={() => setPainel({ tipo: 'extra' })}>
             + Horário extra
           </button>
+          {atualizando && <span className="sutil atualizando">atualizando…</span>}
         </div>
+
+        {(semConexao || configSemConexao) && salvoEm && (
+          <FaixaSemConexao
+            salvoEm={salvoEm}
+            onTentar={() => {
+              void carregar();
+              if (configSemConexao) void recarregarConfig();
+            }}
+          />
+        )}
 
         {!larga && avisoNovos}
 
@@ -401,7 +417,13 @@ export default function Agenda() {
         {erro && (
           <p role="alert">
             Não foi possível carregar a agenda.{' '}
-            <button type="button" onClick={carregar}>
+            <button
+              type="button"
+              onClick={() => {
+                if (erroAgenda) void carregar();
+                if (erroServicos) carregarServicos();
+              }}
+            >
               Tentar de novo
             </button>
           </p>
@@ -410,10 +432,10 @@ export default function Agenda() {
 
         {agendamentos && (
           <div
-            key={`${modo}-${inicio}`}
+            key={`${modo}-${modo === 'dia' ? diaSelecionado : segunda}`}
             className={`dias-grade${modo === 'semana' ? ' semana' : ''}${direcao ? ` entra-${direcao}` : ''}${primeiraCarga.current ? ' cascata' : ''}`}
           >
-            {[...porDia].map(([data, itens]) => (
+            {diasVisiveis.map(([data, itens]) => (
               <section key={data} className="dia">
                 <h3>
                   {abreviaDia(data)} {ddmm(data)}
