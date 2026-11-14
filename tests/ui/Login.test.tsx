@@ -1,13 +1,15 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SemAcessoError, SemConexaoError } from '../../src/data/erros';
 import { CONFIG_TESTE } from '../helpers/config';
+import { gravar, ler } from '../../src/lib/cache';
 import { SESSAO, type AuthFalso } from '../helpers/auth';
 
-const { auth, getConfig } = vi.hoisted(() => ({
+const { auth, getConfig, getHorariosPublicos } = vi.hoisted(() => ({
   auth: {} as AuthFalso,
   getConfig: vi.fn(),
+  getHorariosPublicos: vi.fn(),
 }));
 vi.mock('../../src/data/supabase', async () => {
   const { criarAuthFalso } = await import('../helpers/auth');
@@ -15,6 +17,7 @@ vi.mock('../../src/data/supabase', async () => {
   return { supabase: { auth }, configurado: true };
 });
 vi.mock('../../src/data/configuracoes', () => ({ getConfig, saveConfig: vi.fn() }));
+vi.mock('../../src/data/publico', () => ({ getHorariosPublicos }));
 vi.mock('../../src/ui/Agenda', () => ({ default: () => <h2>Agenda</h2> }));
 vi.mock('../../src/ui/Configuracoes', () => ({ default: () => <h2>Ajustes</h2> }));
 
@@ -22,6 +25,8 @@ import App from '../../src/ui/App';
 import { emailDoUsuario } from '../../src/ui/Login';
 
 beforeEach(() => {
+  localStorage.clear();
+  getHorariosPublicos.mockReset().mockRejectedValue(new Error('sem rede'));
   auth.sessao = null;
   auth.erroSessao = null;
   getConfig.mockReset().mockResolvedValue(CONFIG_TESTE);
@@ -168,5 +173,31 @@ describe('login e sessão', () => {
     window.location.hash = hash;
     render(<App />);
     expect(await screen.findByRole('heading', { level: 2, name: titulo })).toBeInTheDocument();
+  });
+});
+
+describe('nome do negócio no login', () => {
+  it('mostra o nome guardado em amana:nome', async () => {
+    gravar('nome', 'Barbearia X');
+    render(<App />);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Barbearia X' })).toBeInTheDocument();
+  });
+
+  it('a chamada pública troca o nome e atualiza título e cache', async () => {
+    gravar('nome', 'Barbearia X');
+    getHorariosPublicos.mockResolvedValue({ nome_negocio: 'Novo Nome', horarios: [] });
+    render(<App />);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Novo Nome' })).toBeInTheDocument();
+    expect(document.title).toBe('Novo Nome');
+    expect(ler<string>('nome')?.valor).toBe('Novo Nome');
+  });
+
+  it('se a chamada rejeita, nada muda e não aparece alerta', async () => {
+    gravar('nome', 'Barbearia X');
+    render(<App />);
+    await screen.findByLabelText('Usuário');
+    await waitFor(() => expect(getHorariosPublicos).toHaveBeenCalled());
+    expect(screen.getByRole('heading', { level: 1, name: 'Barbearia X' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
