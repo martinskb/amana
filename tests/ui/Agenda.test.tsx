@@ -700,6 +700,31 @@ describe('Agenda', () => {
     expect(ler('vistos')?.valor).toEqual(['a1']);
   });
 
+  it('abrir um pelo link que a busca de novos ainda não trouxe: a busca seguinte não o lista como novo', async () => {
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    const novo = { ...JOAO_TERCA, origem: 'link' as const, criado_em: '2026-11-17T10:55:00+00:00' };
+    m.listAgendamentos.mockResolvedValue([novo]);
+    m.listNovosPeloLink.mockResolvedValue([]);
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    expect(ler('vistos')?.valor).toEqual(['a1']);
+    m.listNovosPeloLink.mockResolvedValue([novo]);
+    const antes = m.listNovosPeloLink.mock.calls.length;
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(m.listNovosPeloLink.mock.calls.length).toBeGreaterThan(antes));
+    await act(async () => {});
+    expect(screen.queryByText(/novos? pelo link/)).not.toBeInTheDocument();
+  });
+
+  it('trocar de semana busca os novos pelo link junto', async () => {
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    const antes = m.listNovosPeloLink.mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Semana' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Próximo' }));
+    await waitFor(() => expect(m.listNovosPeloLink.mock.calls.length).toBe(antes + 1));
+  });
+
   it('mudar o status de um novo pelo link tira ele da lista', async () => {
     gravar('corte-novos', '2026-11-16T10:00:00.000Z');
     m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, origem: 'link' }]);

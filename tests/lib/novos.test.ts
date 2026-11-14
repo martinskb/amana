@@ -59,7 +59,7 @@ describe('aposVer', () => {
   it('quando não sobra nenhum novo, o corte vira o criado_em mais recente buscado e vistos esvazia', () => {
     const a1 = ag('a1', { criado_em: '2026-11-17T10:30:00+00:00' });
     const a2 = ag('a2', { criado_em: '2026-11-16T22:00:00+00:00' });
-    expect(aposVer({ corte: CORTE, vistos: ['a2'] }, ['a1'], [], [a2, a1], AGORA)).toEqual({
+    expect(aposVer({ corte: CORTE, vistos: ['a2'] }, [a1], [], [a2, a1], AGORA)).toEqual({
       corte: '2026-11-17T10:30:00+00:00',
       vistos: [],
     });
@@ -74,9 +74,27 @@ describe('aposVer', () => {
     const futuro = ag('f');
     const visto = ag('v');
     const resta = ag('r');
-    expect(aposVer({ corte: CORTE, vistos: ['p', 'f'] }, ['v'], [resta], [passado, futuro, visto, resta], AGORA)).toEqual({
+    expect(aposVer({ corte: CORTE, vistos: ['p', 'f'] }, [visto], [resta], [passado, futuro, visto, resta], AGORA)).toEqual({
       corte: CORTE,
       vistos: ['f', 'v'],
+    });
+  });
+
+  it('guarda o visto que a busca ainda não trouxe, e ids desconhecidos não são podados', () => {
+    const aberto = ag('x', { criado_em: '2026-11-17T10:50:00+00:00' });
+    const resta = ag('r');
+    expect(aposVer({ corte: CORTE, vistos: ['sumiu'] }, [aberto], [resta], [resta], AGORA)).toEqual({
+      corte: CORTE,
+      vistos: ['sumiu', 'x'],
+    });
+  });
+
+  it('quando o corte anda, fica em vistos só o que é mais novo que o corte', () => {
+    const buscado = ag('b', { criado_em: '2026-11-17T10:30:00+00:00' });
+    const aberto = ag('x', { criado_em: '2026-11-17T10:50:00+00:00' });
+    expect(aposVer({ corte: CORTE, vistos: [] }, [buscado, aberto], [], [buscado], AGORA)).toEqual({
+      corte: '2026-11-17T10:30:00+00:00',
+      vistos: ['x'],
     });
   });
 });

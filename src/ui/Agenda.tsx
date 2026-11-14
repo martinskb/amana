@@ -88,6 +88,13 @@ export default function Agenda() {
 
   // agendamentos novos pelo link, vistos por agendamento (busca a cada 30 s e ao voltar, como a semana)
   const { novos, ver, verTodos, buscar: buscarNovos } = useNovosPeloLink();
+  // trocou de semana: busca os novos junto com a semana nova (o hook já busca ao montar)
+  const semanaAnterior = useRef(segunda);
+  useEffect(() => {
+    if (semanaAnterior.current === segunda) return;
+    semanaAnterior.current = segunda;
+    void buscarNovos();
+  }, [segunda, buscarNovos]);
 
   const ate = somarDias(segunda, 6);
 
@@ -295,7 +302,7 @@ export default function Agenda() {
           agendamento={p.agendamento}
           onEditar={() => setPainel({ tipo: 'editar', agendamento: p.agendamento })}
           onMudou={() => {
-            ver(p.agendamento.id);
+            ver(p.agendamento);
             depoisDeSalvar();
           }}
           onFechar={() => setPainel(null)}
@@ -423,7 +430,7 @@ export default function Agenda() {
                           className={`ag ${item.agendamento.status}${sel(`ag:${item.agendamento.id}`)}`}
                           aria-current={atual(`ag:${item.agendamento.id}`) || undefined}
                           onClick={() => {
-                            ver(item.agendamento.id);
+                            ver(item.agendamento);
                             setPainel({ tipo: 'detalhes', agendamento: item.agendamento });
                           }}
                         >

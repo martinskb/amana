@@ -24,23 +24,31 @@ export function ehNovo(a: AgendamentoCompleto, s: Vistos & { agora: Date }): boo
   );
 }
 
+/** Teto de segurança para ids de `vistos` que nenhuma busca conhece (ex.: cancelados). */
+const MAX_VISTOS = 200;
+
 /**
- * O estado depois de ver `idsVistos`. Sem nenhum novo restante, o corte anda até o
- * `criado_em` mais recente buscado e `vistos` esvazia; senão, `vistos` guarda só ids
- * de agendamentos buscados que ainda são futuros.
+ * O estado depois de ver os agendamentos `vistosAgora` (o próprio agendamento aberto, mesmo
+ * que a busca de novos ainda não o tenha trazido). Sem nenhum novo restante, o corte anda até
+ * o `criado_em` mais recente buscado. Em `vistos` fica cada id visto, menos os que se sabe
+ * (pelos dados em mãos) que já passaram ou que ficaram até o corte; ids que nenhuma busca
+ * conhece ficam, pois a busca pode só estar atrasada.
  */
 export function aposVer(
   s: Vistos,
-  idsVistos: string[],
+  vistosAgora: AgendamentoCompleto[],
   novosRestantes: AgendamentoCompleto[],
   todosBuscados: AgendamentoCompleto[],
   agora: Date = new Date(),
 ): Vistos {
-  if (novosRestantes.length === 0) {
-    const corte = todosBuscados.reduce((max, a) => (ms(a.criado_em) > ms(max) ? a.criado_em : max), s.corte);
-    return { corte, vistos: [] };
-  }
-  const futuros = new Set(todosBuscados.filter((a) => ms(a.inicio) > agora.getTime()).map((a) => a.id));
-  const vistos = [...new Set([...s.vistos, ...idsVistos])].filter((id) => futuros.has(id));
-  return { corte: s.corte, vistos };
+  const corte =
+    novosRestantes.length === 0
+      ? todosBuscados.reduce((max, a) => (ms(a.criado_em) > ms(max) ? a.criado_em : max), s.corte)
+      : s.corte;
+  const conhecidos = new Map([...todosBuscados, ...vistosAgora].map((a) => [a.id, a] as const));
+  const vistos = [...new Set([...s.vistos, ...vistosAgora.map((a) => a.id)])].filter((id) => {
+    const a = conhecidos.get(id);
+    return !a || (ms(a.inicio) > agora.getTime() && ms(a.criado_em) > ms(corte));
+  });
+  return { corte, vistos: vistos.slice(-MAX_VISTOS) };
 }

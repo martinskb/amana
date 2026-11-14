@@ -69,12 +69,12 @@ describe('useNovosPeloLink', () => {
     expect(ids(result.current.novos)).toEqual(['a1', 'a2']);
   });
 
-  it('ver(id) tira o agendamento da lista e grava em vistos', async () => {
+  it('ver tira o agendamento da lista e grava em vistos', async () => {
     gravar('corte-novos', CORTE);
     m.listNovosPeloLink.mockResolvedValue([ANA, BIA]);
     const { result } = renderHook(() => useNovosPeloLink());
     await esvaziar();
-    act(() => result.current.ver('a1'));
+    act(() => result.current.ver(ANA));
     expect(ids(result.current.novos)).toEqual(['a2']);
     expect(ler('vistos')?.valor).toEqual(['a1']);
     expect(ler('corte-novos')?.valor).toBe(CORTE);
@@ -88,21 +88,47 @@ describe('useNovosPeloLink', () => {
     m.listNovosPeloLink.mockResolvedValue([ANA, BIA]);
     const { result } = renderHook(() => useNovosPeloLink());
     await esvaziar();
-    act(() => result.current.ver('a1'));
-    act(() => result.current.ver('a2'));
+    act(() => result.current.ver(ANA));
+    act(() => result.current.ver(BIA));
     expect(result.current.novos).toEqual([]);
     expect(ler('corte-novos')?.valor).toBe(BIA.criado_em);
     expect(ler('vistos')?.valor).toEqual([]);
   });
 
-  it('ver um id que não é novo não muda nada', async () => {
+  it('ver um agendamento que não é novo não muda nada', async () => {
     gravar('corte-novos', CORTE);
     m.listNovosPeloLink.mockResolvedValue([ANA]);
     const { result } = renderHook(() => useNovosPeloLink());
     await esvaziar();
-    act(() => result.current.ver('outro'));
+    act(() => result.current.ver({ ...ANA, id: 'outro', origem: 'dono' }));
     expect(ids(result.current.novos)).toEqual(['a1']);
     expect(ler('vistos')).toBeNull();
+  });
+
+  it('abrir um novo que a busca de novos ainda não trouxe vale: a busca seguinte não o lista', async () => {
+    gravar('corte-novos', CORTE);
+    m.listNovosPeloLink.mockResolvedValue([]);
+    const { result } = renderHook(() => useNovosPeloLink());
+    await esvaziar();
+    act(() => result.current.ver(CAIO));
+    expect(ler('vistos')?.valor).toEqual(['a3']);
+    m.listNovosPeloLink.mockResolvedValue([CAIO]);
+    await act(() => result.current.buscar());
+    expect(result.current.novos).toEqual([]);
+  });
+
+  it('"Entendi" antes da busca trazer um agendamento já aberto não o devolve como novo', async () => {
+    gravar('corte-novos', CORTE);
+    m.listNovosPeloLink.mockResolvedValue([ANA]);
+    const { result } = renderHook(() => useNovosPeloLink());
+    await esvaziar();
+    act(() => result.current.ver(CAIO)); // a semana mostrou o CAIO antes da busca de novos
+    act(() => result.current.verTodos()); // corte anda até a ANA; o CAIO é mais novo e fica em vistos
+    expect(ler('corte-novos')?.valor).toBe(ANA.criado_em);
+    expect(ler('vistos')?.valor).toEqual(['a3']);
+    m.listNovosPeloLink.mockResolvedValue([CAIO]);
+    await act(() => result.current.buscar());
+    expect(result.current.novos).toEqual([]);
   });
 
   it('verTodos zera a lista', async () => {

@@ -12,8 +12,8 @@ export interface NovosPeloLink {
   novos: AgendamentoCompleto[];
   /** Ids que chegaram na última busca e não estavam em nenhuma busca anterior desta tela. */
   chegaramAgora: Set<string>;
-  /** O dono abriu (ou mudou o status de) este agendamento. */
-  ver: (id: string) => void;
+  /** O dono abriu (ou mudou o status de) este agendamento; vale mesmo antes da busca de novos o trazer. */
+  ver: (a: AgendamentoCompleto) => void;
   /** "Entendi": todos os novos ficam vistos. */
   verTodos: () => void;
   buscar: () => Promise<void>;
@@ -75,13 +75,17 @@ export function useNovosPeloLink(): NovosPeloLink {
   }, [mudar]);
 
   const marcar = useCallback(
-    (escolher: (novos: AgendamentoCompleto[]) => string[]) => {
+    (escolher: (novos: AgendamentoCompleto[]) => AgendamentoCompleto[]) => {
       const agora = new Date();
       const novos = filtrar(ref.current, agora);
-      const ids = escolher(novos).filter((id) => novos.some((a) => a.id === id));
-      if (ids.length === 0) return;
+      // vale se está entre os novos, ou se o próprio agendamento é novo (a busca de novos pode estar atrasada)
+      const vistosAgora = escolher(novos)
+        .map((a) => novos.find((n) => n.id === a.id) ?? a)
+        .filter((a) => ehNovo(a, { ...ref.current, agora }));
+      if (vistosAgora.length === 0) return;
+      const ids = new Set(vistosAgora.map((a) => a.id));
       mudar((e) => {
-        const s = aposVer(e, ids, novos.filter((a) => !ids.includes(a.id)), e.buscados, agora);
+        const s = aposVer(e, vistosAgora, novos.filter((a) => !ids.has(a.id)), e.buscados, agora);
         gravar('corte-novos', s.corte);
         gravar('vistos', s.vistos);
         return { ...e, ...s };
@@ -89,8 +93,8 @@ export function useNovosPeloLink(): NovosPeloLink {
     },
     [mudar],
   );
-  const ver = useCallback((id: string) => marcar(() => [id]), [marcar]);
-  const verTodos = useCallback(() => marcar((novos) => novos.map((a) => a.id)), [marcar]);
+  const ver = useCallback((a: AgendamentoCompleto) => marcar(() => [a]), [marcar]);
+  const verTodos = useCallback(() => marcar((novos) => novos), [marcar]);
 
   useEffect(() => {
     void buscar();
