@@ -6,6 +6,7 @@ import { dataLocal, horaLocal } from '../lib/slots';
 import { waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto, Cliente, Status } from '../types';
 import { useConfig } from './contexto';
+import { IconeWhatsApp } from './icones';
 
 const STATUS: Record<Status, string> = {
   marcado: 'Marcado',
@@ -39,13 +40,13 @@ export default function Clientes() {
   if (aberto) {
     return (
       <div className="clientes">
-        <button type="button" onClick={() => setAberto(null)}>
+        <button type="button" className="texto" onClick={() => setAberto(null)}>
           ‹ Clientes
         </button>
         <h4>{aberto.nome}</h4>
         <p>
           <a className="botao" href={waLink(aberto.telefone, '')} target="_blank" rel="noreferrer">
-            WhatsApp
+            <IconeWhatsApp /> WhatsApp
           </a>
         </p>
         {erro && <p role="alert">Não foi possível carregar o histórico.</p>}
@@ -67,8 +68,7 @@ export default function Clientes() {
 
   return (
     <div className="clientes">
-      <h3>Clientes</h3>
-      <label>
+      <label className="campo-linha">
         Buscar
         <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome ou telefone" />
       </label>

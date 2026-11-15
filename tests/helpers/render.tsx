@@ -10,7 +10,7 @@ import { CONFIG_TESTE } from './config';
 export function renderComConfig(ui: ReactElement, config: Config = CONFIG_TESTE) {
   const recarregar = vi.fn(async () => {});
   const r = render(
-    <ConfigContext.Provider value={{ config, recarregar }}>
+    <ConfigContext.Provider value={{ config, recarregar, semConexao: false }}>
       <MemoryRouter>{ui}</MemoryRouter>
     </ConfigContext.Provider>,
   );

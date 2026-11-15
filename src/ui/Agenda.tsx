@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { listAgendamentos, listNovosPeloLink } from '../data/agendamentos';
-import { criarExtra, fecharHorario, listAjustes, removerAjuste } from '../data/ajustes';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { criarExtra, fecharHorario, removerAjuste } from '../data/ajustes';
 import { listServicos } from '../data/servicos';
 import { supabase } from '../data/supabase';
-import { abreviaDia, dataLocal, freeSlots, gerarHorarios, horaLocal, instanteLocal, somarDias } from '../lib/slots';
-import type { AgendamentoCompleto, HorarioAjuste, Servico } from '../types';
+import { gravar, ler } from '../lib/cache';
+import { abreviaDia, dataLocal, freeSlots, gerarHorarios, horaLocal, instanteLocal, nomeDiaExtenso, somarDias } from '../lib/slots';
+import type { AgendamentoCompleto, Servico } from '../types';
 import { useConfig } from './contexto';
 import BackupBanner from './BackupBanner';
 import CabecalhoAgenda from './CabecalhoAgenda';
@@ -12,14 +12,23 @@ import CartaoAmanha from './CartaoAmanha';
 import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
 import Painel from './Painel';
+import { IconeFaltou, IconeMais, IconeX } from './icones';
 import ResumoLateral from './ResumoLateral';
-import { useTelaLarga } from './animacao';
+import { usePrefereMenosMovimento, useTelaLarga } from './animacao';
 import Esqueleto from './Esqueleto';
 import { agruparLivres, type Item } from './semana';
-import { nomeDivergente } from '../lib/nomes';
-import SeloStatus from './SeloStatus';
-import { IconeDireita, IconeEsquerda, IconeMais } from './icones';
+import BotaoMais from './BotaoMais';
+import Chuva from './Chuva';
+import DiaVazio from './DiaVazio';
+import FaixaSemana from './FaixaSemana';
+import LinhaDoTempo, { type ItemLinha } from './LinhaDoTempo';
+import { useAgora } from './LinhaAgora';
 import { useAoVoltar } from './useAoVoltar';
+import { useAgendaSemana } from './useAgendaSemana';
+import { useNovosPeloLink } from './useNovosPeloLink';
+import FaixaSemConexao from './FaixaSemConexao';
+import { AnuncioNovos, NotaNovosFora } from './NovosNaAgenda';
+import { diasDaSemana, segundaDe } from '../lib/semanaCalendario';
 
 type EstadoPainel =
   | { tipo: 'novo'; data: string; hora: string }
@@ -39,114 +48,140 @@ function chaveDoPainel(p: Exclude<EstadoPainel, null>): string | null {
   return null;
 }
 
+/**
+ * Identifica o conteúdo do painel. Vai como `key`: o painel continua montado durante a saída, e abrir
+ * outro item nesse meio-tempo (ou trocar de item com o painel lateral aberto) não reaproveita o estado.
+ */
+function chaveDoConteudo(p: Exclude<EstadoPainel, null>): string {
+  switch (p.tipo) {
+    case 'novo':
+    case 'livre':
+      return `${p.tipo}:${p.data}:${p.hora}`;
+    case 'detalhes':
+    case 'editar':
+      return `${p.tipo}:${p.agendamento.id}`;
+    case 'fechado':
+      return `fechado:${p.ajusteId}`;
+    case 'extra':
+      return 'extra';
+  }
+}
+
 const ddmm = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
-const CHAVE_VISITA = 'agenda:ultimaVisita';
 
 export default function Agenda() {
-  const { config } = useConfig();
+  const { config, recarregar: recarregarConfig, semConexao: configSemConexao } = useConfig();
   const hoje = dataLocal(new Date(), config.fuso);
   const [modo, setModo] = useState<'dia' | 'semana'>('dia');
-  const [inicio, setInicio] = useState(hoje);
-  const [agendamentos, setAgendamentos] = useState<AgendamentoCompleto[] | null>(null);
-  // para onde a grade desliza ao trocar de dia/semana (null: sem deslize)
-  const [direcao, setDirecao] = useState<'esq' | 'dir' | null>(null);
+  const [diaSelecionado, setDiaSelecionado] = useState(hoje);
+  // a semana do calendário (seg–dom) do dia escolhido; o hook sempre busca a semana inteira
+  const segunda = segundaDe(diaSelecionado);
+  const {
+    agendamentos,
+    ajustes,
+    atualizando,
+    salvoEm,
+    semConexao,
+    erro: erroAgenda,
+    recarregar: carregar,
+  } = useAgendaSemana(segunda);
+  // como a grade entra: desliza para o lado do dia escolhido, ou fade ao trocar dia ↔ semana
+  const [transicao, setTransicao] = useState<'esq' | 'dir' | 'modo' | null>(null);
+  const menosMovimento = usePrefereMenosMovimento();
   // a cascata dos horários só acontece na primeira vez que a grade aparece
   const primeiraCarga = useRef(true);
   useEffect(() => {
     if (agendamentos) primeiraCarga.current = false;
   }, [agendamentos]);
-  function andar(passo: -1 | 1) {
-    setDirecao(passo < 0 ? 'esq' : 'dir');
-    setInicio((d) => somarDias(d, passo * dias));
+  /** Vai para um dia; a linha do tempo desliza para o lado de onde ele está. */
+  function irPara(d: string) {
+    setTransicao(d < diaSelecionado ? 'esq' : d > diaSelecionado ? 'dir' : null);
+    setDiaSelecionado(d);
   }
-  const [ajustes, setAjustes] = useState<HorarioAjuste[]>([]);
-  const [servicos, setServicos] = useState<Servico[]>([]);
+  /** Tocar num dia (faixa, nota dos novos): no modo dia desliza; da semana, volta ao modo dia. */
+  function escolherDia(d: string) {
+    if (modo === 'dia') return irPara(d);
+    setDiaSelecionado(d);
+    trocarModo('dia');
+  }
+  // as setas da faixa andam uma semana e mantêm o dia da semana escolhido (quinta → quinta)
+  const andarSemana = (passo: -1 | 1) => irPara(somarDias(diaSelecionado, passo * 7));
+  function trocarModo(m: 'dia' | 'semana') {
+    if (m === modo) return;
+    setTransicao('modo');
+    setModo(m);
+  }
+  // os serviços guardados aparecem na hora (e servem sem conexão); a busca atualiza por baixo
+  const [servicos, setServicos] = useState<Servico[]>(() => {
+    const guardados = ler<Servico[]>('servicos')?.valor;
+    return Array.isArray(guardados) ? guardados : [];
+  });
+  const temServicosGuardados = useRef(Array.isArray(ler<Servico[]>('servicos')?.valor));
   const [painel, setPainel] = useState<EstadoPainel>(null);
-  const [erro, setErro] = useState(false);
+  const [erroServicos, setErroServicos] = useState(false);
+  const erro = erroAgenda || erroServicos;
 
-  const [novos, setNovos] = useState<AgendamentoCompleto[]>([]);
   const larga = useTelaLarga();
   // muda quando a agenda grava algo: o resumo lateral recarrega o próximo cliente
   const [versao, setVersao] = useState(0);
   // o resto da tela fica inerte só quando o painel é uma janela por cima (celular e telas médias)
   const modal = painel !== null && !larga;
   // na tela larga, o item aberto no painel lateral fica destacado na grade
-  const atual = (chave: string) => larga && painel !== null && chaveDoPainel(painel) === chave;
-  const sel = (chave: string) => (atual(chave) ? ' selecionado' : '');
+  const selecionado = larga && painel !== null ? chaveDoPainel(painel) : null;
 
-  // agendamentos que chegaram pelo link desde a última vez que o dono olhou (neste aparelho)
-  const buscarNovos = useCallback(() => {
-    let ultima: string | null = null;
-    try {
-      ultima = localStorage.getItem(CHAVE_VISITA);
-      if (!ultima) localStorage.setItem(CHAVE_VISITA, new Date().toISOString());
-    } catch {
-      return; // sem armazenamento (navegação privada): sem aviso
-    }
-    if (!ultima) return;
-    listNovosPeloLink(supabase, ultima).then(setNovos, () => setNovos([]));
-  }, []);
-
+  // agendamentos novos pelo link, vistos por agendamento (busca a cada 30 s e ao voltar, como a semana)
+  const { novos, chegaramAgora, ver, verTodos, buscar: buscarNovos } = useNovosPeloLink();
+  const idsNovos = useMemo(() => new Set(novos.map((a) => a.id)), [novos]);
+  const diasComNovo = useMemo(() => new Set(novos.map((a) => dataLocal(new Date(a.inicio), config.fuso))), [novos, config.fuso]);
+  // trocou de semana: busca os novos junto com a semana nova (o hook já busca ao montar)
+  const semanaAnterior = useRef(segunda);
   useEffect(() => {
-    buscarNovos();
-  }, [buscarNovos]);
+    if (semanaAnterior.current === segunda) return;
+    semanaAnterior.current = segunda;
+    void buscarNovos();
+  }, [segunda, buscarNovos]);
 
-  function marcarVisto() {
-    // o criado_em mais recente mostrado (relógio do servidor): o que chegar depois ainda aparece
-    const maisRecente = novos.reduce(
-      (max, a) => (new Date(a.criado_em).getTime() > new Date(max).getTime() ? a.criado_em : max),
-      novos[0]?.criado_em ?? new Date().toISOString(),
+  const ate = somarDias(segunda, 6);
+
+  const carregarServicos = useCallback(() => {
+    setErroServicos(false);
+    listServicos(supabase).then(
+      (lista) => {
+        setServicos(lista);
+        gravar('servicos', lista);
+        temServicosGuardados.current = true;
+      },
+      // com serviços guardados, a falha não é erro: a faixa "sem conexão" da semana já avisa
+      () => setErroServicos(!temServicosGuardados.current),
     );
-    try {
-      localStorage.setItem(CHAVE_VISITA, maisRecente);
-    } catch {
-      /* sem armazenamento: só esconde */
-    }
-    setNovos([]);
-  }
-
-  const dias = modo === 'dia' ? 1 : 7;
-  const ate = somarDias(inicio, dias - 1);
-
-  const carregar = useCallback(async () => {
-    setErro(false);
-    try {
-      const [ags, ajs] = await Promise.all([listAgendamentos(supabase, inicio, ate), listAjustes(supabase, inicio, ate)]);
-      setAjustes(ajs);
-      setAgendamentos(ags);
-    } catch {
-      setErro(true);
-    }
-  }, [inicio, ate]);
-
-  useEffect(() => {
-    void carregar();
-  }, [carregar]);
-
-  useEffect(() => {
-    listServicos(supabase).then(setServicos, () => setErro(true));
   }, []);
 
-  // ao reabrir o app: se virou o dia e a tela estava em "hoje", vai para o novo hoje; e recarrega
+  useEffect(() => {
+    carregarServicos();
+  }, [carregarServicos]);
+
+  // ao reabrir o app ou na virada de cada minuto (o app aberto passando da meia-noite): se virou o dia e a
+  // tela estava em "hoje", vai para o novo hoje (talvez numa semana nova).
+  // A agenda em si e os novos pelo link são buscados de novo pelos seus hooks.
   const voltas = useAoVoltar();
+  const minuto = useAgora(true);
   const hojeAnterior = useRef(hoje);
   useEffect(() => {
-    if (voltas === 0) return;
     const novoHoje = dataLocal(new Date(), config.fuso);
     if (novoHoje !== hojeAnterior.current) {
       const antigo = hojeAnterior.current;
       hojeAnterior.current = novoHoje;
-      setInicio((atual) => (atual === antigo ? novoHoje : atual));
+      setDiaSelecionado((atual) => (atual === antigo ? novoHoje : atual));
     }
-    void carregar();
-    buscarNovos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voltas]);
+  }, [voltas, minuto]);
 
-  const porDia = useMemo(() => {
+  // a semana inteira (seg–dom); o modo dia mostra só o dia escolhido
+  const { porDia, comExpediente } = useMemo(() => {
     const mapa = new Map<string, Item[]>();
-    for (let d = inicio; d <= ate; d = somarDias(d, 1)) mapa.set(d, []);
-    if (!agendamentos) return mapa;
+    const comExpediente = new Set<string>();
+    for (const d of diasDaSemana(segunda)) mapa.set(d, []);
+    if (!agendamentos) return { porDia: mapa, comExpediente };
     const visiveis = agendamentos.filter((a) => a.status !== 'cancelado');
     for (const a of visiveis) {
       const ini = new Date(a.inicio);
@@ -156,14 +191,15 @@ export default function Agenda() {
       config: { ...config, antecedencia_min: 0 },
       agendamentos: visiveis,
       ajustes,
-      de: inicio,
+      de: segunda,
       ate,
       agora: new Date(),
     });
     for (const s of livres) mapa.get(s.data)?.push({ tipo: 'livre', hora: s.hora });
     const passo = config.passo_min * 60_000;
     const fechados = ajustes.filter((a) => a.tipo === 'fechado');
-    for (const h of gerarHorarios({ config, ajustes, de: inicio, ate })) {
+    for (const h of gerarHorarios({ config, ajustes, de: segunda, ate })) {
+      comExpediente.add(h.data);
       if (!h.fechado) continue;
       const ini = h.inicio.getTime();
       const ajuste = fechados.find((f) => {
@@ -173,8 +209,13 @@ export default function Agenda() {
       if (ajuste) mapa.get(h.data)?.push({ tipo: 'fechado', hora: h.hora, ajusteId: ajuste.id });
     }
     for (const itens of mapa.values()) itens.sort((x, y) => x.hora.localeCompare(y.hora));
-    return mapa;
-  }, [agendamentos, ajustes, config, inicio, ate]);
+    return { porDia: mapa, comExpediente };
+  }, [agendamentos, ajustes, config, segunda, ate]);
+  // quantos clientes cada dia tem, para a bolinha e o nome da faixa
+  const contagem = useMemo(
+    () => Object.fromEntries([...porDia].map(([d, itens]) => [d, itens.filter((i) => i.tipo === 'agendamento').length])),
+    [porDia],
+  );
 
   /** O extra que sozinho cria este horário (fora do expediente); undefined se o horário é do expediente. */
   function extraQueCria(data: string, hora: string): string | undefined {
@@ -188,6 +229,25 @@ export default function Agenda() {
   const [erroAjuste, setErroAjuste] = useState<string | null>(null);
   const [extraData, setExtraData] = useState(hoje);
   const [extraHora, setExtraHora] = useState('');
+
+  /** Abre o horário extra já no dia que está na tela. */
+  function abrirExtra(data = diaSelecionado) {
+    setExtraData(data);
+    setPainel({ tipo: 'extra' });
+  }
+
+  /** Tocar numa linha da linha do tempo abre o painel daquele item. */
+  function abrirItem(data: string, item: ItemLinha) {
+    if (item.tipo === 'agendamento') {
+      ver(item.agendamento);
+      setPainel({ tipo: 'detalhes', agendamento: item.agendamento });
+    } else if (item.tipo === 'fechado') {
+      setPainel({ tipo: 'fechado', data, hora: item.hora, ajusteId: item.ajusteId });
+    } else {
+      const hora = item.tipo === 'livres' ? item.de : item.hora;
+      setPainel({ tipo: 'livre', data, hora, extraId: extraQueCria(data, hora) });
+    }
+  }
 
   async function ajustar(acao: () => Promise<void>) {
     setErroAjuste(null);
@@ -203,6 +263,7 @@ export default function Agenda() {
     setVersao((v) => v + 1);
     setPainel(null);
     void carregar();
+    void buscarNovos();
   }
 
   // durante a animação de saída o painel já é null: continua mostrando o último conteúdo
@@ -232,58 +293,60 @@ export default function Agenda() {
 
     if (p.tipo === 'livre')
       return (
-        <>
-          <h3>
+        <div className="painel-conteudo">
+          <h3 className="painel-titulo">
             {abreviaDia(p.data)} {ddmm(p.data)} às {p.hora}
           </h3>
-          <div className="linha">
-            <button type="button" className="primario" onClick={() => setPainel({ tipo: 'novo', data: p.data, hora: p.hora })}>
-              Marcar cliente
-            </button>
-            {p.extraId ? (
-              <button type="button" onClick={() => ajustar(() => removerAjuste(supabase, p.extraId!))}>
-                Remover horário extra
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(p.data, p.hora, config.fuso).toISOString()))}
-              >
-                Fechar este horário
-              </button>
-            )}
-            <button type="button" onClick={() => setPainel(null)}>
-              Voltar
-            </button>
-          </div>
+          <p className="painel-resumo">{p.extraId ? 'Horário extra, livre' : 'Horário livre'}</p>
+          <button type="button" className="primario larga" onClick={() => setPainel({ tipo: 'novo', data: p.data, hora: p.hora })}>
+            <IconeMais /> Marcar cliente
+          </button>
+          <ul className="acoes">
+            <li>
+              {p.extraId ? (
+                <button type="button" className="acao-linha" onClick={() => ajustar(() => removerAjuste(supabase, p.extraId!))}>
+                  <IconeX /> Remover horário extra
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="acao-linha"
+                  onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(p.data, p.hora, config.fuso).toISOString()))}
+                >
+                  <IconeFaltou /> Fechar este horário
+                </button>
+              )}
+            </li>
+          </ul>
           {erroAjuste && <p role="alert">{erroAjuste}</p>}
-        </>
+          <button type="button" className="texto fechar-texto" onClick={() => setPainel(null)}>
+            Voltar
+          </button>
+        </div>
       );
 
     if (p.tipo === 'fechado')
       return (
-        <>
-          <h3>
+        <div className="painel-conteudo">
+          <h3 className="painel-titulo">
             {abreviaDia(p.data)} {ddmm(p.data)} às {p.hora} — fechado
           </h3>
-          <p className="sutil">Este horário não aparece no link de agendamento.</p>
-          <div className="linha">
-            <button type="button" className="primario" onClick={() => ajustar(() => removerAjuste(supabase, p.ajusteId))}>
-              Reabrir
-            </button>
-            <button type="button" onClick={() => setPainel(null)}>
-              Voltar
-            </button>
-          </div>
+          <p className="painel-resumo">Este horário não aparece no link de agendamento.</p>
+          <button type="button" className="primario larga" onClick={() => ajustar(() => removerAjuste(supabase, p.ajusteId))}>
+            Reabrir
+          </button>
           {erroAjuste && <p role="alert">{erroAjuste}</p>}
-        </>
+          <button type="button" className="texto fechar-texto" onClick={() => setPainel(null)}>
+            Voltar
+          </button>
+        </div>
       );
 
     if (p.tipo === 'extra')
       return (
-        <>
-          <h3>Abrir horário extra</h3>
-          <p className="sutil">Um horário fora do expediente, que aparece no link.</p>
+        <div className="painel-conteudo">
+          <h3 className="painel-titulo">Abrir horário extra</h3>
+          <p className="painel-resumo">Um horário fora do expediente, que aparece no link.</p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -301,17 +364,17 @@ export default function Agenda() {
                 <input type="time" step={300} value={extraHora} onChange={(e) => setExtraHora(e.target.value)} />
               </label>
             </div>
-            <div className="linha">
-              <button type="submit" className="primario">
+            {erroAjuste && <p role="alert">{erroAjuste}</p>}
+            <div className="botoes-painel">
+              <button type="submit" className="primario larga">
                 Abrir horário
               </button>
-              <button type="button" onClick={() => setPainel(null)}>
+              <button type="button" className="texto" onClick={() => setPainel(null)}>
                 Voltar
               </button>
             </div>
           </form>
-          {erroAjuste && <p role="alert">{erroAjuste}</p>}
-        </>
+        </div>
       );
 
     if (p.tipo === 'detalhes')
@@ -319,7 +382,10 @@ export default function Agenda() {
         <DetalhesAgendamento
           agendamento={p.agendamento}
           onEditar={() => setPainel({ tipo: 'editar', agendamento: p.agendamento })}
-          onMudou={depoisDeSalvar}
+          onMudou={() => {
+            ver(p.agendamento);
+            depoisDeSalvar();
+          }}
           onFechar={() => setPainel(null)}
         />
       );
@@ -327,164 +393,152 @@ export default function Agenda() {
     return null;
   }
 
-  const avisoNovos =
-    novos.length > 0 ? (
-        <aside className="aviso-novos" role="status">
-          <strong>
-            {novos.length === 1 ? '1 agendamento novo pelo link' : `${novos.length} agendamentos novos pelo link`}
-          </strong>
-          <ul>
-            {novos.map((a) => {
-              const ini = new Date(a.inicio);
-              const d = dataLocal(ini, config.fuso);
-              return (
-                <li key={a.id}>
-                  {abreviaDia(d)} {ddmm(d)} {horaLocal(ini, config.fuso)} · {a.cliente.nome}
-                </li>
-              );
-            })}
-          </ul>
-          <button type="button" onClick={marcarVisto}>
-            Entendi
-          </button>
-        </aside>
-    ) : null;
+  // com menos movimento, nada anima: a grade já aparece no lugar
+  const classeTransicao = menosMovimento
+    ? ''
+    : `${transicao === 'modo' ? ' troca-modo' : transicao ? ` entra-${transicao}` : ''}${primeiraCarga.current ? ' cascata' : ''}`;
+  const ehHoje = modo === 'dia' ? diaSelecionado === hoje : segunda === segundaDe(hoje);
+  const itensDoDia = porDia.get(diaSelecionado) ?? [];
+
+  /** O dia escolhido: fechado, dia livre (sem agendamento) ou a linha do tempo. */
+  function dia() {
+    if (itensDoDia.length === 0 && !comExpediente.has(diaSelecionado))
+      return <DiaVazio fechado hoje={diaSelecionado === hoje} onExtra={() => abrirExtra(diaSelecionado)} />;
+    const semAgendamento = !itensDoDia.some((i) => i.tipo === 'agendamento');
+    return (
+      <>
+        {semAgendamento && itensDoDia.some((i) => i.tipo === 'livre') && <DiaVazio fechado={false} onExtra={() => abrirExtra()} />}
+        {itensDoDia.length === 0 ? (
+          <p className="sutil">nenhum cliente</p>
+        ) : (
+          <LinhaDoTempo
+            data={diaSelecionado}
+            itens={itensDoDia}
+            modo="dia"
+            novos={idsNovos}
+            chegaram={chegaramAgora}
+            selecionado={selecionado}
+            onItem={(item) => abrirItem(diaSelecionado, item)}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <main className="agenda">
-      <div className="agenda-fundo" inert={modal} aria-hidden={modal || undefined}>
-        <CabecalhoAgenda />
-        <BackupBanner />
-        <div className="linha controles">
-          <div role="group" aria-label="Visão" className="segmentado">
-            <button type="button" aria-pressed={modo === 'dia'} onClick={() => { setDirecao(null); setModo('dia'); }}>
-              Dia
-            </button>
-            <button type="button" aria-pressed={modo === 'semana'} onClick={() => { setDirecao(null); setModo('semana'); }}>
-              Semana
-            </button>
-          </div>
-          <button type="button" className="red" aria-label="Anterior" onClick={() => andar(-1)}>
-            <IconeEsquerda />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDirecao(hoje < inicio ? 'esq' : hoje > inicio ? 'dir' : null);
-              setInicio(hoje);
-            }}
-          >
-            Hoje
-          </button>
-          <button type="button" className="red" aria-label="Próximo" onClick={() => andar(1)}>
-            <IconeDireita />
-          </button>
-          <button
-            type="button"
-            className="primario"
-            onClick={() => setPainel({ tipo: 'novo', data: inicio, hora: '' })}
-          >
-            + Novo
-          </button>
-          <button type="button" onClick={() => setPainel({ tipo: 'extra' })}>
-            + Horário extra
-          </button>
-        </div>
-
-        {!larga && avisoNovos}
-
-        {!larga && <CartaoAmanha />}
-      </div>
-
+      <Chuva altura={larga ? 280 : 230} />
+      <AnuncioNovos novos={novos} chegaram={chegaramAgora} fuso={config.fuso} />
       <div className="agenda-layout">
-        <div className="agenda-grade" inert={modal} aria-hidden={modal || undefined}>
-        {erro && (
-          <p role="alert">
-            Não foi possível carregar a agenda.{' '}
-            <button type="button" onClick={carregar}>
-              Tentar de novo
-            </button>
-          </p>
-        )}
-        {!agendamentos && !erro && <Esqueleto linhas={6} />}
-
-        {agendamentos && (
-          <div
-            key={`${modo}-${inicio}`}
-            className={`dias-grade${modo === 'semana' ? ' semana' : ''}${direcao ? ` entra-${direcao}` : ''}${primeiraCarga.current ? ' cascata' : ''}`}
-          >
-            {[...porDia].map(([data, itens]) => (
-              <section key={data} className="dia">
-                <h3>
-                  {abreviaDia(data)} {ddmm(data)}
-                </h3>
-                {itens.length === 0 && <p className="sutil">{modo === 'semana' ? 'Fechado' : 'Sem horários.'}</p>}
-                <ul className="grade">
-                  {(modo === 'semana' ? agruparLivres(itens, config.passo_min) : itens).map((item, i) => (
-                    <li key={item.tipo === 'agendamento' ? item.agendamento.id : `${item.tipo}-${item.tipo === 'livres' ? item.de : item.hora}`} style={{ '--i': Math.min(i, 10) } as CSSProperties}>
-                      {item.tipo === 'agendamento' ? (
-                        <button
-                          type="button"
-                          className={`ag ${item.agendamento.status}${sel(`ag:${item.agendamento.id}`)}`}
-                          aria-current={atual(`ag:${item.agendamento.id}`) || undefined}
-                          onClick={() => setPainel({ tipo: 'detalhes', agendamento: item.agendamento })}
-                        >
-                          <span className="h">{item.hora}</span>{' '}
-                          <span className="quem">
-                            <span className="n">{item.agendamento.cliente.nome}</span>{' '}
-                            <span className="s">· {item.agendamento.servico?.nome ?? '—'}</span>
-                            {item.agendamento.origem === 'link' && <span className="etiqueta"> pelo link</span>}
-                            {nomeDivergente(item.agendamento.cliente.nome, item.agendamento.nome_informado) && (
-                              <span className="etiqueta alerta">
-                                {' '}digitou: {nomeDivergente(item.agendamento.cliente.nome, item.agendamento.nome_informado)}
-                              </span>
-                            )}
-                          </span>{' '}
-                          <SeloStatus status={item.agendamento.status} />
-                        </button>
-                      ) : item.tipo === 'fechado' ? (
-                        <button
-                          type="button"
-                          className={`fechado${sel(`h:${data}:${item.hora}`)}`}
-                          aria-current={atual(`h:${data}:${item.hora}`) || undefined}
-                          onClick={() => setPainel({ tipo: 'fechado', data, hora: item.hora, ajusteId: item.ajusteId })}
-                        >
-                          <s>{item.hora}</s> fechado
-                        </button>
-                      ) : item.tipo === 'livres' ? (
-                        <button
-                          type="button"
-                          className={`livre grupo${sel(`h:${data}:${item.de}`)}`}
-                          aria-current={atual(`h:${data}:${item.de}`) || undefined}
-                          aria-label={
-                            item.de === item.ate
-                              ? `Marcar ${abreviaDia(data)} ${ddmm(data)} às ${item.de}`
-                              : `Marcar ${abreviaDia(data)} ${ddmm(data)} entre ${item.de} e ${item.ate}`
-                          }
-                          onClick={() => setPainel({ tipo: 'livre', data, hora: item.de, extraId: extraQueCria(data, item.de) })}
-                        >
-                          {item.de === item.ate ? item.de : `${item.de}–${item.ate}`} livre
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className={`livre${sel(`h:${data}:${item.hora}`)}`}
-                          aria-current={atual(`h:${data}:${item.hora}`) || undefined}
-                          aria-label={`Marcar ${abreviaDia(data)} ${ddmm(data)} às ${item.hora}`}
-                          onClick={() => setPainel({ tipo: 'livre', data, hora: item.hora, extraId: extraQueCria(data, item.hora) })}
-                        >
-                          {item.hora} livre <IconeMais tamanho={18} />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
+        <div className="agenda-coluna" inert={modal} aria-hidden={modal || undefined}>
+          <CabecalhoAgenda />
+          {/* na tela larga, a lista do resumo faz esse papel */}
+          {!larga && (
+            <NotaNovosFora novos={novos} chegaram={chegaramAgora} de={segunda} ate={ate} fuso={config.fuso} onIr={escolherDia} />
+          )}
+          <div className="agenda-titulo">
+            <div className="titulo-sup">
+              <span className="negocio">{config.nome_negocio}</span>
+              <div role="group" aria-label="Visão" className="alterna">
+                <button type="button" aria-pressed={modo === 'dia'} onClick={() => trocarModo('dia')}>
+                  dia
+                </button>
+                <button type="button" aria-pressed={modo === 'semana'} onClick={() => trocarModo('semana')}>
+                  semana
+                </button>
+              </div>
+            </div>
+            <div className="titulo-dia">
+              <h1 className={modo === 'semana' ? 'semana' : undefined}>
+                {modo === 'dia' ? nomeDiaExtenso(diaSelecionado) : `${ddmm(segunda)} a ${ddmm(ate)}`}
+              </h1>
+              {!ehHoje && (
+                <button type="button" className="texto" onClick={() => irPara(hoje)}>
+                  hoje
+                </button>
+              )}
+              {atualizando && <span className="sutil atualizando">atualizando…</span>}
+            </div>
           </div>
-        )}
+          {larga && (
+            <div className="acoes-topo">
+              <button type="button" className="texto" onClick={() => setPainel({ tipo: 'novo', data: diaSelecionado, hora: '' })}>
+                + Novo
+              </button>
+              <button type="button" className="texto" onClick={() => abrirExtra()}>
+                + Horário extra
+              </button>
+            </div>
+          )}
+          <FaixaSemana
+            dias={diasDaSemana(segunda)}
+            selecionado={diaSelecionado}
+            contagem={contagem}
+            comNovo={diasComNovo}
+            onEscolher={escolherDia}
+            onSemana={andarSemana}
+          />
+
+          {(semConexao || configSemConexao) && salvoEm && (
+            <FaixaSemConexao
+              salvoEm={salvoEm}
+              onTentar={() => {
+                void carregar();
+                if (configSemConexao) void recarregarConfig();
+              }}
+            />
+          )}
+
+          {erro && (
+            <p role="alert">
+              Não foi possível carregar a agenda.{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  if (erroAgenda) void carregar();
+                  if (erroServicos) carregarServicos();
+                }}
+              >
+                Tentar de novo
+              </button>
+            </p>
+          )}
+          {!agendamentos && !erro && <Esqueleto linhas={6} />}
+
+          {agendamentos && (
+            <div
+              key={`${modo}-${modo === 'dia' ? diaSelecionado : segunda}`}
+              className={`dias-grade${modo === 'semana' ? ' semana' : ''}${classeTransicao}`}
+            >
+              {modo === 'dia'
+                ? dia()
+                : [...porDia].map(([data, itens]) => (
+                    <section key={data} className="dia">
+                      <h3>
+                        {abreviaDia(data)} {ddmm(data)}
+                      </h3>
+                      {itens.length === 0 ? (
+                        <p className="sutil">{comExpediente.has(data) ? 'nenhum cliente' : 'Fechado'}</p>
+                      ) : (
+                        <LinhaDoTempo
+                          data={data}
+                          itens={agruparLivres(itens, config.passo_min)}
+                          modo="semana"
+                          novos={idsNovos}
+                          chegaram={chegaramAgora}
+                          selecionado={selecionado}
+                          onItem={(item) => abrirItem(data, item)}
+                        />
+                      )}
+                    </section>
+                  ))}
+            </div>
+          )}
+
+          {!larga && <CartaoAmanha />}
+          <BackupBanner />
         </div>
-        {larga && painel === null && <ResumoLateral novos={avisoNovos} versao={versao} />}
+        {larga && painel === null && <ResumoLateral novos={novos} onEntendi={verTodos} versao={versao} />}
         {/* sempre aqui, nos dois modos: trocar a largura não desmonta o que está aberto */}
         <Painel
           aberto={painel !== null}
@@ -492,9 +546,14 @@ export default function Agenda() {
           rotulo={ultimoPainel.current ? ROTULOS[ultimoPainel.current.tipo] : ''}
           modo={larga ? 'lateral' : 'sobreposto'}
         >
-          {ultimoPainel.current && conteudoPainel(ultimoPainel.current)}
+          {ultimoPainel.current && <Fragment key={chaveDoConteudo(ultimoPainel.current)}>{conteudoPainel(ultimoPainel.current)}</Fragment>}
         </Painel>
       </div>
+      {!larga && (
+        <div inert={modal} aria-hidden={modal || undefined}>
+          <BotaoMais onNovo={() => setPainel({ tipo: 'novo', data: diaSelecionado, hora: '' })} onExtra={() => abrirExtra()} />
+        </div>
+      )}
     </main>
   );
 }

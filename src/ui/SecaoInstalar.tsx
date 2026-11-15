@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
-import { aoMudarInstalacao, estadoInstalacao, instalar } from '../lib/instalar';
+import { aoMudarInstalacao, estadoInstalacao, instalar, type EstadoInstalacao } from '../lib/instalar';
 
-/** Ajustes → "Tela inicial": instala o app no Android, ou explica como fazer no iPhone e nos outros navegadores. */
-export default function SecaoInstalar() {
+/** O estado de instalação, atualizado quando o navegador avisa que dá para instalar ou que instalou. */
+export function useEstadoInstalacao(): EstadoInstalacao {
   const [estado, setEstado] = useState(estadoInstalacao);
-
   useEffect(() => {
     setEstado(estadoInstalacao());
     return aoMudarInstalacao(() => setEstado(estadoInstalacao()));
   }, []);
+  return estado;
+}
+
+/** Ajustes → "Tela inicial": instala o app no Android, ou explica como fazer no iPhone e nos outros navegadores. */
+export default function SecaoInstalar() {
+  const estado = useEstadoInstalacao();
 
   return (
     <>

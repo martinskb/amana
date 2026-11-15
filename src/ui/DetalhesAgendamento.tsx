@@ -7,7 +7,7 @@ import { abreviaDia, dataLocal, horaLocal } from '../lib/slots';
 import { waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto, Status } from '../types';
 import { useConfig } from './contexto';
-import { IconeWhatsApp } from './icones';
+import { IconeCheck, IconeFaltou, IconeLapis, IconeWhatsApp, IconeX } from './icones';
 import { nomeDivergente } from '../lib/nomes';
 
 const NOMES: Record<Status, string> = {
@@ -50,6 +50,7 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
   }
   const inicio = new Date(a.inicio);
   const data = dataLocal(inicio, config.fuso);
+  const quando = `${abreviaDia(data)} ${data.slice(8, 10)}/${data.slice(5, 7)} às ${horaLocal(inicio, config.fuso)}`;
 
   async function mudar(status: Status) {
     setErro(null);
@@ -68,16 +69,15 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
   if (confirmado)
     return (
       <div className="painel-conteudo">
-        <h3>{a.cliente.nome}</h3>
+        <h3 className="painel-titulo">{a.cliente.nome}</h3>
+        <p className="painel-resumo">{quando}</p>
         <p className="sutil">Situação: {NOMES.confirmado}</p>
-        <div className="linha">
-          <a className="botao" href={waLink(a.cliente.telefone, mensagemConfirmar(dados))} target="_blank" rel="noreferrer">
-            Abrir WhatsApp
-          </a>
-          <button type="button" onClick={onMudou}>
-            Fechar
-          </button>
-        </div>
+        <a className="botao larga" href={waLink(a.cliente.telefone, mensagemConfirmar(dados))} target="_blank" rel="noreferrer">
+          <IconeWhatsApp /> Abrir WhatsApp
+        </a>
+        <button type="button" className="texto fechar-texto" onClick={onMudou}>
+          Fechar
+        </button>
       </div>
     );
 
@@ -85,28 +85,27 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
     const mensagem = mensagemCancelar(dados, linkAgendamento());
     return (
       <div className="painel-conteudo">
-        <h3>{a.cliente.nome}</h3>
-        <p>
-          {abreviaDia(data)} {data.slice(8, 10)}/{data.slice(5, 7)} às {horaLocal(inicio, config.fuso)}
-        </p>
+        <h3 className="painel-titulo">{a.cliente.nome}</h3>
+        <p className="painel-resumo">{quando}</p>
         <p className="sutil">Situação: {NOMES.cancelado}</p>
-        <div className="linha">
-          <a className="botao" href={waLink(a.cliente.telefone, mensagem)} target="_blank" rel="noreferrer">
-            Avisar no WhatsApp
-          </a>
-          <button type="button" onClick={onMudou}>
-            Fechar
-          </button>
-        </div>
+        <a className="botao larga" href={waLink(a.cliente.telefone, mensagem)} target="_blank" rel="noreferrer">
+          <IconeWhatsApp /> Avisar no WhatsApp
+        </a>
+        <button type="button" className="texto fechar-texto" onClick={onMudou}>
+          Fechar
+        </button>
       </div>
     );
   }
 
+  const minutos = Math.round((new Date(a.fim).getTime() - inicio.getTime()) / 60000);
+
   return (
     <div className="painel-conteudo">
-      <h3>{a.cliente.nome}</h3>
-      <p>
-        {abreviaDia(data)} {data.slice(8, 10)}/{data.slice(5, 7)} às {horaLocal(inicio, config.fuso)} · {a.servico?.nome ?? 'sem serviço'}
+      <h3 className="painel-titulo">{a.cliente.nome}</h3>
+      <p className="painel-resumo">
+        {quando} · {a.servico?.nome ?? 'sem serviço'}
+        {minutos > 0 && ` · ${minutos} min`}
       </p>
       <p className="sutil">Situação: {NOMES[a.status]}</p>
       {a.observacao && <p>{a.observacao}</p>}
@@ -117,25 +116,33 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
         </p>
       )}
       {erro && <p role="alert">{erro}</p>}
-      <div className="acoes">
-        {a.status === 'marcado' && (
-          <button type="button" className="primario larga" disabled={confirmando} onClick={confirmarNoWhatsApp}>
-            <IconeWhatsApp /> Confirmar no WhatsApp
+      {a.status === 'marcado' && (
+        <button type="button" className="primario larga" disabled={confirmando} onClick={confirmarNoWhatsApp}>
+          <IconeWhatsApp /> Confirmar no WhatsApp
+        </button>
+      )}
+      <ul className="acoes">
+        <li>
+          <button type="button" className="acao-linha" onClick={() => mudar('concluido')}>
+            <IconeCheck /> Concluir
           </button>
-        )}
-        <button type="button" onClick={() => mudar('concluido')}>
-          Concluir
-        </button>
-        <button type="button" onClick={() => mudar('faltou')}>
-          Faltou
-        </button>
-        <button type="button" onClick={onEditar}>
-          Editar
-        </button>
-        <a className="botao" href={waLink(a.cliente.telefone, '')} target="_blank" rel="noreferrer">
-          <IconeWhatsApp /> WhatsApp
-        </a>
-      </div>
+        </li>
+        <li>
+          <button type="button" className="acao-linha" onClick={() => mudar('faltou')}>
+            <IconeFaltou /> Faltou
+          </button>
+        </li>
+        <li>
+          <button type="button" className="acao-linha" onClick={onEditar}>
+            <IconeLapis /> Editar
+          </button>
+        </li>
+        <li>
+          <a className="acao-linha" href={waLink(a.cliente.telefone, '')} target="_blank" rel="noreferrer">
+            <IconeWhatsApp /> WhatsApp
+          </a>
+        </li>
+      </ul>
       {perguntandoCancelar ? (
         <div className="confirmar-cancelar" role="group" aria-label="Confirmar cancelamento">
           <p>Cancelar o horário de {a.cliente.nome}?</p>
@@ -149,14 +156,14 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
           </div>
         </div>
       ) : (
-        <div className="linha">
-          <button type="button" className="perigo" onClick={() => setPerguntandoCancelar(true)}>
-            Cancelar agendamento
+        <>
+          <button type="button" className="acao-linha perigo" onClick={() => setPerguntandoCancelar(true)}>
+            <IconeX /> Cancelar agendamento
           </button>
-          <button type="button" onClick={onFechar}>
+          <button type="button" className="texto fechar-texto" onClick={onFechar}>
             Fechar
           </button>
-        </div>
+        </>
       )}
     </div>
   );

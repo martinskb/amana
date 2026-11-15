@@ -5,10 +5,11 @@ import { supabase } from '../data/supabase';
 import { linkAgendamento } from '../lib/link';
 import { useConfig } from './contexto';
 import { IconeCopiar, IconeEngrenagem } from './icones';
+import MarcaAmana from './MarcaAmana';
 
 const AVISO_MS = 4000;
 
-/** Topo da agenda: nome do negócio, chave do link de agendamento, copiar o link e Ajustes. */
+/** Topo da agenda: logo à esquerda; à direita, a chave do link de agendamento, copiar o link e Ajustes. */
 export default function CabecalhoAgenda() {
   const { config, recarregar } = useConfig();
   const link = linkAgendamento();
@@ -61,25 +62,27 @@ export default function CabecalhoAgenda() {
 
   return (
     <header className="cab">
-      <span className="cab-nome">{config.nome_negocio}</span>
-      <button
-        type="button"
-        className={`chip${ligado ? '' : ' fechado'}`}
-        aria-pressed={ligado}
-        aria-label={ligado ? 'Link de agendamento aberto' : 'Link de agendamento fechado'}
-        disabled={salvando}
-        onClick={alternar}
-      >
-        <span className="ponto" aria-hidden="true" />
-        <span className="chip-texto">{ligado ? 'Link aberto' : 'Link fechado'}</span>
-      </button>
-      <button type="button" className="chip" aria-label="Copiar link" onClick={copiar}>
-        <IconeCopiar />
-        <span className="chip-texto">{copiado ? 'Copiado ✓' : 'Copiar link'}</span>
-      </button>
-      <Link to="/config" className="chip redondo" aria-label="Ajustes">
-        <IconeEngrenagem />
-      </Link>
+      <MarcaAmana tamanho={18} />
+      <div className="cab-icones">
+        <button
+          type="button"
+          className={`icone-redondo${ligado ? '' : ' fechado'}`}
+          aria-pressed={ligado}
+          aria-label={ligado ? 'Link de agendamento aberto' : 'Link de agendamento fechado'}
+          disabled={salvando}
+          onClick={alternar}
+        >
+          <span className="ponto" aria-hidden="true" />
+          <span className="so-leitor">{ligado ? 'Link aberto' : 'Link fechado'}</span>
+        </button>
+        <button type="button" className={`icone-redondo${copiado ? ' feito' : ''}`} aria-label="Copiar link" onClick={copiar}>
+          <IconeCopiar tamanho={18} />
+          <span className="so-leitor">{copiado ? 'Copiado ✓' : 'Copiar link'}</span>
+        </button>
+        <Link to="/config" className="icone-redondo" aria-label="Ajustes">
+          <IconeEngrenagem tamanho={18} />
+        </Link>
+      </div>
       {aviso && (
         <p role="status" className="cab-aviso">
           {aviso}

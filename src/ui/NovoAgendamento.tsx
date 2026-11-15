@@ -97,18 +97,18 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
   if (marcado)
     return (
       <div className="painel-conteudo">
-        <h3>Agendamento marcado</h3>
-        <p>{marcado.nome}</p>
-        <div className="linha">
+        <h3 className="painel-titulo">Agendamento marcado</h3>
+        <p className="painel-resumo">{marcado.nome}</p>
+        <div className="botoes-painel">
           <a
-            className="botao"
+            className="botao larga"
             href={waLink(marcado.telefone, mensagemConfirmar({ nome: marcado.nome, inicio: marcado.inicio, fuso: config.fuso }))}
             target="_blank"
             rel="noreferrer"
           >
             Mandar confirmação no WhatsApp
           </a>
-          <button type="button" onClick={onSalvo}>
+          <button type="button" className="texto" onClick={onSalvo}>
             Fechar
           </button>
         </div>
@@ -117,16 +117,13 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
 
   return (
     <div className="painel-conteudo">
-      <h3>{editando ? 'Editar agendamento' : 'Novo agendamento'}</h3>
+      <h3 className="painel-titulo">{agendamento ? agendamento.cliente.nome : 'Novo agendamento'}</h3>
+      {agendamento && <p className="painel-resumo">Editar agendamento</p>}
       <form onSubmit={salvar}>
-        {agendamento ? (
-          <p>
-            <strong>{agendamento.cliente.nome}</strong>
-          </p>
-        ) : cliente ? (
-          <p>
+        {agendamento ? null : cliente ? (
+          <p className="cliente-escolhido">
             <strong>{cliente.nome}</strong>{' '}
-            <button type="button" onClick={() => setCliente(null)}>
+            <button type="button" className="texto" onClick={() => setCliente(null)}>
               trocar
             </button>
           </p>
@@ -180,11 +177,11 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
           <input value={observacao} onChange={(e) => setObservacao(e.target.value)} />
         </label>
         {erro && <p role="alert">{erro}</p>}
-        <div className="linha">
-          <button type="submit" className="primario" disabled={salvando}>
+        <div className="botoes-painel">
+          <button type="submit" className="primario larga" disabled={salvando}>
             Salvar
           </button>
-          <button type="button" onClick={onFechar}>
+          <button type="button" className="texto" onClick={onFechar}>
             Voltar
           </button>
         </div>

@@ -42,7 +42,7 @@ export function BotaoBackup({ onSalvo }: { onSalvo?: () => void }) {
   return (
     <>
       {arquivo ? (
-        <button type="button" className="primario" onClick={salvar}>
+        <button type="button" className="contorno" onClick={salvar}>
           Salvar arquivo
         </button>
       ) : (
