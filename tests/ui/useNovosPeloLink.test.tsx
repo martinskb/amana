@@ -22,6 +22,7 @@ function ag(id: string, criado_em: string, inicio = '2026-11-18T13:00:00+00:00')
     observacao: null,
     origem: 'link',
     criado_em,
+    pessoa_id: 'p1',
     cliente: { nome: 'Ana', telefone: '5511911112222' },
     servico: { nome: 'Corte' },
   };

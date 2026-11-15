@@ -33,6 +33,8 @@ export interface Agendamento {
   origem: Origem;
   /** Nome digitado no link (só agendamentos pelo link); pode não bater com o cadastro do WhatsApp. */
   nome_informado?: string | null;
+  /** Quem atende. */
+  pessoa_id: string;
 }
 /** Agendamento com os dados de exibição do cliente e do serviço. */
 export interface AgendamentoCompleto extends Agendamento {
@@ -40,7 +42,10 @@ export interface AgendamentoCompleto extends Agendamento {
   servico: Pick<Servico, 'nome'> | null;
   criado_em: string;
 }
-export interface HorarioAjuste { id: string; inicio: string; tipo: 'fechado' | 'extra' }
+/** `pessoa_id` null: fechado do negócio todo. Extra sempre tem pessoa. */
+export interface HorarioAjuste { id: string; inicio: string; tipo: 'fechado' | 'extra'; pessoa_id: string | null }
+/** Quem atende. `servicos`: ids dos serviços que ela faz; `folgas`: dias de folga só dela ("YYYY-MM-DD"). */
+export interface Pessoa { id: string; nome: string | null; ativo: boolean; ordem: number; folgas: string[]; servicos: string[] }
 export type ErroPublico = 'link_fechado' | 'dados_invalidos' | 'limite' | 'horario_indisponivel' | 'servico_invalido';
 export type ResultadoPublico = { ok: true; inicio: string } | { ok: false; erro: ErroPublico };
 /** Serviço ativo no link, com os horários em que ele cabe inteiro. */
@@ -60,3 +65,4 @@ export interface HorariosPublicos {
   servicos?: ServicoPublico[];
 }
 export interface Slot { data: string; hora: string; inicio: Date } // "YYYY-MM-DD", "HH:MM"
+export interface SlotPessoa extends Slot { pessoa_id: string }

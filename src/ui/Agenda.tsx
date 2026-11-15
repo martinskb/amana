@@ -4,7 +4,7 @@ import { listServicos } from '../data/servicos';
 import { supabase } from '../data/supabase';
 import { gravar, ler } from '../lib/cache';
 import { abreviaDia, dataLocal, freeSlots, gerarHorarios, horaLocal, instanteLocal, nomeDiaExtenso, somarDias } from '../lib/slots';
-import type { AgendamentoCompleto, Servico } from '../types';
+import type { AgendamentoCompleto, Pessoa, Servico } from '../types';
 import { useConfig } from './contexto';
 import BackupBanner from './BackupBanner';
 import CabecalhoAgenda from './CabecalhoAgenda';
@@ -29,6 +29,8 @@ import { useNovosPeloLink } from './useNovosPeloLink';
 import FaixaSemConexao from './FaixaSemConexao';
 import { AnuncioNovos, NotaNovosFora } from './NovosNaAgenda';
 import { diasDaSemana, segundaDe } from '../lib/semanaCalendario';
+
+const UMA_PESSOA: Pessoa = { id: 'unica', nome: null, ativo: true, ordem: 1, folgas: [], servicos: [] };
 
 type EstadoPainel =
   | { tipo: 'novo'; data: string; hora: string }
@@ -187,10 +189,12 @@ export default function Agenda() {
       const ini = new Date(a.inicio);
       mapa.get(dataLocal(ini, config.fuso))?.push({ tipo: 'agendamento', hora: horaLocal(ini, config.fuso), agendamento: a });
     }
+    // Provisório até a agenda ter pessoas: uma pessoa só, com todos os extras e fechados do negócio.
     const livres = freeSlots({
       config: { ...config, antecedencia_min: 0 },
-      agendamentos: visiveis,
-      ajustes,
+      agendamentos: visiveis.map((a) => ({ ...a, pessoa_id: UMA_PESSOA.id })),
+      ajustes: ajustes.map((a) => ({ ...a, pessoa_id: a.tipo === 'extra' ? UMA_PESSOA.id : null })),
+      pessoas: [UMA_PESSOA],
       de: segunda,
       ate,
       agora: new Date(),

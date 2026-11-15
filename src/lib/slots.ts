@@ -1,5 +1,5 @@
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
-import type { Agendamento, Config, DiaSemana, HorarioAjuste, Slot } from '../types';
+import type { Agendamento, Config, DiaSemana, HorarioAjuste, Pessoa, Slot, SlotPessoa } from '../types';
 
 export const FUSO = 'America/Sao_Paulo';
 
@@ -40,17 +40,30 @@ function paraHora(min: number): string {
   return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 }
 
-type Ofertado = Slot & { fechado: boolean };
+export type Ofertado = Slot & { fechado: boolean };
 
 /**
  * Horários ofertados (spec v2, seção 3): blocos de `passo_min` dentro do expediente
  * (dias que não são folga) mais os extras; `fechado` quando se sobrepõe a um ajuste fechado.
  * Sem duplicata de início, em ordem. A mesma regra existe em SQL: `horarios_livres_em`.
+ *
+ * Com `pessoa`: as folgas dela somam às do negócio, só os extras dela contam e o fechado vale
+ * quando é do negócio todo (`pessoa_id` null) ou dela. Sem `pessoa`: o negócio todo (todos os
+ * extras e todos os fechados), como a grade da agenda mostra.
  */
-export function gerarHorarios(args: { config: Config; ajustes: HorarioAjuste[]; de: string; ate: string }): Ofertado[] {
-  const { config, ajustes, de, ate } = args;
+export function gerarHorarios(args: {
+  config: Config;
+  ajustes: HorarioAjuste[];
+  de: string;
+  ate: string;
+  pessoa?: Pessoa;
+}): Ofertado[] {
+  const { config, de, ate, pessoa } = args;
+  const ajustes = pessoa
+    ? args.ajustes.filter((a) => (a.tipo === 'extra' ? a.pessoa_id === pessoa.id : a.pessoa_id === null || a.pessoa_id === pessoa.id))
+    : args.ajustes;
   const passo = config.passo_min * MINUTO;
-  const folgas = new Set(config.folgas);
+  const folgas = new Set([...config.folgas, ...(pessoa?.folgas ?? [])]);
   const porInicio = new Map<number, Slot>();
 
   for (let data = de; data <= ate; data = somarDias(data, 1)) {
@@ -81,30 +94,39 @@ export function gerarHorarios(args: { config: Config; ajustes: HorarioAjuste[]; 
     });
 }
 
-/** Horários ofertados que estão livres: sem fechado, sem agendamento ativo e respeitando a antecedência. */
+/**
+ * Horários livres de cada pessoa ativa: sem fechado (do negócio ou dela), sem agendamento ativo dela e
+ * respeitando a antecedência. Em ordem de início e, no mesmo início, pela ordem da pessoa.
+ */
 export function freeSlots(args: {
   config: Config;
   agendamentos: Agendamento[];
   ajustes: HorarioAjuste[];
+  pessoas: Pessoa[];
   de: string;
   ate: string;
   agora: Date;
-}): Slot[] {
-  const { config, agendamentos, ajustes, de, ate, agora } = args;
+}): SlotPessoa[] {
+  const { config, agendamentos, ajustes, pessoas, de, ate, agora } = args;
   const passo = config.passo_min * MINUTO;
-  const ocupados = agendamentos
-    .filter((a) => ATIVOS.has(a.status))
-    .map((a) => [new Date(a.inicio).getTime(), new Date(a.fim).getTime()] as const);
   const limite = agora.getTime() + config.antecedencia_min * MINUTO;
+  const ativas = pessoas.filter((p) => p.ativo).sort((a, b) => a.ordem - b.ordem);
 
-  return gerarHorarios({ config, ajustes, de, ate })
-    .filter((h) => !h.fechado)
-    .filter((h) => {
-      const ini = h.inicio.getTime();
-      // intervalos meio-abertos: encostar no fim de outro não é conflito
-      return ini >= limite && !ocupados.some(([oi, of]) => ini < of && oi < ini + passo);
-    })
-    .map(({ data, hora, inicio }) => ({ data, hora, inicio }));
+  const porPessoa = ativas.map((pessoa) => {
+    const ocupados = agendamentos
+      .filter((a) => ATIVOS.has(a.status) && a.pessoa_id === pessoa.id)
+      .map((a) => [new Date(a.inicio).getTime(), new Date(a.fim).getTime()] as const);
+    return gerarHorarios({ config, ajustes, de, ate, pessoa })
+      .filter((h) => !h.fechado)
+      .filter((h) => {
+        const ini = h.inicio.getTime();
+        // intervalos meio-abertos: encostar no fim de outro não é conflito
+        return ini >= limite && !ocupados.some(([oi, of]) => ini < of && oi < ini + passo);
+      })
+      .map(({ data, hora, inicio }) => ({ data, hora, inicio, pessoa_id: pessoa.id }));
+  });
+  // ordenação estável: no mesmo início, fica a ordem das pessoas
+  return porPessoa.flat().sort((x, y) => x.inicio.getTime() - y.inicio.getTime());
 }
 
 /** Dias que o link mostra: de hoje até hoje + dias_abertos − 1, em hora local. */

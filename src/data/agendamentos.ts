@@ -44,7 +44,11 @@ export async function listNovosPeloLink(db: SupabaseClient, desde: string): Prom
   );
 }
 
-export async function criarAgendamento(db: SupabaseClient, a: Omit<Agendamento, 'id'>): Promise<Agendamento> {
+/** Sem `pessoa_id`, o banco põe a primeira pessoa livre no horário. */
+export async function criarAgendamento(
+  db: SupabaseClient,
+  a: Omit<Agendamento, 'id' | 'pessoa_id'> & { pessoa_id?: string },
+): Promise<Agendamento> {
   return executar(db.from('agendamentos').insert(a).select(CAMPOS).single<Agendamento>());
 }
 

@@ -58,6 +58,7 @@ function ag(id: string, inicio: string, fim: string, nome: string, status: Statu
     origem: 'dono',
     criado_em: '2026-11-01T00:00:00Z',
     cliente: { nome, telefone: nome === 'João' ? JOAO.telefone : '5511911112222' },
+    pessoa_id: 'p1',
     servico: { nome: 'Corte' },
   };
 }

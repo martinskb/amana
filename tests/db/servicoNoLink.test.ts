@@ -24,7 +24,7 @@ async function comServicos(): Promise<PGlite> {
 }
 
 async function iniciosPara(db: PGlite, duracao: number, agora = AGORA): Promise<string[]> {
-  const { rows } = await db.query<{ h: Date }>('select h from inicios_para_duracao_em($1, $2) h', [agora.toISOString(), duracao]);
+  const { rows } = await db.query<{ h: Date }>('select distinct inicio as h from inicios_para_duracao_em($1, $2) order by h', [agora.toISOString(), duracao]);
   return rows.map((r) => new Date(r.h).toISOString());
 }
 

@@ -9,11 +9,12 @@ export interface BackupFile {
   gerado_em: string;
   clientes: Cliente[];
   servicos: Servico[];
-  agendamentos: Agendamento[];
+  /** Backups de antes das pessoas não têm `pessoa_id`. */
+  agendamentos: (Omit<Agendamento, 'pessoa_id'> & { pessoa_id?: string })[];
   /** sem backup_ativo (coluna gerada) e sem o hash da chave */
   configuracoes: Omit<Config, 'backup_ativo'>[];
   /** v2: horários fechados e extras. Ausente nos backups da v1. */
-  horarios_ajuste?: HorarioAjuste[];
+  horarios_ajuste?: (Omit<HorarioAjuste, 'pessoa_id'> & { pessoa_id?: string | null })[];
 }
 
 const SETE_DIAS = 7 * 24 * 60 * 60 * 1000;

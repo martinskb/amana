@@ -22,6 +22,7 @@ function ag(id: string, hora: string, nome: string): AgendamentoCompleto {
     observacao: null,
     origem: 'dono',
     criado_em: '2026-11-01T00:00:00Z',
+    pessoa_id: 'p1',
     cliente: { nome, telefone: '5511911112222' },
     servico: { nome: 'Corte' },
   };

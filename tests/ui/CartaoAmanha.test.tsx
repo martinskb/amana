@@ -15,7 +15,7 @@ import CartaoAmanha from '../../src/ui/CartaoAmanha';
 const F = 'America/Sao_Paulo';
 function ag(id: string, inicio: string, nome: string, telefone: string, status: Status): AgendamentoCompleto {
   return {
-    id, cliente_id: id, servico_id: null, inicio, fim: inicio, status, observacao: null, origem: 'dono',
+    id, cliente_id: id, servico_id: null, inicio, fim: inicio, status, observacao: null, origem: 'dono', pessoa_id: 'p1',
     criado_em: '2026-11-01T00:00:00Z', cliente: { nome, telefone }, servico: null,
   };
 }

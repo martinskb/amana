@@ -16,6 +16,7 @@ function ag(id: string, extra: Partial<AgendamentoCompleto> = {}): AgendamentoCo
     observacao: null,
     origem: 'link',
     criado_em: '2026-11-17T10:00:00+00:00',
+    pessoa_id: 'p1',
     cliente: { nome: 'Ana', telefone: '5511911112222' },
     servico: { nome: 'Corte' },
     ...extra,

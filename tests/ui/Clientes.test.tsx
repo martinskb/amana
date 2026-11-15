@@ -15,7 +15,7 @@ const JOAO = { id: 'c1', nome: 'João', telefone: '5511987654321', criado_em: '2
 const ANA = { id: 'c2', nome: 'Ana', telefone: '5511911110000', criado_em: '2026-11-01T00:00:00Z' };
 
 const ag = (id: string, inicio: string, servico: string, status: Status): AgendamentoCompleto => ({
-  id, cliente_id: 'c1', servico_id: 's', inicio, fim: inicio, status, observacao: null, origem: 'dono', criado_em: '2026-11-01T00:00:00Z',
+  id, cliente_id: 'c1', servico_id: 's', inicio, fim: inicio, status, observacao: null, origem: 'dono', criado_em: '2026-11-01T00:00:00Z', pessoa_id: 'p1',
   cliente: { nome: 'João', telefone: JOAO.telefone }, servico: { nome: servico },
 });
 
