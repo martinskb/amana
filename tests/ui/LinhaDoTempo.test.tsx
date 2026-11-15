@@ -127,3 +127,19 @@ describe('LinhaDoTempo', () => {
     expect(screen.getByRole('button', { name: /^10:00 Ana/ })).toHaveAttribute('aria-current', 'true');
   });
 });
+
+describe('LinhaDoTempo: meia-noite com a tela aberta', () => {
+  it('o dia de amanhã ganha a linha do agora quando o relógio passa da meia-noite (sem voltar ao app)', async () => {
+    const { act } = await import('@testing-library/react');
+    const { CONFIG_TESTE } = await import('../helpers/config');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-18T02:59:30Z')); // terça 23:59:30 em São Paulo
+    const diaTodo = [{ inicio: '00:00', fim: '23:59' }];
+    const config = { ...CONFIG_TESTE, expediente: { 0: diaTodo, 1: diaTodo, 2: diaTodo, 3: diaTodo, 4: diaTodo, 5: diaTodo, 6: diaTodo } };
+    const itens: Item[] = [{ tipo: 'livre', hora: '10:00' }];
+    renderComConfig(<LinhaDoTempo data="2026-11-18" itens={itens} modo="dia" novos={new Set()} onItem={() => {}} />, config);
+    expect(screen.queryByText(/^Agora,/)).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(screen.getByText('Agora, 00:00')).toBeInTheDocument();
+  });
+});

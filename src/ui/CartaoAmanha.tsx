@@ -7,6 +7,7 @@ import { waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto } from '../types';
 import { useContador } from './animacao';
 import { useConfig } from './contexto';
+import { agendamentosGuardadosDoDia } from './useAgendaSemana';
 import { useAoVoltar } from './useAoVoltar';
 
 /** Cartão "Amanhã" na Agenda (spec v3, seção 2.1): substitui a antiga aba Lembretes. */
@@ -20,11 +21,17 @@ export default function CartaoAmanha() {
 
   useEffect(() => {
     setErro(false);
+    const aLembrar = (r: AgendamentoCompleto[]) => r.filter((a) => a.status === 'marcado' || a.status === 'confirmado');
     listAgendamentos(supabase, amanha, amanha).then(
-      (r) => setLista(r.filter((a) => a.status === 'marcado' || a.status === 'confirmado')),
-      () => setErro(true),
+      (r) => setLista(aLembrar(r)),
+      () => {
+        // sem conexão: usa a semana guardada no aparelho, se amanhã estiver nela
+        const guardados = agendamentosGuardadosDoDia(amanha, config.fuso);
+        if (guardados) setLista(aLembrar(guardados));
+        else setErro(true);
+      },
     );
-  }, [amanha, voltas]);
+  }, [amanha, voltas, config.fuso]);
 
   const contagem = useContador(lista?.length ?? 0);
 

@@ -482,6 +482,30 @@ describe('Agenda', () => {
     await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-23', '2026-11-29'));
   });
 
+  it('com o app aberto em "hoje", passar da meia-noite vai para o novo dia sem voltar ao app', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-18T02:58:30Z')); // terça 23:58:30 em São Paulo
+    renderComConfig(<Agenda />);
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(screen.getByRole('heading', { name: 'terça, 17' })).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(2 * 60_000));
+    expect(screen.getByRole('heading', { name: 'quarta, 18' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'hoje' })).toBeNull();
+    // o cartão Amanhã passa a buscar a quinta
+    expect(m.listAgendamentos).toHaveBeenCalledWith({}, '2026-11-19', '2026-11-19');
+  });
+
+  it('com o app aberto num domingo, a meia-noite leva para a segunda e a semana nova', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-23T02:59:00Z')); // domingo 22, 23:59 em São Paulo
+    renderComConfig(<Agenda />);
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(screen.getByRole('heading', { name: 'domingo, 22' })).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(2 * 60_000));
+    expect(screen.getByRole('heading', { name: 'segunda, 23' })).toBeInTheDocument();
+    expect(m.listAgendamentos).toHaveBeenCalledWith({}, '2026-11-23', '2026-11-29');
+  });
+
   it('virada de dia com a tela em outro dia não muda o dia escolhido', async () => {
     renderComConfig(<Agenda />);
     await screen.findByRole('button', { name: /10:00 João/ });
@@ -598,6 +622,68 @@ describe('Agenda', () => {
     m.listAgendamentos.mockResolvedValue([JOAO_TERCA]);
     await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
     await waitFor(() => expect(screen.queryByText(/sem conexão/)).toBeNull());
+  });
+
+  it('fechar o novo agendamento e logo abrir outro horário mostra o horário novo (o painel ainda saindo não reaproveita os campos)', async () => {
+    renderComConfig(<Agenda />);
+    await abrirNovo('Marcar ter 17/11 às 09:00');
+    expect(within(screen.getByRole('dialog')).getByLabelText('Hora')).toHaveValue('09:00');
+    await userEvent.keyboard('{Escape}');
+    await abrirNovo('Marcar ter 17/11 às 09:30');
+    expect(within(screen.getByRole('dialog')).getByLabelText('Hora')).toHaveValue('09:30');
+  });
+
+  it('fechar os detalhes com o "Cancelar?" aberto e logo abrir outro agendamento não reaproveita a pergunta', async () => {
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: 'semana' }));
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar agendamento' }));
+    expect(screen.getByText('Cancelar o horário de João?')).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(screen.getByRole('button', { name: /15:00 Maria/ }));
+    const painel = screen.getByRole('dialog');
+    expect(within(painel).queryByText(/Cancelar o horário de/)).toBeNull();
+    expect(within(painel).getByRole('button', { name: 'Cancelar agendamento' })).toBeInTheDocument();
+  });
+
+  it('sem conexão, com semana e serviços guardados: só a faixa fina, sem o erro, e o novo agendamento tem os serviços', async () => {
+    gravar('agenda:2026-11-16', { agendamentos: [JOAO_TERCA, MARIA_QUARTA], ajustes: [] });
+    gravar('servicos', [CORTE]);
+    m.listAgendamentos.mockRejectedValue(new Error('rede'));
+    m.listServicos.mockRejectedValue(new Error('rede'));
+    m.listNovosPeloLink.mockRejectedValue(new Error('rede'));
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText(/sem conexão · mostrando o que estava salvo/)).toBeInTheDocument();
+    expect(screen.queryByText(/Não foi possível carregar a agenda/)).toBeNull();
+    // o cartão Amanhã usa a semana guardada (quarta 18 está nela)
+    const amanha = screen.getByRole('complementary', { name: 'Amanhã' });
+    expect(await within(amanha).findByText('1 cliente pra lembrar')).toBeInTheDocument();
+    expect(screen.queryByText('Não foi possível carregar os clientes de amanhã.')).toBeNull();
+    await abrirNovo();
+    expect(within(screen.getByRole('dialog')).getByRole('option', { name: /Corte/ })).toBeInTheDocument();
+  });
+
+  it('serviços buscados ficam guardados no aparelho', async () => {
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /10:00 João/ });
+    await waitFor(() => expect(ler('servicos')?.valor).toEqual([CORTE]));
+  });
+
+  it('na tela larga, sem conexão e com a semana guardada, o próximo cliente vem do guardado', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: q === '(min-width: 1280px)',
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    gravar('agenda:2026-11-16', { agendamentos: [JOAO_TERCA, MARIA_QUARTA], ajustes: [] });
+    m.listAgendamentos.mockRejectedValue(new Error('rede'));
+    m.listServicos.mockRejectedValue(new Error('rede'));
+    renderComConfig(<Agenda />);
+    const resumo = await screen.findByRole('complementary', { name: 'Resumo' });
+    expect(await within(resumo).findByText('João')).toBeInTheDocument();
+    expect(within(resumo).queryByText('Nenhum cliente até o fim do dia.')).toBeNull();
+    vi.unstubAllGlobals();
   });
 
   it('sem semana guardada, falha mostra o erro com "Tentar de novo"', async () => {

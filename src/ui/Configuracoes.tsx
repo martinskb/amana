@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { listServicos, saveServico } from '../data/servicos';
 import { supabase } from '../data/supabase';
 import { DIAS_SEMANA, horarioDoDia, resumoExpediente } from '../lib/expediente';
@@ -38,6 +38,24 @@ const ROTULOS: Record<Aberto['tipo'], string> = {
   backup: 'Backup',
   instalar: 'Tela inicial',
 };
+
+/**
+ * Identifica a linha aberta. Vai como `key` do conteúdo: o painel continua montado durante a saída,
+ * e reabrir outra linha nesse meio-tempo não pode reaproveitar o estado (campos) da anterior.
+ */
+function chaveDoAberto(a: Aberto): string {
+  switch (a.tipo) {
+    case 'negocio':
+    case 'agenda':
+      return `${a.tipo}:${a.campo}`;
+    case 'expediente':
+      return `expediente:${a.dias.join(',')}`;
+    case 'servico':
+      return `servico:${a.servico?.id ?? 'novo'}`;
+    default:
+      return a.tipo;
+  }
+}
 
 const INSTALACAO = { instalado: 'já está', disponivel: 'instalar', iphone: 'como pôr', manual: 'como pôr' } as const;
 
@@ -261,7 +279,7 @@ export default function Configuracoes() {
       </div>
 
       <Painel aberto={aberto !== null} onFechar={() => setAberto(null)} rotulo={ultimo.current ? ROTULOS[ultimo.current.tipo] : 'Ajustes'}>
-        {ultimo.current && conteudoPainel(ultimo.current)}
+        {ultimo.current && <Fragment key={chaveDoAberto(ultimo.current)}>{conteudoPainel(ultimo.current)}</Fragment>}
       </Painel>
     </main>
   );

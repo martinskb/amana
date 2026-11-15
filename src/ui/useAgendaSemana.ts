@@ -3,7 +3,8 @@ import { listAgendamentos } from '../data/agendamentos';
 import { listAjustes } from '../data/ajustes';
 import { supabase } from '../data/supabase';
 import { gravar, ler, podarAgenda } from '../lib/cache';
-import { somarDias } from '../lib/slots';
+import { segundaDe } from '../lib/semanaCalendario';
+import { dataLocal, somarDias } from '../lib/slots';
 import type { AgendamentoCompleto, HorarioAjuste } from '../types';
 
 /** De quanto em quanto tempo a semana visível é buscada de novo (só com a aba visível). */
@@ -54,6 +55,15 @@ function doCache(segunda: string): Estado {
     semConexao: false,
     erro: false,
   };
+}
+
+/**
+ * Agendamentos de um dia (YYYY-MM-DD) tirados da semana guardada no aparelho, para quando a busca
+ * falha sem conexão; null se a semana desse dia não está guardada.
+ */
+export function agendamentosGuardadosDoDia(dia: string, fuso: string): AgendamentoCompleto[] | null {
+  const guardados = doCache(segundaDe(dia)).agendamentos;
+  return guardados && guardados.filter((a) => dataLocal(new Date(a.inicio), fuso) === dia);
 }
 
 /**

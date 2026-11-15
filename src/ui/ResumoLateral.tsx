@@ -8,6 +8,7 @@ import type { AgendamentoCompleto } from '../types';
 import CartaoAmanha from './CartaoAmanha';
 import { useConfig } from './contexto';
 import { IconeWhatsApp } from './icones';
+import { agendamentosGuardadosDoDia } from './useAgendaSemana';
 import { useAoVoltar } from './useAoVoltar';
 
 interface Props {
@@ -26,10 +27,13 @@ export default function ResumoLateral({ novos, onEntendi, versao }: Props) {
   const [hojeAgs, setHojeAgs] = useState<AgendamentoCompleto[] | null>(null);
   const [agora, setAgora] = useState(() => new Date());
 
+  // o relógio do "em N min" também busca de novo na meia-noite com a tela aberta
+  const diaDoRelogio = dataLocal(agora, config.fuso);
   useEffect(() => {
     const hoje = dataLocal(new Date(), config.fuso);
-    listAgendamentos(supabase, hoje, hoje).then(setHojeAgs, () => setHojeAgs([]));
-  }, [config.fuso, versao, voltas]);
+    // sem conexão: o de hoje que está na semana guardada (sem ela, como antes: lista vazia)
+    listAgendamentos(supabase, hoje, hoje).then(setHojeAgs, () => setHojeAgs(agendamentosGuardadosDoDia(hoje, config.fuso) ?? []));
+  }, [config.fuso, versao, voltas, diaDoRelogio]);
 
   // o "em N min" acompanha o relógio
   useEffect(() => {

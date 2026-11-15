@@ -301,3 +301,35 @@ describe('Ajustes: Clientes, Backup, Tela inicial e Conta', () => {
     expect(signOut).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Ajustes: reabrir outra linha logo depois de fechar (painel ainda saindo)', () => {
+  it('Duração → fecha → "Quantos dias": o campo mostra os dias e salva dias_abertos', async () => {
+    renderComConfig(<Configuracoes />);
+    await abrir('Duração de cada horário, 30 min');
+    await userEvent.keyboard('{Escape}');
+    await abrir('Quantos dias o link mostra, 14 dias');
+    expect(within(dialogo()).getByLabelText('Quantos dias o link mostra')).toHaveValue(14);
+    await salvar();
+    expect(saveConfig).toHaveBeenCalledWith(supabase, { dias_abertos: 14 });
+  });
+
+  it('Corte → fecha → Escova: o painel mostra os campos da Escova', async () => {
+    listServicos.mockResolvedValue([CORTE, { id: 's2', nome: 'Escova', duracao_min: 60, ativo: true }]);
+    renderComConfig(<Configuracoes />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte, 30 min' }));
+    await userEvent.keyboard('{Escape}');
+    await abrir('Escova, 60 min');
+    expect(within(dialogo()).getByLabelText('Nome do serviço')).toHaveValue('Escova');
+    expect(within(dialogo()).getByLabelText('Duração (min)')).toHaveValue(60);
+  });
+
+  it('Segunda → fecha → Domingo: o painel mostra o domingo fechado', async () => {
+    renderComConfig(<Configuracoes />);
+    await abrir('Segunda, 9h–12h · 14h–18h');
+    const segunda = within(dialogo()).getAllByDisplayValue('09:00').length;
+    expect(segunda).toBeGreaterThan(0);
+    await userEvent.keyboard('{Escape}');
+    await abrir('Domingo, fechado');
+    expect(within(dialogo()).queryAllByDisplayValue('09:00')).toHaveLength(0);
+  });
+});

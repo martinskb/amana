@@ -47,8 +47,9 @@ const somarMin = (hora: string, min: number) => {
 export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selecionado = null, onItem }: Props) {
   const { config } = useConfig();
   const menos = usePrefereMenosMovimento();
-  const ehHoje = dataLocal(new Date(), config.fuso) === data;
-  const instante = useAgora(ehHoje);
+  // o mesmo instante decide se é hoje e onde fica a linha: na meia-noite, o dia seguinte vira hoje
+  const instante = useAgora(true);
+  const ehHoje = dataLocal(instante, config.fuso) === data;
   const agora = Date.now();
   // a linha do agora: só hoje, dentro do expediente, antes do primeiro item que ainda não começou
   const horaAgora = horaLocal(instante, config.fuso);

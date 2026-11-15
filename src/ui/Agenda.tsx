@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { criarExtra, fecharHorario, removerAjuste } from '../data/ajustes';
 import { listServicos } from '../data/servicos';
 import { supabase } from '../data/supabase';
+import { gravar, ler } from '../lib/cache';
 import { abreviaDia, dataLocal, freeSlots, gerarHorarios, horaLocal, instanteLocal, nomeDiaExtenso, somarDias } from '../lib/slots';
 import type { AgendamentoCompleto, Servico } from '../types';
 import { useConfig } from './contexto';
@@ -21,6 +22,7 @@ import Chuva from './Chuva';
 import DiaVazio from './DiaVazio';
 import FaixaSemana from './FaixaSemana';
 import LinhaDoTempo, { type ItemLinha } from './LinhaDoTempo';
+import { useAgora } from './LinhaAgora';
 import { useAoVoltar } from './useAoVoltar';
 import { useAgendaSemana } from './useAgendaSemana';
 import { useNovosPeloLink } from './useNovosPeloLink';
@@ -44,6 +46,25 @@ function chaveDoPainel(p: Exclude<EstadoPainel, null>): string | null {
   if (p.tipo === 'detalhes' || p.tipo === 'editar') return `ag:${p.agendamento.id}`;
   if (p.tipo === 'livre' || p.tipo === 'fechado') return `h:${p.data}:${p.hora}`;
   return null;
+}
+
+/**
+ * Identifica o conteúdo do painel. Vai como `key`: o painel continua montado durante a saída, e abrir
+ * outro item nesse meio-tempo (ou trocar de item com o painel lateral aberto) não reaproveita o estado.
+ */
+function chaveDoConteudo(p: Exclude<EstadoPainel, null>): string {
+  switch (p.tipo) {
+    case 'novo':
+    case 'livre':
+      return `${p.tipo}:${p.data}:${p.hora}`;
+    case 'detalhes':
+    case 'editar':
+      return `${p.tipo}:${p.agendamento.id}`;
+    case 'fechado':
+      return `fechado:${p.ajusteId}`;
+    case 'extra':
+      return 'extra';
+  }
 }
 
 const ddmm = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
@@ -90,7 +111,12 @@ export default function Agenda() {
     setTransicao('modo');
     setModo(m);
   }
-  const [servicos, setServicos] = useState<Servico[]>([]);
+  // os serviços guardados aparecem na hora (e servem sem conexão); a busca atualiza por baixo
+  const [servicos, setServicos] = useState<Servico[]>(() => {
+    const guardados = ler<Servico[]>('servicos')?.valor;
+    return Array.isArray(guardados) ? guardados : [];
+  });
+  const temServicosGuardados = useRef(Array.isArray(ler<Servico[]>('servicos')?.valor));
   const [painel, setPainel] = useState<EstadoPainel>(null);
   const [erroServicos, setErroServicos] = useState(false);
   const erro = erroAgenda || erroServicos;
@@ -119,19 +145,28 @@ export default function Agenda() {
 
   const carregarServicos = useCallback(() => {
     setErroServicos(false);
-    listServicos(supabase).then(setServicos, () => setErroServicos(true));
+    listServicos(supabase).then(
+      (lista) => {
+        setServicos(lista);
+        gravar('servicos', lista);
+        temServicosGuardados.current = true;
+      },
+      // com serviços guardados, a falha não é erro: a faixa "sem conexão" da semana já avisa
+      () => setErroServicos(!temServicosGuardados.current),
+    );
   }, []);
 
   useEffect(() => {
     carregarServicos();
   }, [carregarServicos]);
 
-  // ao reabrir o app: se virou o dia e a tela estava em "hoje", vai para o novo hoje (talvez numa semana nova).
+  // ao reabrir o app ou na virada de cada minuto (o app aberto passando da meia-noite): se virou o dia e a
+  // tela estava em "hoje", vai para o novo hoje (talvez numa semana nova).
   // A agenda em si e os novos pelo link são buscados de novo pelos seus hooks.
   const voltas = useAoVoltar();
+  const minuto = useAgora(true);
   const hojeAnterior = useRef(hoje);
   useEffect(() => {
-    if (voltas === 0) return;
     const novoHoje = dataLocal(new Date(), config.fuso);
     if (novoHoje !== hojeAnterior.current) {
       const antigo = hojeAnterior.current;
@@ -139,7 +174,7 @@ export default function Agenda() {
       setDiaSelecionado((atual) => (atual === antigo ? novoHoje : atual));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voltas]);
+  }, [voltas, minuto]);
 
   // a semana inteira (seg–dom); o modo dia mostra só o dia escolhido
   const { porDia, comExpediente } = useMemo(() => {
@@ -511,7 +546,7 @@ export default function Agenda() {
           rotulo={ultimoPainel.current ? ROTULOS[ultimoPainel.current.tipo] : ''}
           modo={larga ? 'lateral' : 'sobreposto'}
         >
-          {ultimoPainel.current && conteudoPainel(ultimoPainel.current)}
+          {ultimoPainel.current && <Fragment key={chaveDoConteudo(ultimoPainel.current)}>{conteudoPainel(ultimoPainel.current)}</Fragment>}
         </Painel>
       </div>
       {!larga && (
