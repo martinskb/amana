@@ -104,7 +104,7 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--marca); }
 .so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .login { position: relative; max-width: 380px; margin: 0 auto; padding-top: max(56px, 20vh); display: grid; gap: 12px; }
 .login > * { position: relative; }
-.login > .chuva, .publico > .chuva { position: absolute; left: -16px; right: -16px; }
+.login > .chuva, .publico > .chuva { position: absolute; top: 0; left: -16px; right: -16px; }
 .login h1 { font-family: var(--fonte-titulo); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; font-size: 46px; color: var(--titulo); text-align: center; margin: 0; overflow-wrap: anywhere; animation: sobe-8 400ms var(--curva) both; }
 .login .frase-mao { animation: aparece 300ms var(--curva) 200ms both; }
 @keyframes sobe-8 { from { opacity: 0; transform: translateY(8px); } }
@@ -254,7 +254,8 @@ p[role='alert'] { animation: treme 300ms var(--curva); }
   @media (min-width: 768px) { .painel-camada .painel { transform: translate(-50%, -50%); } }
   p[role='alert'], .ficha[aria-pressed='true'] { animation: none !important; }
   .check-circulo, .check-traco { animation: none !important; stroke-dashoffset: 0; }
-  .esqueleto-gota { animation: none !important; opacity: 0.8; }
+  .esqueleto-gota { animation: none !important; opacity: 0.8; top: 14px; }
+  .esqueleto-gota:nth-child(odd) { top: 70px; }
   /* caneta e agora: já aparecem desenhados; a chuva fica parada */
   .circulado path, .nota-mao, .salvo-mao, .linha-tempo > li.lt-agora, .chuva::before { animation: none !important; }
   .circulado path { stroke-dashoffset: 0; }
