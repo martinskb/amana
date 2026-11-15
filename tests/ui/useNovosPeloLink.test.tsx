@@ -157,6 +157,26 @@ describe('useNovosPeloLink', () => {
     expect(result.current.chegaramAgora.has('a3')).toBe(false);
   });
 
+  it('busca sem nada chegando mantém o mesmo chegaramAgora (efeitos não rodam a cada 30 s)', async () => {
+    gravar('corte-novos', CORTE);
+    m.listNovosPeloLink.mockResolvedValue([ANA]);
+    const { result } = renderHook(() => useNovosPeloLink());
+    await esvaziar();
+    const antes = result.current.chegaramAgora;
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(result.current.chegaramAgora).toBe(antes);
+
+    m.listNovosPeloLink.mockResolvedValue([ANA, CAIO]);
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(result.current.chegaramAgora).not.toBe(antes);
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    const vazio = result.current.chegaramAgora;
+    expect(vazio.size).toBe(0);
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(result.current.chegaramAgora).toBe(vazio);
+  });
+
   it('um id que some e volta não anima de novo', async () => {
     gravar('corte-novos', CORTE);
     m.listNovosPeloLink.mockResolvedValue([ANA]);

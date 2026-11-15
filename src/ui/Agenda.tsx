@@ -12,7 +12,7 @@ import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
 import Painel from './Painel';
 import ResumoLateral from './ResumoLateral';
-import { useTelaLarga } from './animacao';
+import { usePrefereMenosMovimento, useTelaLarga } from './animacao';
 import Esqueleto from './Esqueleto';
 import { agruparLivres, type Item } from './semana';
 import BotaoMais from './BotaoMais';
@@ -24,6 +24,7 @@ import { useAoVoltar } from './useAoVoltar';
 import { useAgendaSemana } from './useAgendaSemana';
 import { useNovosPeloLink } from './useNovosPeloLink';
 import FaixaSemConexao from './FaixaSemConexao';
+import { AnuncioNovos, NotaNovosFora } from './NovosNaAgenda';
 import { diasDaSemana, segundaDe } from '../lib/semanaCalendario';
 
 type EstadoPainel =
@@ -62,8 +63,9 @@ export default function Agenda() {
     erro: erroAgenda,
     recarregar: carregar,
   } = useAgendaSemana(segunda);
-  // para onde a grade desliza ao trocar de dia/semana (null: sem deslize)
-  const [direcao, setDirecao] = useState<'esq' | 'dir' | null>(null);
+  // como a grade entra: desliza para o lado do dia escolhido, ou fade ao trocar dia ↔ semana
+  const [transicao, setTransicao] = useState<'esq' | 'dir' | 'modo' | null>(null);
+  const menosMovimento = usePrefereMenosMovimento();
   // a cascata dos horários só acontece na primeira vez que a grade aparece
   const primeiraCarga = useRef(true);
   useEffect(() => {
@@ -71,13 +73,20 @@ export default function Agenda() {
   }, [agendamentos]);
   /** Vai para um dia; a linha do tempo desliza para o lado de onde ele está. */
   function irPara(d: string) {
-    setDirecao(d < diaSelecionado ? 'esq' : d > diaSelecionado ? 'dir' : null);
+    setTransicao(d < diaSelecionado ? 'esq' : d > diaSelecionado ? 'dir' : null);
     setDiaSelecionado(d);
+  }
+  /** Tocar num dia (faixa, nota dos novos): no modo dia desliza; da semana, volta ao modo dia. */
+  function escolherDia(d: string) {
+    if (modo === 'dia') return irPara(d);
+    setDiaSelecionado(d);
+    trocarModo('dia');
   }
   // as setas da faixa andam uma semana e mantêm o dia da semana escolhido (quinta → quinta)
   const andarSemana = (passo: -1 | 1) => irPara(somarDias(diaSelecionado, passo * 7));
   function trocarModo(m: 'dia' | 'semana') {
-    setDirecao(null);
+    if (m === modo) return;
+    setTransicao('modo');
     setModo(m);
   }
   const [servicos, setServicos] = useState<Servico[]>([]);
@@ -94,7 +103,7 @@ export default function Agenda() {
   const selecionado = larga && painel !== null ? chaveDoPainel(painel) : null;
 
   // agendamentos novos pelo link, vistos por agendamento (busca a cada 30 s e ao voltar, como a semana)
-  const { novos, ver, verTodos, buscar: buscarNovos } = useNovosPeloLink();
+  const { novos, chegaramAgora, ver, verTodos, buscar: buscarNovos } = useNovosPeloLink();
   const idsNovos = useMemo(() => new Set(novos.map((a) => a.id)), [novos]);
   const diasComNovo = useMemo(() => new Set(novos.map((a) => dataLocal(new Date(a.inicio), config.fuso))), [novos, config.fuso]);
   // trocou de semana: busca os novos junto com a semana nova (o hook já busca ao montar)
@@ -346,6 +355,10 @@ export default function Agenda() {
     return null;
   }
 
+  // com menos movimento, nada anima: a grade já aparece no lugar
+  const classeTransicao = menosMovimento
+    ? ''
+    : `${transicao === 'modo' ? ' troca-modo' : transicao ? ` entra-${transicao}` : ''}${primeiraCarga.current ? ' cascata' : ''}`;
   const ehHoje = modo === 'dia' ? diaSelecionado === hoje : segunda === segundaDe(hoje);
   const itensDoDia = porDia.get(diaSelecionado) ?? [];
 
@@ -365,6 +378,7 @@ export default function Agenda() {
             itens={itensDoDia}
             modo="dia"
             novos={idsNovos}
+            chegaram={chegaramAgora}
             selecionado={selecionado}
             onItem={(item) => abrirItem(diaSelecionado, item)}
           />
@@ -376,9 +390,14 @@ export default function Agenda() {
   return (
     <main className="agenda">
       <Chuva altura={larga ? 280 : 230} />
+      <AnuncioNovos novos={novos} chegaram={chegaramAgora} fuso={config.fuso} />
       <div className="agenda-layout">
         <div className="agenda-coluna" inert={modal} aria-hidden={modal || undefined}>
           <CabecalhoAgenda />
+          {/* na tela larga, a lista do resumo faz esse papel */}
+          {!larga && (
+            <NotaNovosFora novos={novos} chegaram={chegaramAgora} de={segunda} ate={ate} fuso={config.fuso} onIr={escolherDia} />
+          )}
           <div className="agenda-titulo">
             <div className="titulo-sup">
               <span className="negocio">{config.nome_negocio}</span>
@@ -418,10 +437,7 @@ export default function Agenda() {
             selecionado={diaSelecionado}
             contagem={contagem}
             comNovo={diasComNovo}
-            onEscolher={(d) => {
-              irPara(d);
-              trocarModo('dia');
-            }}
+            onEscolher={escolherDia}
             onSemana={andarSemana}
           />
 
@@ -454,7 +470,7 @@ export default function Agenda() {
           {agendamentos && (
             <div
               key={`${modo}-${modo === 'dia' ? diaSelecionado : segunda}`}
-              className={`dias-grade${modo === 'semana' ? ' semana' : ''}${direcao ? ` entra-${direcao}` : ''}${primeiraCarga.current ? ' cascata' : ''}`}
+              className={`dias-grade${modo === 'semana' ? ' semana' : ''}${classeTransicao}`}
             >
               {modo === 'dia'
                 ? dia()
@@ -471,6 +487,7 @@ export default function Agenda() {
                           itens={agruparLivres(itens, config.passo_min)}
                           modo="semana"
                           novos={idsNovos}
+                          chegaram={chegaramAgora}
                           selecionado={selecionado}
                           onItem={(item) => abrirItem(data, item)}
                         />

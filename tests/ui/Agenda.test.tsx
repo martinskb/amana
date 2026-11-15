@@ -996,3 +996,148 @@ describe('Agenda', () => {
     expect(await screen.findByRole('complementary', { name: 'Amanhã' })).toBeInTheDocument();
   });
 });
+
+describe('Agenda: caneta, linha do agora e animações', () => {
+  const ANIMANDO = '.desenhando, .escrevendo, .anima, .entra-dir, .entra-esq, .cascata, .troca-modo, .chegou';
+  const midia = ({ menos = false, larga = false }) =>
+    vi.stubGlobal('matchMedia', (q: string) => ({
+      matches: (menos && q === '(prefers-reduced-motion: reduce)') || (larga && q === '(min-width: 1280px)'),
+      media: q,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  // sábado 21/11 10:00 em São Paulo, pelo link, criado depois do corte
+  const ANA_SABADO = {
+    ...ag('a9', '2026-11-21T13:00:00+00:00', '2026-11-21T13:30:00+00:00', 'Ana'),
+    origem: 'link' as const,
+    criado_em: '2026-11-17T11:00:10+00:00',
+  };
+
+  it('um agendamento novo pelo link aparece circulado à caneta com "marcou sozinho!", já desenhado', async () => {
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    const novo = { ...JOAO_TERCA, origem: 'link' as const, criado_em: '2026-11-16T22:00:00+00:00' };
+    m.listAgendamentos.mockResolvedValue([novo]);
+    m.listNovosPeloLink.mockResolvedValue([novo]);
+    renderComConfig(<Agenda />);
+    const botao = await screen.findByRole('button', { name: /^10:00 João.*, novo, marcado pelo link$/ });
+    const circulado = botao.querySelector('svg.circulado');
+    expect(circulado).toHaveAttribute('aria-hidden', 'true');
+    expect(circulado).not.toHaveClass('desenhando');
+    expect(within(botao).getByText('marcou sozinho!')).toHaveAttribute('aria-hidden', 'true');
+    // o rótulo acessível não lê a nota à mão
+    expect(botao).not.toHaveAccessibleName(/marcou sozinho/);
+  });
+
+  it('um agendamento que não é novo não tem caneta', async () => {
+    renderComConfig(<Agenda />);
+    const botao = await screen.findByRole('button', { name: /^10:00 João/ });
+    expect(botao.querySelector('svg.circulado')).toBeNull();
+    expect(screen.queryByText('marcou sozinho!')).toBeNull();
+  });
+
+  it('um novo que chega com a tela aberta é desenhado e anunciado ao leitor de tela', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-17T11:00:00Z'));
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    renderComConfig(<Agenda />);
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    const anuncio = document.querySelector('[aria-live="polite"]')!;
+    expect(anuncio).toBeInTheDocument();
+    expect(anuncio).toHaveTextContent('');
+
+    m.listAgendamentos.mockResolvedValue([JOAO_TERCA, ANA_SABADO]);
+    m.listNovosPeloLink.mockResolvedValue([ANA_SABADO]);
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(anuncio).toHaveTextContent('Novo agendamento pelo link: Ana, sábado às 10h');
+
+    fireEvent.click(screen.getByRole('button', { name: /^sábado, 21 de novembro/ }));
+    const botao = screen.getByRole('button', { name: /^10:00 Ana.*, novo, marcado pelo link$/ });
+    expect(botao.querySelector('svg.circulado')).toHaveClass('desenhando');
+    expect(within(botao).getByText('marcou sozinho!')).toHaveClass('escrevendo');
+    expect(botao.closest('li')).toHaveClass('chegou');
+  });
+
+  it('a linha do agora aparece hoje, dentro do expediente, entre os itens certos', async () => {
+    vi.setSystemTime(new Date('2026-11-17T13:12:00Z')); // terça 10:12
+    renderComConfig(<Agenda />);
+    const joao = (await screen.findByRole('button', { name: /^10:00 João/ })).closest('li')!;
+    const agora = screen.getByText('Agora, 10:12').closest('li')!;
+    expect(joao.nextElementSibling).toBe(agora);
+    expect(within(agora.nextElementSibling as HTMLElement).getByRole('button')).toHaveAccessibleName('Marcar ter 17/11 às 10:30');
+    fireEvent.click(screen.getByRole('button', { name: /^quarta, 18 de novembro/ }));
+    expect(screen.queryByText(/^Agora, /)).toBeNull();
+  });
+
+  it('antes do expediente não há linha do agora', async () => {
+    renderComConfig(<Agenda />); // terça 08:00
+    await screen.findByRole('button', { name: /^10:00 João/ });
+    expect(screen.queryByText(/^Agora, /)).toBeNull();
+  });
+
+  it('no celular, "N novos pelo link →" aparece com novos fora da semana e leva ao primeiro', async () => {
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    const quinta27 = { ...ag('n2', '2026-11-27T13:00:00+00:00', '2026-11-27T13:30:00+00:00', 'Bia'), origem: 'link' as const, criado_em: '2026-11-17T10:00:00+00:00' };
+    const quarta25 = { ...ag('n1', '2026-11-25T17:00:00+00:00', '2026-11-25T17:30:00+00:00', 'Caio'), origem: 'link' as const, criado_em: '2026-11-17T10:10:00+00:00' };
+    // um novo nesta semana não conta na nota (a faixa já mostra o risco)
+    const nestaSemana = { ...MARIA_QUARTA, origem: 'link' as const, criado_em: '2026-11-17T10:20:00+00:00' };
+    m.listNovosPeloLink.mockResolvedValue([quinta27, nestaSemana, quarta25]);
+    renderComConfig(<Agenda />);
+    const nota = await screen.findByRole('button', { name: '2 novos pelo link em outra semana: ver o primeiro' });
+    expect(within(nota).getByText('2 novos pelo link →')).toHaveAttribute('aria-hidden', 'true');
+    fireEvent.click(nota);
+    expect(screen.getByRole('heading', { level: 1, name: 'quarta, 25' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^quarta, 25 de novembro/ })).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-23', '2026-11-29'));
+    // agora a semana visível tem os dois; o da semana passada (18/11) fica de fora: "1 novo"
+    expect(screen.getByRole('button', { name: '1 novo pelo link em outra semana: ver o primeiro' })).toBeInTheDocument();
+  });
+
+  it('na tela larga, a nota "novos pelo link →" não aparece (a lista do resumo faz esse papel)', async () => {
+    midia({ larga: true });
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    const quarta25 = { ...ag('n1', '2026-11-25T17:00:00+00:00', '2026-11-25T17:30:00+00:00', 'Caio'), origem: 'link' as const, criado_em: '2026-11-17T10:10:00+00:00' };
+    m.listNovosPeloLink.mockResolvedValue([quarta25]);
+    renderComConfig(<Agenda />);
+    expect(await screen.findByText('1 agendamento novo pelo link')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /pelo link em outra semana/ })).toBeNull();
+  });
+
+  it('tocar num dia da faixa desliza a linha do tempo; dia ↔ semana troca com fade', async () => {
+    renderComConfig(<Agenda />);
+    await screen.findByRole('button', { name: /^10:00 João/ });
+    fireEvent.click(screen.getByRole('button', { name: /^quarta, 18 de novembro/ }));
+    expect(document.querySelector('.dias-grade')).toHaveClass('entra-dir');
+    fireEvent.click(screen.getByRole('button', { name: /^segunda, 16 de novembro/ }));
+    expect(document.querySelector('.dias-grade')).toHaveClass('entra-esq');
+    fireEvent.click(screen.getByRole('button', { name: 'semana' }));
+    expect(document.querySelector('.dias-grade')).toHaveClass('troca-modo');
+    // da semana, tocar num dia volta ao modo dia com o fade
+    fireEvent.click(screen.getByRole('button', { name: /^sexta, 20 de novembro/ }));
+    expect(screen.getByRole('heading', { level: 1, name: 'sexta, 20' })).toBeInTheDocument();
+    expect(document.querySelector('.dias-grade')).toHaveClass('troca-modo');
+  });
+
+  it('com menos movimento, nada fica com classe de animação', async () => {
+    midia({ menos: true });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-17T13:12:00Z')); // terça 10:12: com a linha do agora
+    gravar('corte-novos', '2026-11-16T10:00:00.000Z');
+    const { container } = renderComConfig(<Agenda />);
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(screen.getByText('Agora, 10:12')).toBeInTheDocument();
+    const anaTerca = { ...ANA_SABADO, inicio: '2026-11-17T18:00:00+00:00', fim: '2026-11-17T18:30:00+00:00' };
+    const anaLonge = { ...ANA_SABADO, id: 'a10', inicio: '2026-11-25T18:00:00+00:00', fim: '2026-11-25T18:30:00+00:00' };
+    m.listAgendamentos.mockResolvedValue([JOAO_TERCA, anaTerca]);
+    m.listNovosPeloLink.mockResolvedValue([anaTerca, anaLonge]);
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    expect(screen.getByRole('button', { name: /^15:00 Ana.*, novo, marcado pelo link$/ }).querySelector('svg.circulado')).not.toBeNull();
+    expect(screen.getByText('1 novo pelo link →')).toBeInTheDocument();
+    expect(container.querySelector(ANIMANDO)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^quarta, 18 de novembro/ }));
+    expect(container.querySelector(ANIMANDO)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'semana' }));
+    expect(container.querySelector(ANIMANDO)).toBeNull();
+  });
+});

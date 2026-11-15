@@ -113,8 +113,11 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--marca); }
 @keyframes desdobra { from { opacity: 0; transform: translateY(-6px); } }
 
 /* troca de dia: desliza para o lado da navegação; cascata só na primeira carga */
-.entra-dir { animation: entra-dir 200ms var(--curva); }
-.entra-esq { animation: entra-esq 200ms var(--curva); }
+.entra-dir { animation: entra-dir 250ms var(--curva); }
+.entra-esq { animation: entra-esq 250ms var(--curva); }
+/* dia ↔ semana: fade com uma leve subida */
+.troca-modo { animation: troca-modo 250ms var(--curva); }
+@keyframes troca-modo { from { opacity: 0; transform: translateY(8px); } }
 @keyframes entra-dir { from { opacity: 0; transform: translateX(24px); } }
 @keyframes entra-esq { from { opacity: 0; transform: translateX(-24px); } }
 .cascata .linha-tempo > li { animation: cascata 260ms var(--curva) both; animation-delay: calc(var(--i, 0) * 30ms); }
@@ -247,7 +250,7 @@ p[role='alert'] { animation: treme 300ms var(--curva); }
     transition-duration: 0ms !important;
     scroll-behavior: auto !important;
   }
-  .conteudo.entra, .entra-dir, .entra-esq, .cascata .linha-tempo > li, .ficha, .publico .horarios button, .publico .servicos button, .formulario,
+  .conteudo.entra, .entra-dir, .entra-esq, .troca-modo, .cascata .linha-tempo > li, .linha-tempo > li.chegou, .menu-mais, .ficha, .publico .horarios button, .publico .servicos button, .formulario,
   .desdobra, .publico h1, .publico .sucesso h2, .resumo-sucesso, .config .lista li, fieldset .linha,
   .painel-camada .painel, .painel-camada.saindo .painel { animation-name: aparece !important; }
   .painel-camada.saindo .painel, .painel-camada.saindo .fundo-escuro { animation-name: some !important; }
@@ -255,6 +258,9 @@ p[role='alert'] { animation: treme 300ms var(--curva); }
   p[role='alert'], .ficha[aria-pressed='true'] { animation: none !important; }
   .check-circulo, .check-traco { animation: none !important; stroke-dashoffset: 0; }
   .esqueleto-linha { animation: none !important; }
+  /* caneta e agora: já aparecem desenhados; a chuva fica parada */
+  .circulado path, .nota-mao, .linha-tempo > li.lt-agora, .chuva::before { animation: none !important; }
+  .circulado path { stroke-dashoffset: 0; }
   button:not(:disabled):active, a.botao:active { transform: none; }
 }
 
@@ -333,12 +339,18 @@ a.botao.redondo { width: 44px; padding: 0; flex: none; }
 .faixa-sem-conexao button { min-height: 44px; }
 
 /* ===== Caderno ===== */
-/* chuva: riscos finos na diagonal, só no topo, sumindo para baixo (o conteúdo vem por cima) */
+/* chuva: riscos finos na diagonal, só no topo, sumindo para baixo (o conteúdo vem por cima).
+   Os riscos descem muito devagar: 50,23px é um período vertical do padrão (13px / cos 75°), então o laço não pula. */
 .chuva {
-  position: absolute; top: 0; left: 0; right: 0; pointer-events: none;
-  background: repeating-linear-gradient(105deg, rgba(178, 114, 222, 0.09) 0 1px, transparent 1px 13px);
+  position: absolute; top: 0; left: 0; right: 0; pointer-events: none; overflow: hidden;
   -webkit-mask-image: linear-gradient(#000, transparent); mask-image: linear-gradient(#000, transparent);
 }
+.chuva::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -51px; bottom: 0;
+  background: repeating-linear-gradient(105deg, rgba(178, 114, 222, 0.09) 0 1px, transparent 1px 13px);
+  animation: chuva-cai 20s linear infinite;
+}
+@keyframes chuva-cai { to { transform: translateY(50.23px); } }
 .agenda-layout { position: relative; }
 .mao { font-family: var(--fonte-mao); font-weight: 700; color: var(--marca); line-height: 1.1; margin: 0; transform: rotate(-3deg); }
 button.texto { min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--marca); font-weight: 600; }
@@ -442,9 +454,40 @@ button.texto:hover { color: var(--titulo); }
 .fab { width: 56px; height: 56px; padding: 0; border-radius: 50%; border-color: var(--marca); background: var(--marca); color: var(--marca-txt); box-shadow: 0 8px 24px rgba(178, 114, 222, 0.35); }
 .fab svg { transition: transform var(--rapido) var(--curva); }
 .fab[aria-expanded='true'] svg { transform: rotate(45deg); }
-.menu-mais { list-style: none; margin: 0; padding: 6px; display: grid; gap: 2px; border: 1px solid var(--borda); border-radius: var(--raio-cartao); background: var(--sup2); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); }
+.menu-mais { animation: menu-sobe 180ms var(--curva); transform-origin: bottom right; list-style: none; margin: 0; padding: 6px; display: grid; gap: 2px; border: 1px solid var(--borda); border-radius: var(--raio-cartao); background: var(--sup2); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); }
 .menu-mais button { width: 100%; justify-content: flex-start; border: 0; border-radius: 10px; background: transparent; }
 .menu-mais button:hover { background: var(--sup); }
+
+@keyframes menu-sobe { from { opacity: 0; transform: translateY(6px) scale(0.96); } }
+
+/* caneta: o novo pelo link vem circulado, com "marcou sozinho!" à mão (Caveat ≥ 18px, girada) */
+.lt-corpo.com-caneta { position: relative; }
+.lt-circulavel { position: relative; display: inline-block; max-width: 100%; }
+.com-caneta .lt-circulavel { max-width: calc(100% - 136px); } /* a nota não cobre o nome */
+.circulado { position: absolute; top: -11px; left: -22px; width: calc(100% + 44px); height: calc(100% + 21px); overflow: visible; pointer-events: none; }
+.circulado path { fill: none; stroke: var(--marca); stroke-width: 1.4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.circulado.desenhando path { animation: circula 700ms var(--curva) both; }
+@keyframes circula { from { stroke-dashoffset: 1; } }
+.nota-mao { display: inline-block; font-family: var(--fonte-mao); font-weight: 700; font-size: 19px; line-height: 1; color: var(--marca); white-space: nowrap; transform: rotate(-4deg); pointer-events: none; }
+.nota-mao.escrevendo { animation: escreve 200ms var(--curva) both; }
+@keyframes escreve { from { opacity: 0; transform: rotate(-4deg) translateY(4px); } }
+.lt-circulavel .nota-mao { position: absolute; left: calc(100% + 24px); top: -4px; }
+/* chegou com a tela aberta: entra deslizando (a caneta desenha por cima) */
+.linha-tempo > li.chegou { animation: chegou 300ms var(--curva) both; }
+@keyframes chegou { from { opacity: 0; transform: translateX(-16px); } }
+/* "N novos pelo link →" no topo do celular: leva ao primeiro deles */
+.nota-novos { display: flex; min-height: 44px; margin: 0 0 -10px auto; padding: 0 6px; border: 0; background: none; }
+.nota-novos .nota-mao { font-size: 22px; transform: rotate(-3deg); }
+.nota-novos .nota-mao.escrevendo { animation-name: escreve-novos; }
+@keyframes escreve-novos { from { opacity: 0; transform: rotate(-3deg) translateY(4px); } }
+
+/* linha do agora: 2px --marca entre os itens, bolinha à esquerda e "agora" à mão à direita */
+.linha-tempo > li.lt-agora { position: relative; height: 2px; margin: 20px 0 6px 61px; background: var(--marca); pointer-events: none; }
+.lt-agora::before { content: ''; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--marca); }
+.lt-agora-mao { position: absolute; right: 2px; bottom: 3px; font-family: var(--fonte-mao); font-weight: 700; font-size: 19px; line-height: 1; color: var(--marca); transform: rotate(-3deg); transform-origin: right bottom; }
+/* entra da esquerda e o "agora" é escrito junto (revela da esquerda para a direita) */
+.linha-tempo > li.lt-agora.anima { animation: agora-entra 400ms var(--curva) both; }
+@keyframes agora-entra { from { clip-path: inset(-30px 100% -10px -10px); } to { clip-path: inset(-30px -10px -10px -10px); } }
 
 /* resumo da tela larga: seções com traço, como capítulos */
 .resumo-secao { padding: 4px 0; }

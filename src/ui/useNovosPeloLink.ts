@@ -7,11 +7,13 @@ import type { AgendamentoCompleto } from '../types';
 
 /** O mesmo ritmo da semana visível (useAgendaSemana): a cada 30 s com a aba visível. */
 const INTERVALO_MS = 30_000;
+/** Sempre o mesmo Set quando nada chegou: quem depende de `chegaramAgora` não roda a cada busca. */
+const NADA: ReadonlySet<string> = new Set();
 
 export interface NovosPeloLink {
   novos: AgendamentoCompleto[];
   /** Ids que chegaram na última busca e não estavam em nenhuma busca anterior desta tela. */
-  chegaramAgora: Set<string>;
+  chegaramAgora: ReadonlySet<string>;
   /** O dono abriu (ou mudou o status de) este agendamento; vale mesmo antes da busca de novos o trazer. */
   ver: (a: AgendamentoCompleto) => void;
   /** "Entendi": todos os novos ficam vistos. */
@@ -22,7 +24,7 @@ export interface NovosPeloLink {
 interface Estado extends Vistos {
   /** O que a última busca trouxe (desde o corte, sem filtrar). */
   buscados: AgendamentoCompleto[];
-  chegaramAgora: Set<string>;
+  chegaramAgora: ReadonlySet<string>;
 }
 
 /** Lê corte e vistos do aparelho; no primeiro uso o corte é agora (nada antigo aparece como novo). */
@@ -43,7 +45,7 @@ const filtrar = (e: Estado, agora: Date) => e.buscados.filter((a) => ehNovo(a, {
  * aba visível e na hora em que a aba volta; a Agenda também chama `buscar` depois de gravar.
  */
 export function useNovosPeloLink(): NovosPeloLink {
-  const [estado, setEstado] = useState<Estado>(() => ({ ...lerVistos(), buscados: [], chegaramAgora: new Set() }));
+  const [estado, setEstado] = useState<Estado>(() => ({ ...lerVistos(), buscados: [], chegaramAgora: NADA }));
   // espelho do estado para as funções estáveis (buscar roda num intervalo)
   const ref = useRef(estado);
   const mudar = useCallback((f: (e: Estado) => Estado) => {
@@ -70,7 +72,7 @@ export function useNovosPeloLink(): NovosPeloLink {
       const chegaram = anteriores
         ? filtrar(novoEstado, new Date()).filter((a) => !anteriores.has(a.id)).map((a) => a.id)
         : [];
-      return { ...novoEstado, chegaramAgora: new Set(chegaram) };
+      return { ...novoEstado, chegaramAgora: chegaram.length ? new Set(chegaram) : NADA };
     });
   }, [mudar]);
 
