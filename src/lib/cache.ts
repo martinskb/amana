@@ -65,3 +65,17 @@ export function podarAgenda(max = 8): void {
     // ignorado
   }
 }
+
+/**
+ * Lê e apaga uma chave antiga, sem o prefixo "amana:" (de antes desta versão do app).
+ * Devolve null se não existir ou se o armazenamento falhar.
+ */
+export function tirarChaveAntiga(chaveCompleta: string): string | null {
+  try {
+    const valor = localStorage.getItem(chaveCompleta);
+    if (valor !== null) localStorage.removeItem(chaveCompleta);
+    return valor;
+  } catch {
+    return null;
+  }
+}

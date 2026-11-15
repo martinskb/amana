@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { listNovosPeloLink } from '../data/agendamentos';
 import { supabase } from '../data/supabase';
-import { gravar, ler } from '../lib/cache';
+import { gravar, ler, tirarChaveAntiga } from '../lib/cache';
 import { aposVer, ehNovo, type Vistos } from '../lib/novos';
 import type { AgendamentoCompleto } from '../types';
 
@@ -27,11 +27,17 @@ interface Estado extends Vistos {
   chegaramAgora: ReadonlySet<string>;
 }
 
-/** Lê corte e vistos do aparelho; no primeiro uso o corte é agora (nada antigo aparece como novo). */
+const ehData = (s: unknown): s is string => typeof s === 'string' && !isNaN(Date.parse(s));
+
+/**
+ * Lê corte e vistos do aparelho. No primeiro uso o corte é a última visita da versão anterior
+ * (chave antiga "agenda:ultimaVisita"), se houver; senão é agora (nada antigo aparece como novo).
+ */
 function lerVistos(): Vistos {
   let corte = ler<string>('corte-novos')?.valor;
-  if (typeof corte !== 'string') {
-    corte = new Date().toISOString();
+  if (!ehData(corte)) {
+    const antiga = tirarChaveAntiga('agenda:ultimaVisita');
+    corte = ehData(antiga) ? antiga : new Date().toISOString();
     gravar('corte-novos', corte);
   }
   const vistos = ler<string[]>('vistos')?.valor;

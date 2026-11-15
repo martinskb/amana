@@ -60,6 +60,34 @@ describe('useNovosPeloLink', () => {
     expect(result.current.novos).toEqual([]);
   });
 
+  it('corte guardado que não é data volta a ser agora (não desliga os novos para sempre)', async () => {
+    gravar('corte-novos', 'lixo');
+    const { result } = renderHook(() => useNovosPeloLink());
+    await esvaziar();
+    expect(ler('corte-novos')?.valor).toBe('2026-11-17T11:00:00.000Z');
+    expect(m.listNovosPeloLink).toHaveBeenCalledWith({}, '2026-11-17T11:00:00.000Z');
+    expect(result.current.novos).toEqual([]);
+  });
+
+  it('vindo da versão anterior, o corte começa na última visita guardada (agenda:ultimaVisita)', async () => {
+    localStorage.setItem('agenda:ultimaVisita', CORTE);
+    m.listNovosPeloLink.mockResolvedValue([ANA]);
+    const { result } = renderHook(() => useNovosPeloLink());
+    await esvaziar();
+    expect(ler('corte-novos')?.valor).toBe(CORTE);
+    expect(localStorage.getItem('agenda:ultimaVisita')).toBeNull();
+    expect(m.listNovosPeloLink).toHaveBeenCalledWith({}, CORTE);
+    expect(ids(result.current.novos)).toEqual(['a1']);
+  });
+
+  it('última visita antiga que não é data é ignorada', async () => {
+    localStorage.setItem('agenda:ultimaVisita', 'xyz');
+    renderHook(() => useNovosPeloLink());
+    await esvaziar();
+    expect(ler('corte-novos')?.valor).toBe('2026-11-17T11:00:00.000Z');
+    expect(localStorage.getItem('agenda:ultimaVisita')).toBeNull();
+  });
+
   it('busca desde o corte guardado e mostra os novos', async () => {
     gravar('corte-novos', CORTE);
     m.listNovosPeloLink.mockResolvedValue([ANA, BIA]);
