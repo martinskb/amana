@@ -1,5 +1,5 @@
-import { act, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { gravar, ler } from '../../src/lib/cache';
 import { CONFIG_TESTE } from '../helpers/config';
 import { SESSAO, type AuthFalso } from '../helpers/auth';
@@ -23,7 +23,15 @@ beforeEach(() => {
   auth.erroSessao = null;
   getConfig.mockReset().mockResolvedValue(CONFIG_TESTE);
   window.location.hash = '';
+  adicionados = [];
+  const original = window.addEventListener.bind(window);
+  vi.spyOn(window, 'addEventListener').mockImplementation((...args: Parameters<typeof window.addEventListener>) => {
+    adicionados.push(args);
+    return original(...args);
+  });
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('App', () => {
   it('mostra o nome do negócio vindo de VITE_NOME_NEGOCIO', async () => {
@@ -38,6 +46,17 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Amana', level: 1 })).toBeInTheDocument();
   });
 });
+
+/**
+ * Espera o App registrar o ouvinte de "online". A agenda aparece no commit, mas o efeito que registra o
+ * ouvinte roda depois (a sessão chegou fora de act); disparar o evento antes disso não teria ouvinte.
+ */
+async function ouvindoOnline() {
+  await waitFor(() =>
+    expect(adicionados.some(([tipo]) => tipo === 'online')).toBe(true),
+  );
+}
+let adicionados: unknown[][] = [];
 
 describe('App: cache da config', () => {
   it('com config guardada e getConfig pendente, a agenda aparece sem esqueleto', async () => {
@@ -120,6 +139,7 @@ describe('App: cache da config', () => {
     getConfig.mockRejectedValue(new SemConexaoError());
     render(<App />);
     await screen.findByRole('heading', { name: 'Agenda' });
+    await ouvindoOnline();
     auth.erroSessao = null;
     auth.sessao = null;
     await act(async () => {
@@ -135,6 +155,7 @@ describe('App: cache da config', () => {
     getConfig.mockRejectedValue(new SemConexaoError());
     render(<App />);
     await screen.findByRole('heading', { name: 'Agenda' });
+    await ouvindoOnline();
     auth.erroSessao = null;
     auth.sessao = SESSAO;
     getConfig.mockResolvedValue(CONFIG_TESTE);
