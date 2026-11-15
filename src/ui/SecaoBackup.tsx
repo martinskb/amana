@@ -56,7 +56,7 @@ export default function SecaoBackup() {
 
       <h4>Backup automático no Google Drive</h4>
       {chave ? (
-        <div className="painel">
+        <div className="caixa">
           <label>
             Chave de backup
             <input readOnly value={chave} onFocus={(e) => e.target.select()} />
@@ -69,7 +69,7 @@ export default function SecaoBackup() {
         </div>
       ) : config.backup_ativo ? (
         confirmando ? (
-          <div className="painel">
+          <div className="caixa">
             <p>Gerar uma nova chave? O backup automático para até você colar a nova no script.</p>
             <div className="linha">
               <button type="button" className="perigo" disabled={gerando} onClick={gerar}>

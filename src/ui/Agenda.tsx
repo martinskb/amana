@@ -11,6 +11,7 @@ import CartaoAmanha from './CartaoAmanha';
 import DetalhesAgendamento from './DetalhesAgendamento';
 import NovoAgendamento from './NovoAgendamento';
 import Painel from './Painel';
+import { IconeFaltou, IconeMais, IconeX } from './icones';
 import ResumoLateral from './ResumoLateral';
 import { usePrefereMenosMovimento, useTelaLarga } from './animacao';
 import Esqueleto from './Esqueleto';
@@ -257,58 +258,60 @@ export default function Agenda() {
 
     if (p.tipo === 'livre')
       return (
-        <>
-          <h3>
+        <div className="painel-conteudo">
+          <h3 className="painel-titulo">
             {abreviaDia(p.data)} {ddmm(p.data)} às {p.hora}
           </h3>
-          <div className="linha">
-            <button type="button" className="primario" onClick={() => setPainel({ tipo: 'novo', data: p.data, hora: p.hora })}>
-              Marcar cliente
-            </button>
-            {p.extraId ? (
-              <button type="button" onClick={() => ajustar(() => removerAjuste(supabase, p.extraId!))}>
-                Remover horário extra
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(p.data, p.hora, config.fuso).toISOString()))}
-              >
-                Fechar este horário
-              </button>
-            )}
-            <button type="button" onClick={() => setPainel(null)}>
-              Voltar
-            </button>
-          </div>
+          <p className="painel-resumo">{p.extraId ? 'Horário extra, livre' : 'Horário livre'}</p>
+          <button type="button" className="primario larga" onClick={() => setPainel({ tipo: 'novo', data: p.data, hora: p.hora })}>
+            <IconeMais /> Marcar cliente
+          </button>
+          <ul className="acoes">
+            <li>
+              {p.extraId ? (
+                <button type="button" className="acao-linha" onClick={() => ajustar(() => removerAjuste(supabase, p.extraId!))}>
+                  <IconeX /> Remover horário extra
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="acao-linha"
+                  onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(p.data, p.hora, config.fuso).toISOString()))}
+                >
+                  <IconeFaltou /> Fechar este horário
+                </button>
+              )}
+            </li>
+          </ul>
           {erroAjuste && <p role="alert">{erroAjuste}</p>}
-        </>
+          <button type="button" className="texto fechar-texto" onClick={() => setPainel(null)}>
+            Voltar
+          </button>
+        </div>
       );
 
     if (p.tipo === 'fechado')
       return (
-        <>
-          <h3>
+        <div className="painel-conteudo">
+          <h3 className="painel-titulo">
             {abreviaDia(p.data)} {ddmm(p.data)} às {p.hora} — fechado
           </h3>
-          <p className="sutil">Este horário não aparece no link de agendamento.</p>
-          <div className="linha">
-            <button type="button" className="primario" onClick={() => ajustar(() => removerAjuste(supabase, p.ajusteId))}>
-              Reabrir
-            </button>
-            <button type="button" onClick={() => setPainel(null)}>
-              Voltar
-            </button>
-          </div>
+          <p className="painel-resumo">Este horário não aparece no link de agendamento.</p>
+          <button type="button" className="primario larga" onClick={() => ajustar(() => removerAjuste(supabase, p.ajusteId))}>
+            Reabrir
+          </button>
           {erroAjuste && <p role="alert">{erroAjuste}</p>}
-        </>
+          <button type="button" className="texto fechar-texto" onClick={() => setPainel(null)}>
+            Voltar
+          </button>
+        </div>
       );
 
     if (p.tipo === 'extra')
       return (
-        <>
-          <h3>Abrir horário extra</h3>
-          <p className="sutil">Um horário fora do expediente, que aparece no link.</p>
+        <div className="painel-conteudo">
+          <h3 className="painel-titulo">Abrir horário extra</h3>
+          <p className="painel-resumo">Um horário fora do expediente, que aparece no link.</p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -326,17 +329,17 @@ export default function Agenda() {
                 <input type="time" step={300} value={extraHora} onChange={(e) => setExtraHora(e.target.value)} />
               </label>
             </div>
-            <div className="linha">
-              <button type="submit" className="primario">
+            {erroAjuste && <p role="alert">{erroAjuste}</p>}
+            <div className="botoes-painel">
+              <button type="submit" className="primario larga">
                 Abrir horário
               </button>
-              <button type="button" onClick={() => setPainel(null)}>
+              <button type="button" className="texto" onClick={() => setPainel(null)}>
                 Voltar
               </button>
             </div>
           </form>
-          {erroAjuste && <p role="alert">{erroAjuste}</p>}
-        </>
+        </div>
       );
 
     if (p.tipo === 'detalhes')

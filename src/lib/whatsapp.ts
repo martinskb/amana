@@ -18,7 +18,14 @@ export function normalizePhone(raw: string): string | null {
   return null;
 }
 
-export const MSG_WHATSAPP_INVALIDO = 'WhatsApp inválido. Use DDD + número, ou + e o código do país.';
+/** O WhatsApp gravado (só dígitos) para ler: "(11) 98765-4321" no Brasil, "+351…" fora. */
+export function telefoneLegivel(digitos: string): string {
+  if (!digitos.startsWith('55') || (digitos.length !== 12 && digitos.length !== 13)) return `+${digitos}`;
+  const numero = digitos.slice(4);
+  return `(${digitos.slice(2, 4)}) ${numero.slice(0, -4)}-${numero.slice(-4)}`;
+}
+
+export const MSG_WHATSAPP_INVALIDO ='WhatsApp inválido. Use DDD + número, ou + e o código do país.';
 
 export function waLink(telefone: string | null, texto: string): string {
   return `https://wa.me/${telefone ?? ''}?text=${encodeURIComponent(texto)}`;

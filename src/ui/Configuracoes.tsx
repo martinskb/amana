@@ -1,276 +1,268 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useState, type FormEvent } from 'react';
-import { saveConfig } from '../data/configuracoes';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { listServicos, saveServico } from '../data/servicos';
 import { supabase } from '../data/supabase';
-import type { DiaSemana, Expediente, Intervalo, Servico } from '../types';
-import { MSG_WHATSAPP_INVALIDO, normalizePhone } from '../lib/whatsapp';
-import SecaoBackup from './SecaoBackup';
-import SecaoInstalar from './SecaoInstalar';
+import { DIAS_SEMANA, horarioDoDia, resumoExpediente } from '../lib/expediente';
+import { abreviaDia, dataLocal } from '../lib/slots';
+import { telefoneLegivel } from '../lib/whatsapp';
+import type { DiaSemana, Servico } from '../types';
+import Chuva from './Chuva';
 import Clientes from './Clientes';
+import Painel from './Painel';
+import SecaoBackup from './SecaoBackup';
+import SecaoInstalar, { useEstadoInstalacao } from './SecaoInstalar';
+import LinhaAjuste from './ajustes/LinhaAjuste';
+import PainelAgenda from './ajustes/PainelAgenda';
+import PainelExpediente from './ajustes/PainelExpediente';
+import PainelFolgas, { resumoFolgas } from './ajustes/PainelFolgas';
+import PainelNegocio from './ajustes/PainelNegocio';
+import PainelServico from './ajustes/PainelServico';
+import SecaoConta from './ajustes/SecaoConta';
 import { useConfig } from './contexto';
 
-const DIAS: { dia: DiaSemana; nome: string; curto: string }[] = [
-  { dia: 1, nome: 'Segunda', curto: 'segunda' },
-  { dia: 2, nome: 'Terça', curto: 'terça' },
-  { dia: 3, nome: 'Quarta', curto: 'quarta' },
-  { dia: 4, nome: 'Quinta', curto: 'quinta' },
-  { dia: 5, nome: 'Sexta', curto: 'sexta' },
-  { dia: 6, nome: 'Sábado', curto: 'sábado' },
-  { dia: 0, nome: 'Domingo', curto: 'domingo' },
-];
+type Aberto =
+  | { tipo: 'negocio'; campo: 'nome' | 'whatsapp' }
+  | { tipo: 'agenda'; campo: 'passo' | 'dias' }
+  | { tipo: 'expediente'; dias: DiaSemana[] }
+  | { tipo: 'folgas' }
+  | { tipo: 'servico'; servico?: Servico }
+  | { tipo: 'backup' }
+  | { tipo: 'instalar' };
 
-function validar(expediente: Expediente): string | null {
-  for (const { dia, nome } of DIAS) {
-    const lista = [...expediente[dia]].sort((a, b) => a.inicio.localeCompare(b.inicio));
-    for (const [i, iv] of lista.entries()) {
-      if (!iv.inicio || !iv.fim) return `${nome}: Preencha início e fim.`;
-      if (iv.fim <= iv.inicio) return `${nome}: O fim precisa ser depois do início.`;
-      if (i > 0 && iv.inicio < lista[i - 1].fim) return `${nome}: Os intervalos não podem se sobrepor.`;
-    }
-  }
-  return null;
+const ROTULOS: Record<Aberto['tipo'], string> = {
+  negocio: 'Negócio',
+  agenda: 'Agenda',
+  expediente: 'Expediente',
+  folgas: 'Folgas',
+  servico: 'Serviço',
+  backup: 'Backup',
+  instalar: 'Tela inicial',
+};
+
+const INSTALACAO = { instalado: 'já está', disponivel: 'instalar', iphone: 'como pôr', manual: 'como pôr' } as const;
+
+/** Quanto tempo o "salvo! ✓" fica escrito ao lado da linha. */
+const SALVO_MS = 1500;
+
+function Capitulo({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <section className="cap-ajustes">
+      <h2 className="capitulo">{titulo}</h2>
+      {children}
+    </section>
+  );
 }
 
+/**
+ * Ajustes como um índice de capítulos. Cada linha mostra o valor atual e, ao tocar, abre um painel que
+ * salva só o que mostra. Depois de salvar, o painel fecha e "salvo! ✓" aparece à mão perto da linha.
+ */
 export default function Configuracoes() {
-  const { config, recarregar } = useConfig();
-  const [nome, setNome] = useState(config.nome_negocio);
-  const [expediente, setExpediente] = useState<Expediente>(config.expediente);
-  const [folgas, setFolgas] = useState<string[]>(config.folgas);
-  const [novaFolga, setNovaFolga] = useState('');
-  const [passo, setPasso] = useState(String(config.passo_min));
-  const [diasAbertos, setDiasAbertos] = useState(String(config.dias_abertos));
-  const [telNegocio, setTelNegocio] = useState(config.telefone_negocio ? `+${config.telefone_negocio}` : '');
-  const [erro, setErro] = useState<string | null>(null);
-  const [salvo, setSalvo] = useState(false);
-
+  const { config } = useConfig();
+  const [aberto, setAberto] = useState<Aberto | null>(null);
+  const ultimo = useRef<Aberto | null>(null);
+  if (aberto) ultimo.current = aberto; // o conteúdo continua na tela enquanto o painel sai
+  const [salvo, setSalvo] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [servicos, setServicos] = useState<Servico[]>([]);
-  const [novoServico, setNovoServico] = useState('');
-  const [novaDuracao, setNovaDuracao] = useState('30');
+  const [erroServicos, setErroServicos] = useState<string | null>(null);
+  const instalacao = useEstadoInstalacao();
 
   useEffect(() => {
-    listServicos(supabase).then(setServicos, () => setErro('Não foi possível carregar os serviços.'));
+    listServicos(supabase).then(setServicos, () => setErroServicos('Não foi possível carregar os serviços.'));
   }, []);
+  useEffect(() => () => clearTimeout(timer.current), []);
 
-  function mudarIntervalo(dia: DiaSemana, i: number, campo: keyof Intervalo, valor: string) {
-    setExpediente((e) => ({ ...e, [dia]: e[dia].map((iv, j) => (j === i ? { ...iv, [campo]: valor } : iv)) }));
+  function salvou(chave: string) {
+    setAberto(null);
+    setSalvo(chave);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setSalvo(null), SALVO_MS);
   }
 
-  function adicionarIntervalo(dia: DiaSemana) {
-    setExpediente((e) => ({ ...e, [dia]: [...e[dia], { inicio: '', fim: '' }] }));
+  function servicoSalvo(gravado: Servico) {
+    setServicos((lista) => (lista.some((s) => s.id === gravado.id) ? lista.map((s) => (s.id === gravado.id ? gravado : s)) : [...lista, gravado]));
+    salvou(`servico:${gravado.id}`);
   }
 
-  function removerIntervalo(dia: DiaSemana, i: number) {
-    setExpediente((e) => ({ ...e, [dia]: e[dia].filter((_, j) => j !== i) }));
-  }
-
-  function adicionarFolga() {
-    if (novaFolga && !folgas.includes(novaFolga)) setFolgas([...folgas, novaFolga].sort());
-    setNovaFolga('');
-  }
-
-  async function salvar(e: FormEvent) {
-    e.preventDefault();
-    setSalvo(false);
-    const problema = validar(expediente);
-    if (problema) {
-      setErro(problema);
-      return;
-    }
-    const passoMin = Number(passo);
-    if (!Number.isInteger(passoMin) || passoMin < 5 || passoMin > 240) {
-      return setErro('A duração de cada horário precisa ficar entre 5 e 240 minutos.');
-    }
-    const dias = Number(diasAbertos);
-    if (!Number.isInteger(dias) || dias < 1 || dias > 60) {
-      return setErro('Os dias do link precisam ficar entre 1 e 60.');
-    }
-    const tel = telNegocio.trim() ? normalizePhone(telNegocio) : null;
-    if (telNegocio.trim() && !tel) return setErro(MSG_WHATSAPP_INVALIDO);
-    setErro(null);
-    const ordenado = Object.fromEntries(
-      Object.entries(expediente).map(([d, l]) => [d, [...l].sort((a, b) => a.inicio.localeCompare(b.inicio))]),
-    ) as unknown as Expediente;
+  async function alternarAtivo(s: Servico) {
+    setErroServicos(null);
     try {
-      await saveConfig(supabase, {
-        nome_negocio: nome.trim(),
-        expediente: ordenado,
-        folgas,
-        passo_min: passoMin,
-        dias_abertos: dias,
-        telefone_negocio: tel,
-      });
-      await recarregar();
-      setSalvo(true);
+      servicoSalvo(await saveServico(supabase, { ...s, ativo: !s.ativo }));
     } catch {
-      setErro('Não foi possível salvar. Confira a internet e tente de novo.');
+      setErroServicos('Não foi possível salvar o serviço.');
     }
   }
 
-  async function gravarServico(s: Omit<Servico, 'id'> & { id?: string }) {
-    try {
-      const gravado = await saveServico(supabase, s);
-      setServicos((lista) =>
-        s.id ? lista.map((x) => (x.id === gravado.id ? gravado : x)) : [...lista, gravado],
-      );
-    } catch {
-      setErro('Não foi possível salvar o serviço.');
-    }
+  const hoje = dataLocal(new Date(), config.fuso);
+  const diaSalvo = salvo?.startsWith('exp:') ? Number(salvo.slice(4)) : null;
+  let backup = 'nenhum ainda';
+  if (config.ultimo_backup) {
+    const data = dataLocal(new Date(config.ultimo_backup), config.fuso);
+    backup = `${abreviaDia(data)} ${data.slice(8, 10)}/${data.slice(5, 7)}`;
   }
 
-  async function adicionarServico(e: FormEvent) {
-    e.preventDefault();
-    const duracao = Number(novaDuracao);
-    if (!novoServico.trim() || !(duracao > 0)) {
-      setErro('Informe o nome e a duração do serviço.');
-      return;
+  function conteudoPainel(p: Aberto) {
+    switch (p.tipo) {
+      case 'negocio':
+        return <PainelNegocio campo={p.campo} onSalvo={() => salvou(p.campo)} />;
+      case 'agenda':
+        return <PainelAgenda campo={p.campo} onSalvo={() => salvou(p.campo)} />;
+      case 'expediente':
+        return <PainelExpediente dias={p.dias} onSalvo={() => salvou(`exp:${p.dias[0]}`)} />;
+      case 'folgas':
+        return <PainelFolgas onSalvo={() => salvou('folgas')} />;
+      case 'servico':
+        return <PainelServico servico={p.servico} onSalvo={servicoSalvo} />;
+      case 'backup':
+        return (
+          <div className="painel-conteudo">
+            <SecaoBackup />
+          </div>
+        );
+      case 'instalar':
+        return (
+          <div className="painel-conteudo">
+            <SecaoInstalar />
+          </div>
+        );
     }
-    await gravarServico({ nome: novoServico.trim(), duracao_min: duracao, ativo: true });
-    setNovoServico('');
   }
 
   return (
-    <main className="config">
-      <Link to="/" className="voltar">
-        ‹ Agenda
-      </Link>
-      <h2 className="tit">Ajustes</h2>
-      {erro && <p role="alert">{erro}</p>}
+    <main className="ajustes">
+      <Chuva altura={210} />
+      <div className="ajustes-corpo" inert={aberto !== null} aria-hidden={aberto !== null || undefined}>
+        <Link to="/" className="voltar">
+          ‹ agenda
+        </Link>
+        <h1 className="ajustes-titulo">Ajustes</h1>
+        <p role="status" className="so-leitor">
+          {salvo ? 'Salvo.' : ''}
+        </p>
 
-      <form onSubmit={salvar}>
-        <section className="cartao">
-          <h3>Negócio</h3>
-          <label>
-            Nome do negócio
-            <input value={nome} onChange={(e) => setNome(e.target.value)} />
-          </label>
-          <label>
-            WhatsApp do negócio
-            <input type="tel" inputMode="tel" value={telNegocio} onChange={(e) => setTelNegocio(e.target.value)} placeholder="(11) 98765-4321" />
-          </label>
-        </section>
-
-        <section className="cartao">
-          <h3>Horários</h3>
-          <label>
-            Duração de cada horário (min)
-            <input type="number" inputMode="numeric" value={passo} onChange={(e) => setPasso(e.target.value)} />
-          </label>
-          <label>
-            Quantos dias o link mostra
-            <input type="number" inputMode="numeric" value={diasAbertos} onChange={(e) => setDiasAbertos(e.target.value)} />
-          </label>
-
-          <h4>Expediente</h4>
-
-          {DIAS.map(({ dia, nome: nomeDia, curto }) => (
-            <fieldset key={dia}>
-              <legend>{nomeDia}</legend>
-              {expediente[dia].length === 0 && <p className="sutil">Fechado</p>}
-              {expediente[dia].map((iv, i) => (
-                <div className="linha" key={i}>
-                  <input
-                    type="time"
-                    aria-label={`${nomeDia}, início ${i + 1}`}
-                    value={iv.inicio}
-                    onChange={(e) => mudarIntervalo(dia, i, 'inicio', e.target.value)}
-                  />
-                  <span>até</span>
-                  <input
-                    type="time"
-                    aria-label={`${nomeDia}, fim ${i + 1}`}
-                    value={iv.fim}
-                    onChange={(e) => mudarIntervalo(dia, i, 'fim', e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    aria-label={`Remover intervalo ${i + 1} da ${curto}`}
-                    onClick={() => removerIntervalo(dia, i)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-              <button type="button" aria-label={`Adicionar intervalo na ${curto}`} onClick={() => adicionarIntervalo(dia)}>
-                + intervalo
-              </button>
-            </fieldset>
-          ))}
-
-          <h4>Folgas</h4>
-          <ul>
-            {folgas.map((f) => (
-              <li key={f}>
-                {f.split('-').reverse().join('/')}{' '}
-                <button type="button" aria-label={`Remover folga ${f}`} onClick={() => setFolgas(folgas.filter((x) => x !== f))}>
-                  ✕
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="linha">
-            <label>
-              Nova folga
-              <input type="date" value={novaFolga} onChange={(e) => setNovaFolga(e.target.value)} />
-            </label>
-            <button type="button" onClick={adicionarFolga}>
-              Adicionar folga
-            </button>
-          </div>
-        </section>
-
-
-        <button type="submit" className="primario">
-          Salvar configurações
-        </button>
-        {salvo && <p role="status">Salvo!</p>}
-      </form>
-
-      <div className="config-direita">
-      <section className="cartao">
-        <h3>Serviços</h3>
-        <ul className="lista">
-          {servicos.map((s) => (
-            <li key={s.id}>
-              <span>{s.nome}</span> <span className="sutil">{s.duracao_min} min</span>
-              <label className="inline">
-                <input
-                  type="checkbox"
-                  className="chave"
-                  aria-label={`${s.nome} ativo`}
-                  checked={s.ativo}
-                  onChange={() => gravarServico({ ...s, ativo: !s.ativo })}
+        <div className="ajustes-colunas">
+          <div className="ajustes-coluna">
+            <Capitulo titulo="Negócio">
+              <ul className="linhas-ajuste">
+                <LinhaAjuste rotulo="Nome" valor={config.nome_negocio} salvo={salvo === 'nome'} onAbrir={() => setAberto({ tipo: 'negocio', campo: 'nome' })} />
+                <LinhaAjuste
+                  rotulo="WhatsApp"
+                  valor={config.telefone_negocio ? telefoneLegivel(config.telefone_negocio) : 'nenhum'}
+                  salvo={salvo === 'whatsapp'}
+                  onAbrir={() => setAberto({ tipo: 'negocio', campo: 'whatsapp' })}
                 />
-                ativo
-              </label>
-            </li>
-          ))}
-        </ul>
-        <form onSubmit={adicionarServico} className="linha">
-          <label>
-            Nome do serviço
-            <input value={novoServico} onChange={(e) => setNovoServico(e.target.value)} />
-          </label>
-          <label>
-            Duração (min)
-            <input type="number" min={5} step={5} inputMode="numeric" value={novaDuracao} onChange={(e) => setNovaDuracao(e.target.value)} />
-          </label>
-          <button type="submit">Adicionar serviço</button>
-        </form>
-      </section>
+              </ul>
+            </Capitulo>
 
-      <section className="cartao">
-        <Clientes />
-      </section>
+            <Capitulo titulo="Agenda">
+              <ul className="linhas-ajuste">
+                <LinhaAjuste
+                  rotulo="Duração de cada horário"
+                  valor={`${config.passo_min} min`}
+                  salvo={salvo === 'passo'}
+                  onAbrir={() => setAberto({ tipo: 'agenda', campo: 'passo' })}
+                />
+                <LinhaAjuste
+                  rotulo="Quantos dias o link mostra"
+                  valor={`${config.dias_abertos} dias`}
+                  salvo={salvo === 'dias'}
+                  onAbrir={() => setAberto({ tipo: 'agenda', campo: 'dias' })}
+                />
+              </ul>
+            </Capitulo>
 
-      <section className="cartao">
-        <SecaoBackup />
-      </section>
+            <Capitulo titulo="Expediente">
+              <div className="faixa-expediente" role="group" aria-label="Dias da semana">
+                {DIAS_SEMANA.map(({ dia, nome, curto }) => (
+                  <button
+                    key={dia}
+                    type="button"
+                    className={config.expediente[dia].length > 0 ? 'aberto' : undefined}
+                    aria-label={`${nome}, ${horarioDoDia(config.expediente[dia])}`}
+                    onClick={() => setAberto({ tipo: 'expediente', dias: [dia] })}
+                  >
+                    {curto}
+                  </button>
+                ))}
+              </div>
+              <ul className="linhas-ajuste">
+                {resumoExpediente(config.expediente).map((g) => (
+                  <LinhaAjuste
+                    key={g.dias.join()}
+                    rotulo={g.rotulo}
+                    valor={g.horario}
+                    salvo={diaSalvo !== null && g.dias.includes(diaSalvo as DiaSemana)}
+                    onAbrir={() => setAberto({ tipo: 'expediente', dias: g.dias })}
+                  />
+                ))}
+              </ul>
+            </Capitulo>
 
-      <section className="cartao">
-        <SecaoInstalar />
-      </section>
+            <Capitulo titulo="Folgas">
+              <ul className="linhas-ajuste">
+                <LinhaAjuste rotulo="Folgas" valor={resumoFolgas(config.folgas, hoje)} salvo={salvo === 'folgas'} onAbrir={() => setAberto({ tipo: 'folgas' })} />
+              </ul>
+            </Capitulo>
+
+            <Capitulo titulo="Serviços">
+              <ul className="linhas-ajuste">
+                {servicos.map((s) => (
+                  <LinhaAjuste
+                    key={s.id}
+                    rotulo={s.nome}
+                    valor={`${s.duracao_min} min`}
+                    salvo={salvo === `servico:${s.id}`}
+                    onAbrir={() => setAberto({ tipo: 'servico', servico: s })}
+                    fim={
+                      // o rótulo em volta dá 52 px de toque à chave, que desenhada tem 50×30
+                      <label className="chave-toque">
+                        <input
+                          type="checkbox"
+                          className="chave"
+                          aria-label={`${s.nome} ativo`}
+                          checked={s.ativo}
+                          onChange={() => void alternarAtivo(s)}
+                        />
+                      </label>
+                    }
+                  />
+                ))}
+              </ul>
+              <button type="button" className="texto" onClick={() => setAberto({ tipo: 'servico' })}>
+                + novo serviço
+              </button>
+              {erroServicos && <p role="alert">{erroServicos}</p>}
+            </Capitulo>
+          </div>
+
+          <div className="ajustes-coluna">
+            <Capitulo titulo="Clientes">
+              <Clientes />
+            </Capitulo>
+
+            <Capitulo titulo="Backup">
+              <ul className="linhas-ajuste">
+                <LinhaAjuste rotulo="Último backup" valor={backup} onAbrir={() => setAberto({ tipo: 'backup' })} />
+              </ul>
+            </Capitulo>
+
+            <Capitulo titulo="Tela inicial">
+              <ul className="linhas-ajuste">
+                <LinhaAjuste rotulo="Na tela inicial" valor={INSTALACAO[instalacao]} onAbrir={() => setAberto({ tipo: 'instalar' })} />
+              </ul>
+            </Capitulo>
+
+            <Capitulo titulo="Conta">
+              <SecaoConta />
+            </Capitulo>
+          </div>
+        </div>
       </div>
+
+      <Painel aberto={aberto !== null} onFechar={() => setAberto(null)} rotulo={ultimo.current ? ROTULOS[ultimo.current.tipo] : 'Ajustes'}>
+        {ultimo.current && conteudoPainel(ultimo.current)}
+      </Painel>
     </main>
   );
 }

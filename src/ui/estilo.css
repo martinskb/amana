@@ -128,22 +128,6 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--marca); }
 .lista button.link { width: 100%; justify-content: flex-start; border: 0; background: none; padding: 4px 0; }
 .sugestoes { list-style: none; padding: 0; display: grid; gap: 4px; }
 
-/* ===== Ajustes e Link ===== */
-.config section.cartao, .config form > section.cartao { margin: 0 0 14px; }
-.config section h3 { font-family: var(--fonte-titulo); font-weight: 800; letter-spacing: -0.02em; font-size: 21px; color: var(--titulo); margin: 0 0 12px; }
-.config h4, .aba-link h4 { margin: 18px 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sutil); font-weight: 600; }
-fieldset { border: 0; border-top: 1px solid var(--borda); border-radius: 0; padding: 10px 0; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-fieldset legend { float: left; width: 88px; font-weight: 600; padding: 0; }
-fieldset .linha { background: var(--fundo); border: 1px solid var(--borda-i); border-radius: var(--raio-pilula); padding: 2px 4px 2px 10px; gap: 4px; flex-wrap: nowrap; }
-fieldset .linha input[type='time'] { border: 0; min-height: 36px; padding: 0 4px; background: transparent; font-variant-numeric: tabular-nums; }
-fieldset .linha button { min-height: 32px; width: 32px; padding: 0; border: 0; background: transparent; color: var(--sutil); }
-fieldset > button { margin-left: auto; min-height: 38px; }
-.config form > button[type='submit'] { width: 100%; margin-bottom: 14px; }
-.config .lista li > label.inline { margin-left: auto; }
-label.inline { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 0 auto; }
-.link-destaque { font-size: 16px; font-weight: 600; word-break: break-all; background: var(--fundo); border: 1px solid var(--borda-i); border-radius: var(--raio-campo); padding: 12px 14px; }
-.aba-link .linha { margin: 12px 0; }
-.aba-link label.inline.chave { margin: 18px 0 6px; font-size: 16px; }
 
 /* chave liga/desliga sobre o checkbox (o papel acessível continua "checkbox") */
 input[type='checkbox'].chave {
@@ -170,11 +154,6 @@ input[type='checkbox'].chave:disabled { opacity: 0.55; }
 .login form button[type='submit'] { width: 100%; margin-top: 6px; }
 .aviso-conexao.cartao { padding: 22px; }
 .aviso-conexao h1 { font-family: var(--fonte-titulo); font-weight: 800; letter-spacing: -0.02em; color: var(--titulo); font-size: 26px; margin: 0 0 10px; }
-
-@media (min-width: 768px) {
-  .config form > section.cartao:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
-  .config form > section.cartao:first-child h3 { grid-column: 1 / -1; }
-}
 
 /* ===== Página pública ===== */
 .publico { max-width: 640px; margin: 0 auto; padding: 28px 0 40px; }
@@ -238,7 +217,7 @@ button:not(:disabled):active, a.botao:active { transform: scale(0.97); }
 button, a.botao { transition: transform 120ms var(--curva), background-color var(--rapido) var(--curva), border-color var(--rapido) var(--curva), color var(--rapido) var(--curva); }
 p[role='alert'] { animation: treme 300ms var(--curva); }
 @keyframes treme { 20% { transform: translateX(-4px); } 40% { transform: translateX(4px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
-.config .lista li, fieldset .linha { animation: entra-item 250ms var(--curva); }
+.linhas-ajuste > li, .intervalo { animation: entra-item 250ms var(--curva); }
 @keyframes entra-item { from { opacity: 0; transform: scale(0.96); } }
 
 /* Menos movimento (pedido pelo sistema): só fades curtos; nada desliza, treme ou fica esperando animação. */
@@ -251,7 +230,7 @@ p[role='alert'] { animation: treme 300ms var(--curva); }
     scroll-behavior: auto !important;
   }
   .conteudo.entra, .entra-dir, .entra-esq, .troca-modo, .cascata .linha-tempo > li, .linha-tempo > li.chegou, .menu-mais, .ficha, .publico .horarios button, .publico .servicos button, .formulario,
-  .desdobra, .publico h1, .publico .sucesso h2, .resumo-sucesso, .config .lista li, fieldset .linha,
+  .desdobra, .publico h1, .publico .sucesso h2, .resumo-sucesso, .linhas-ajuste > li, .intervalo,
   .painel-camada .painel, .painel-camada.saindo .painel { animation-name: aparece !important; }
   .painel-camada.saindo .painel, .painel-camada.saindo .fundo-escuro { animation-name: some !important; }
   @media (min-width: 768px) { .painel-camada .painel { transform: translate(-50%, -50%); } }
@@ -259,31 +238,14 @@ p[role='alert'] { animation: treme 300ms var(--curva); }
   .check-circulo, .check-traco { animation: none !important; stroke-dashoffset: 0; }
   .esqueleto-linha { animation: none !important; }
   /* caneta e agora: já aparecem desenhados; a chuva fica parada */
-  .circulado path, .nota-mao, .linha-tempo > li.lt-agora, .chuva::before { animation: none !important; }
+  .circulado path, .nota-mao, .salvo-mao, .linha-tempo > li.lt-agora, .chuva::before { animation: none !important; }
   .circulado path { stroke-dashoffset: 0; }
   button:not(:disabled):active, a.botao:active { transform: none; }
 }
 
-@media (max-width: 767px) {
-  /* Expediente: fieldset não encolhe abaixo do conteúdo e o campo de hora do Android ("9:00 AM" + seta)
-     é largo; sem isto a linha passava da borda do cartão. Cada intervalo ocupa a linha toda e os dois
-     campos dividem o espaço. */
-  fieldset { min-width: 0; }
-  fieldset .linha { flex: 1 1 100%; min-width: 0; }
-  fieldset .linha input[type='time'] { flex: 1 1 0; width: 0; min-width: 0; }
-  fieldset .linha span { flex: none; }
-}
-
-/* ===== Ajustes: volta e duas colunas na tela larga ===== */
+/* ===== Ajustes: volta ===== */
 .voltar { display: inline-flex; align-items: center; gap: 6px; margin: 16px 0 4px; color: var(--sutil); font-weight: 500; text-decoration: none; min-height: 44px; }
 .voltar:hover { color: var(--titulo); }
-@media (min-width: 1280px) {
-  .conteudo:has(.config) { max-width: 1320px; }
-  .config { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; align-items: start; }
-  .config > .voltar, .config > .tit, .config > [role='alert'] { grid-column: 1 / -1; }
-  .config > form { grid-column: 1; }
-  .config > .config-direita { grid-column: 2; }
-}
 
 /* ===== Contêiner das telas do dono (sem navegação) ===== */
 .conteudo { max-width: 760px; margin: 0 auto; }
@@ -313,7 +275,7 @@ a.botao.redondo { width: 44px; padding: 0; flex: none; }
   animation: aparece 150ms var(--curva);
 }
 .painel-camada.lateral.saindo .painel { animation: some 150ms var(--curva) forwards; }
-.fechar-painel { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; min-height: 36px; }
+.fechar-painel { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; min-height: 44px; }
 .painel-camada.lateral .painel-conteudo h3 { padding-right: 44px; }
 
 /* ===== Seleção e 2ª coluna (tela larga) ===== */
@@ -493,3 +455,89 @@ button.texto:hover { color: var(--titulo); }
 .resumo-secao { padding: 4px 0; }
 .novos-titulo { margin: 0 0 4px; font-weight: 600; }
 .novos-lista { margin: 0 0 2px; padding-left: 18px; font-size: 14px; color: var(--sutil); }
+
+/* ===== Caderno: painéis (detalhes, novo/editar, horário livre e os dos Ajustes) ===== */
+/* o nome do cliente (ou do que se edita) grande; uma linha de resumo; campos como linha de escrever */
+.painel .painel-titulo { margin: 4px 0 4px; font-family: var(--fonte-titulo); font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; font-size: 32px; color: var(--titulo); }
+.painel-camada.lateral .painel .painel-titulo { padding-right: 48px; }
+.painel-resumo { margin: 0 0 14px; color: var(--sutil); font-size: 15px; }
+.painel-conteudo > .sutil { margin: 0 0 12px; }
+.painel input:not([type='checkbox']):not([type='time']), .painel select, .ajustes .campo-linha input {
+  min-height: 46px; padding: 0 2px; border: 0; border-bottom: 1.5px solid var(--borda-i); border-radius: 0; background: transparent;
+}
+.painel input:not([type='checkbox']):not([type='time']):focus, .painel select:focus, .ajustes .campo-linha input:focus { border-bottom-color: var(--marca); box-shadow: none; }
+.painel label { color: var(--sutil); font-weight: 500; }
+.painel label input, .painel label select { color: var(--texto); }
+.painel-conteudo .larga { width: 100%; margin: 6px 0 4px; }
+.botoes-painel { display: grid; gap: 4px; margin-top: 8px; }
+.botoes-painel .texto, .fechar-texto { justify-self: center; display: flex; margin: 4px auto 0; }
+.cliente-escolhido { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 18px; }
+/* as demais ações: lista de linhas com ícone, separadas por traço fino (sem pílulas) */
+.painel .acoes { display: block; list-style: none; padding: 0; margin: 10px 0 0; border-top: 1px solid var(--borda); }
+.painel .acoes > li { border-bottom: 1px solid var(--borda); }
+.acao-linha {
+  display: flex; align-items: center; justify-content: flex-start; gap: 14px; width: 100%; min-height: 52px; padding: 0 4px;
+  border: 0; border-radius: 0; background: none; color: var(--texto); font-weight: 500; text-decoration: none;
+}
+.acao-linha svg { color: var(--marca); flex: none; }
+.acao-linha:hover { color: var(--titulo); }
+button.acao-linha.perigo { color: var(--perigo); border-bottom: 1px solid var(--borda); }
+button.acao-linha.perigo svg { color: var(--perigo); }
+.painel .confirmar-cancelar { margin-top: 12px; }
+
+/* botão de contorno em --marca (o aviso de backup: na agenda o único botão cheio é o "+") */
+button.contorno { background: transparent; border-color: var(--marca); color: var(--marca); font-weight: 600; }
+
+/* ===== Caderno: Ajustes como índice de capítulos ===== */
+.ajustes-corpo { position: relative; padding-bottom: 32px; }
+.ajustes-titulo { margin: 0 0 22px; font-family: var(--fonte-titulo); font-weight: 800; letter-spacing: -0.04em; line-height: 1; font-size: 46px; color: var(--titulo); }
+.cap-ajustes { margin: 0 0 26px; }
+.linhas-ajuste { list-style: none; padding: 0; margin: 0; }
+.linha-ajuste { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--borda); }
+.la-corpo {
+  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-start; gap: 10px; min-height: 52px; padding: 0 2px;
+  border: 0; border-radius: 0; background: none; color: var(--texto); font-weight: 400; text-align: left;
+}
+.la-rotulo { position: relative; flex: none; display: inline-flex; align-items: center; gap: 10px; }
+.la-valor { flex: 1; min-width: 0; text-align: right; color: var(--sutil); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.la-corpo svg { flex: none; margin-left: -4px; color: var(--sutil); }
+button.la-corpo:hover .la-valor, button.la-corpo:hover svg { color: var(--titulo); }
+.chave-toque { display: flex; align-items: center; justify-content: center; min-width: 50px; min-height: 52px; margin: 0; cursor: pointer; }
+.cap-ajustes > button.texto { margin-top: 4px; }
+.cap-ajustes > .sair { color: var(--perigo); }
+/* "salvo! ✓" escrito ao lado do nome da linha: aparece (300 ms), fica e some — ~1,5 s ao todo */
+.salvo-mao { display: inline-flex; animation: salvo 1500ms var(--curva) both; }
+.salvo-mao .nota-mao { font-size: 21px; }
+@keyframes salvo {
+  0% { opacity: 0; transform: rotate(-6deg) translateY(4px); }
+  20%, 80% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+/* faixa do expediente: seg–dom; dia com expediente destacado em --marca */
+.faixa-expediente { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 0 0 4px; }
+.faixa-expediente button { min-width: 0; min-height: 44px; padding: 0; border-radius: 12px; border-color: var(--borda); background: transparent; color: var(--sutil); font-size: 14px; }
+.faixa-expediente button.aberto { border-color: var(--marca); color: var(--texto); background: rgba(178, 114, 222, 0.12); }
+/* painel do expediente: intervalos com campos de hora em caixa (a linha atrapalha o seletor nativo) */
+.intervalos { list-style: none; padding: 0; margin: 0 0 4px; display: grid; gap: 8px; }
+.intervalo { display: flex; align-items: center; gap: 8px; }
+.intervalo input[type='time'] { flex: 1 1 0; width: 0; min-width: 0; font-variant-numeric: tabular-nums; }
+.intervalo .icone-redondo, .linhas-painel .icone-redondo { flex: none; }
+.linhas-painel { list-style: none; padding: 0; margin: 0 0 8px; }
+.linhas-painel li { display: flex; align-items: center; justify-content: space-between; min-height: 52px; border-bottom: 1px solid var(--borda); }
+.nova-folga { align-items: flex-end; flex-wrap: nowrap; }
+.nova-folga .campo-linha { flex: 1; margin: 0; }
+.com-unidade { display: flex; align-items: flex-end; gap: 10px; }
+.com-unidade .campo-linha { flex: 1; margin: 0; }
+.com-unidade .unidade { padding-bottom: 12px; color: var(--sutil); }
+.painel-conteudo .caixa { background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-cartao); padding: 14px; margin: 8px 0; }
+.painel-conteudo h4 { margin: 18px 0 8px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sutil); font-weight: 600; }
+/* Clientes no capítulo: busca como linha e a lista em linhas */
+.clientes .lista { margin: 4px 0 0; }
+.clientes .lista li { padding: 0; }
+.clientes .lista button.link { min-height: 52px; }
+.clientes h4 { margin: 8px 0; font-size: 20px; font-family: var(--fonte-titulo); color: var(--titulo); }
+@media (min-width: 1280px) {
+  .conteudo:has(.ajustes) { max-width: 1320px; }
+  .ajustes-colunas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 48px; align-items: start; }
+}
+.ajustes .campo-linha { color: var(--sutil); font-weight: 500; }
