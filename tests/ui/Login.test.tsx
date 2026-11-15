@@ -41,6 +41,13 @@ describe('login e sessão', () => {
     expect(screen.getByText('chega de "tem horário?"')).toBeInTheDocument();
   });
 
+  it('o login tem chuva decorativa escondida dos leitores de tela e um só botão cheio', async () => {
+    const { container } = render(<App />);
+    await screen.findByLabelText('Usuário');
+    expect(container.querySelector('.chuva')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelectorAll('button.primario')).toHaveLength(1);
+  });
+
   // um cliente que troque o endereço da página pública não chega a nenhuma tela do dono
   it.each(['#/config', '#/', '#/link', '#/qualquer'])('%s sem sessão mostra o login', async (hash) => {
     window.location.hash = hash;

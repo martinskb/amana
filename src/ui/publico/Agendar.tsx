@@ -5,6 +5,7 @@ import { abreviaDia, dataLocal, diaDaSemana, FUSO, horaCurta, horaLocal } from '
 import { MSG_WHATSAPP_INVALIDO, normalizePhone, waLink } from '../../lib/whatsapp';
 import type { ErroPublico, HorariosPublicos } from '../../types';
 import Esqueleto from '../Esqueleto';
+import Chuva from '../Chuva';
 import { IconeDireita, IconeEsquerda } from '../icones';
 import MarcaAmana from '../MarcaAmana';
 
@@ -129,6 +130,7 @@ export default function Agendar() {
   if (falhaCarga)
     return (
       <main className="publico">
+        <Chuva altura={220} />
         <p role="alert" className="cartao aviso-publico">
           Não foi possível carregar. Tente de novo em instantes.
         </p>
@@ -140,11 +142,17 @@ export default function Agendar() {
   if (!dados)
     return (
       <main className="publico">
+        <Chuva altura={220} />
         <Esqueleto />
       </main>
     );
 
-  const titulo = <h1>{dados.nome_negocio}</h1>;
+  const titulo = (
+    <>
+      <Chuva altura={260} />
+      <h1>{dados.nome_negocio}</h1>
+    </>
+  );
   const assinatura = (
     <footer className="assinatura">
       agendado com <MarcaAmana tamanho={14} />
@@ -184,7 +192,7 @@ export default function Agendar() {
       <>
         <main className="publico">
           {titulo}
-          <p className="cartao aviso-publico">
+          <p className="aviso-publico">
             {fechado || !dados.link_ativo ? 'Agendamento online fechado no momento.' : 'Sem horários livres nos próximos dias.'}
           </p>
           {falar('Oi! Quero marcar um horário.')}
@@ -197,12 +205,10 @@ export default function Agendar() {
     <>
       <main className="publico">
         {titulo}
-        <p className="sutil lead">
-          {comServico ? 'Escolha o serviço, o dia e o horário.' : 'Escolha o dia e o horário do seu atendimento.'}
-        </p>
+        <p className="sutil lead">Escolha e pronto: o horário é seu.</p>
         {comServico && (
           <>
-            <p className="rotulo">Serviço</p>
+            <p className="capitulo">1 · serviço</p>
             <div className="servicos" role="group" aria-label="Serviços">
               {servicos.map((s) => (
                 <button
@@ -216,7 +222,14 @@ export default function Agendar() {
                     setErro(null);
                   }}
                 >
-                  <span className="servico-nome">{s.nome}</span>{' '}
+                  <span className="servico-nome">
+                    {servicoId === s.id && (
+                      <span className="servico-ok" aria-hidden="true">
+                        ✓{' '}
+                      </span>
+                    )}
+                    {s.nome}
+                  </span>{' '}
                   <span className="servico-duracao">
                     {s.horarios.length === 0 ? 'sem horário' : `${s.duracao_min} min`}
                   </span>
@@ -226,7 +239,7 @@ export default function Agendar() {
           </>
         )}
 
-        {(!comServico || servico) && <p className="rotulo">Dia</p>}
+        {(!comServico || servico) && <p className="capitulo">{comServico ? '2 · dia' : '1 · dia'}</p>}
         {(!comServico || servico) && (
         <div className="dias-faixa">
           <button type="button" className="red seta" aria-label="Dias anteriores" onClick={() => rolarDias(-1)}>
@@ -254,7 +267,7 @@ export default function Agendar() {
         </div>
         )}
 
-        {dia && porDia.has(dia) && <p className="rotulo">Horário</p>}
+        {dia && porDia.has(dia) && <p className="capitulo">{comServico ? '3 · horário' : '2 · horário'}</p>}
         {dia && porDia.has(dia) && (
           <div key={dia} className="horarios" role="group" aria-label="Horários">
             {porDia.get(dia)!.map((h) => (
@@ -266,7 +279,8 @@ export default function Agendar() {
         )}
 
         {horario && (
-          <form onSubmit={confirmar} className="cartao formulario">
+          <form onSubmit={confirmar} className="formulario">
+            <p className="capitulo">{comServico ? '4 · seus dados' : '3 · seus dados'}</p>
             <p className="resumo-escolha">
               {servico ? `${servico.nome} · ${servico.duracao_min} min` : null}
               {servico ? <br /> : null}

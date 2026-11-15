@@ -211,6 +211,28 @@ describe('página pública de agendamento', () => {
     await waitFor(() => expect(m.getHorariosPublicos).toHaveBeenCalledTimes(2));
   });
 
+  it('sem serviço ativo: capítulos "1 · dia", "2 · horário", "3 · seus dados" e o fluxo completo', async () => {
+    render(<Agendar />);
+    expect(await screen.findByText('1 · dia')).toBeInTheDocument();
+    expect(screen.queryByText('1 · serviço')).not.toBeInTheDocument();
+    expect(screen.getByText('Escolha e pronto: o horário é seu.')).toBeInTheDocument();
+    expect(screen.queryByText('Escolha o dia e o horário do seu atendimento.')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'qua 18' }));
+    expect(screen.getByText('2 · horário')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '9h' }));
+    expect(screen.getByText('3 · seus dados')).toBeInTheDocument();
+    await preencher('Rui', '11987654321');
+    await confirmar();
+    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Rui', '+5511987654321', '2026-11-18T12:00:00Z', null);
+    expect(await screen.findByRole('heading', { name: 'Pronto, Rui!' })).toBeInTheDocument();
+  });
+
+  it('a chuva do topo é decoração escondida dos leitores de tela', async () => {
+    const { container } = render(<Agendar />);
+    await screen.findByText('1 · dia');
+    expect(container.querySelector('.chuva')).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('número internacional vai com + e o código do país', async () => {
     render(<Agendar />);
     await escolher9hDeQuarta();
@@ -239,6 +261,27 @@ describe('página pública com serviços', () => {
     expect(within(grupo).getByRole('button', { name: 'Corte 30 min' })).toBeInTheDocument();
     expect(within(grupo).getByRole('button', { name: 'Corte + barba 60 min' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'qua 18' })).not.toBeInTheDocument();
+  });
+
+  it('capítulos numerados com serviço: 1 · serviço, 2 · dia, 3 · horário, 4 · seus dados', async () => {
+    render(<Agendar />);
+    expect(await screen.findByText('1 · serviço')).toBeInTheDocument();
+    expect(screen.getByText('Escolha e pronto: o horário é seu.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Corte 30 min' }));
+    expect(screen.getByText('2 · dia')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'qua 18' }));
+    expect(screen.getByText('3 · horário')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '9h' }));
+    expect(screen.getByText('4 · seus dados')).toBeInTheDocument();
+  });
+
+  it('o serviço escolhido ganha ✓ sem mudar o nome acessível', async () => {
+    render(<Agendar />);
+    const b = await screen.findByRole('button', { name: 'Corte 30 min' });
+    expect(b).not.toHaveTextContent('✓');
+    await userEvent.click(b);
+    expect(b).toHaveTextContent('✓');
+    expect(screen.getByRole('button', { name: 'Corte 30 min' })).toBeInTheDocument();
   });
 
   it('serviço sem horário que caiba aparece desligado', async () => {
