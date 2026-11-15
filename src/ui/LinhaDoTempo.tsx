@@ -106,22 +106,24 @@ export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selec
           <span className={`lt-ponto ${a.status}`} aria-hidden="true" />
           <span className="lt-hora">{hora}</span>{' '}
           <span className={`lt-corpo${novo ? ' com-caneta' : ''}`}>
-            {/* o circulado e a nota acompanham o tamanho do nome e da linha de baixo */}
-            <span className="lt-circulavel">
-              {novo && <Circulado desenhar={desenhar} />}
-              <span className="lt-cima">
-                {RISCADO.has(a.status) ? <s>{nome}</s> : nome}{' '}
-                <span className="lt-estado">
-                  {COM_CHECK.has(a.status) && <span aria-hidden="true">✓ </span>}
-                  {ESTADO[a.status]}
+            {/* o circulado abraça só o nome e o estado; a nota fica ao lado ou, sem espaço, logo abaixo */}
+            <span className="lt-linha-nome">
+              <span className="lt-circulavel">
+                {novo && <Circulado desenhar={desenhar} />}
+                <span className="lt-cima">
+                  {RISCADO.has(a.status) ? <s>{nome}</s> : nome}{' '}
+                  <span className="lt-estado">
+                    {COM_CHECK.has(a.status) && <span aria-hidden="true">✓ </span>}
+                    {ESTADO[a.status]}
+                  </span>
                 </span>
-              </span>{' '}
-              <span className="lt-sub">
-                {a.servico?.nome ?? 'sem serviço'}
-                {a.origem === 'link' && ' · pelo link'}
-                {digitou && <span className="alerta"> · digitou {digitou}</span>}
               </span>
               {novo && <NotaMao atraso={desenhar ? 700 : undefined}>marcou sozinho!</NotaMao>}
+            </span>{' '}
+            <span className="lt-sub">
+              {a.servico?.nome ?? 'sem serviço'}
+              {a.origem === 'link' && ' · pelo link'}
+              {digitou && <span className="alerta"> · digitou {digitou}</span>}
             </span>
             {novo && <span className="so-leitor">, novo, marcado pelo link</span>}
           </span>

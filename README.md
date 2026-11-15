@@ -47,6 +47,8 @@ npm test               # roda todos os testes
 npm run build          # gera o site em dist/
 ```
 
+Para conferir o visual de todas as telas com dados de exemplo (sem Supabase de verdade), `node scripts/prints/tirar-prints.mjs <pasta>` sobe um Supabase falso e o app e tira prints a 360, 390 e 1280 px num Chromium headless (`NAVEGADOR=` escolhe o navegador; `PORTA_FALSO`, `PORTA_APP` e `PORTA_CDP` mudam as portas).
+
 Os testes de banco usam o PGlite, um Postgres que roda dentro do próprio processo, com as mesmas migrações da produção. Não é preciso ter um Supabase para rodá-los.
 
 ## Organização do código

@@ -316,8 +316,10 @@ a.botao.redondo { width: 44px; padding: 0; flex: none; }
 .assinatura .marca-amana { opacity: 0.75; color: var(--sutil); }
 
 /* agenda: sem conexão */
-.faixa-sem-conexao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 10px 0 0; padding: 8px 12px; border: 1px solid var(--borda); border-radius: var(--raio-campo); background: var(--sup2); color: var(--sutil); font-size: 14px; }
-.faixa-sem-conexao button { min-height: 44px; }
+/* faixa fina: o aviso em --sutil e "Tentar de novo" como texto --marca (4,6:1 sobre --sup2), sem disputar com o botão cheio */
+.faixa-sem-conexao { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 12px; margin: 10px 0 0; padding: 0 6px 0 12px; border: 1px solid var(--borda); border-radius: var(--raio-campo); background: var(--sup2); color: var(--sutil); font-size: 13px; }
+.faixa-sem-conexao span { padding: 6px 0; }
+.faixa-sem-conexao button { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--marca); font-size: 14px; font-weight: 600; }
 
 /* ===== Caderno ===== */
 /* chuva: riscos finos na diagonal, só no topo, sumindo para baixo (o conteúdo vem por cima).
@@ -334,7 +336,7 @@ a.botao.redondo { width: 44px; padding: 0; flex: none; }
 @keyframes chuva-cai { to { transform: translateY(50.23px); } }
 .agenda-layout { position: relative; }
 .mao { font-family: var(--fonte-mao); font-weight: 700; color: var(--marca); line-height: 1.1; margin: 0; transform: rotate(-3deg); }
-button.texto { min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--marca); font-weight: 600; }
+button.texto { min-width: 44px; min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--marca); font-weight: 600; }
 button.texto:hover { color: var(--titulo); }
 .capitulo { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sutil); font-weight: 600; }
 .capitulo::after { content: ''; flex: 1; height: 1px; background: var(--borda); }
@@ -383,7 +385,10 @@ button.texto:hover { color: var(--titulo); }
 .linha-tempo { position: relative; list-style: none; margin: 0; padding: 0; }
 .linha-tempo::before { content: ''; position: absolute; left: 61px; top: 0; bottom: 0; width: 1px; background: var(--borda); }
 .linha-tempo > li { min-width: 0; }
-.linha-tempo > li.passado { opacity: 0.55; }
+/* passado: o nome apagado para --sutil e a linha a 0,8; com 0,55 o texto --sutil caía para 3:1 e o
+   "digitou" para 2,8:1; a 0,8 todo texto fica ≥ 4,5:1 (--sutil 5,1:1, --perigo 4,7:1) */
+.linha-tempo > li.passado { opacity: 0.8; }
+.linha-tempo > li.passado .lt-nome { color: var(--sutil); }
 .lt-item {
   position: relative; display: grid; grid-template-columns: 62px minmax(0, 1fr); align-items: start; gap: 0;
   width: 100%; min-height: 44px; padding: 0; border: 0; border-radius: 0; background: none;
@@ -442,17 +447,21 @@ button.texto:hover { color: var(--titulo); }
 @keyframes menu-sobe { from { opacity: 0; transform: translateY(6px) scale(0.96); } }
 
 /* caneta: o novo pelo link vem circulado, com "marcou sozinho!" à mão (Caveat ≥ 18px, girada) */
-.lt-corpo.com-caneta { position: relative; }
+.lt-linha-nome { display: block; }
 .lt-circulavel { position: relative; display: inline-block; max-width: 100%; }
-.com-caneta .lt-circulavel { max-width: calc(100% - 136px); } /* a nota não cobre o nome */
-.circulado { position: absolute; top: -11px; left: -22px; width: calc(100% + 44px); height: calc(100% + 21px); overflow: visible; pointer-events: none; }
+/* o círculo abraça só nome + estado e não cruza texto: folga de 12px dos lados e 16px em cima e embaixo (sem chegar ao ponto
+   do trilho) e espaço embaixo antes da linha do serviço. A nota vem logo depois do círculo quando cabe; senão
+   desce para a linha seguinte, sob o círculo, sem cobrir nada */
+.com-caneta .lt-linha-nome { display: flex; flex-wrap: wrap; align-items: flex-start; column-gap: 24px; }
+.com-caneta .lt-circulavel { margin: 4px 0 17px; }
+.circulado { position: absolute; top: -16px; left: -12px; width: calc(100% + 24px); height: calc(100% + 32px); overflow: visible; pointer-events: none; }
 .circulado path { fill: none; stroke: var(--marca); stroke-width: 1.4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
 .circulado.desenhando path { animation: circula 700ms var(--curva) both; }
 @keyframes circula { from { stroke-dashoffset: 1; } }
 .nota-mao { display: inline-block; font-family: var(--fonte-mao); font-weight: 700; font-size: 19px; line-height: 1; color: var(--marca); white-space: nowrap; transform: rotate(-4deg); pointer-events: none; }
 .nota-mao.escrevendo { animation: escreve 200ms var(--curva) both; }
 @keyframes escreve { from { opacity: 0; transform: rotate(-4deg) translateY(4px); } }
-.lt-circulavel .nota-mao { position: absolute; left: calc(100% + 24px); top: -4px; }
+.lt-linha-nome .nota-mao { margin: 8px 0 10px; }
 /* chegou com a tela aberta: entra deslizando (a caneta desenha por cima) */
 .linha-tempo > li.chegou { animation: chegou 300ms var(--curva) both; }
 @keyframes chegou { from { opacity: 0; transform: translateX(-16px); } }
