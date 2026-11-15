@@ -1,11 +1,27 @@
 import { PGlite } from '@electric-sql/pglite';
+import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const raiz = resolve(__dirname, '../..');
 
-export async function novoBanco(): Promise<PGlite> {
-  const db = new PGlite();
+const MIGRACOES = [
+  '0001_init.sql',
+  '0002_link_publico.sql',
+  '0003_backup_drive.sql',
+  '0004_link_seguranca.sql',
+  '0005_servico_no_link.sql',
+  '0006_pessoas.sql',
+];
+
+/** Aplica uma migração pelo número (1 = 0001). */
+export async function aplicarMigracao(db: PGlite, n: number): Promise<void> {
+  await db.exec(readFileSync(resolve(raiz, 'supabase/migrations', MIGRACOES[n - 1]), 'utf8'));
+}
+
+/** Banco com as migrações até `ate` (padrão: todas) e o seed. */
+export async function novoBanco(ate = MIGRACOES.length): Promise<PGlite> {
+  const db = new PGlite({ extensions: { btree_gist } });
   await db.exec(`
     create role anon nologin;
     create role authenticated nologin;
@@ -19,11 +35,7 @@ export async function novoBanco(): Promise<PGlite> {
     create function auth.uid() returns uuid language sql stable as
       $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   `);
-  await db.exec(readFileSync(resolve(raiz, 'supabase/migrations/0001_init.sql'), 'utf8'));
-  await db.exec(readFileSync(resolve(raiz, 'supabase/migrations/0002_link_publico.sql'), 'utf8'));
-  await db.exec(readFileSync(resolve(raiz, 'supabase/migrations/0003_backup_drive.sql'), 'utf8'));
-  await db.exec(readFileSync(resolve(raiz, 'supabase/migrations/0004_link_seguranca.sql'), 'utf8'));
-  await db.exec(readFileSync(resolve(raiz, 'supabase/migrations/0005_servico_no_link.sql'), 'utf8'));
+  for (let n = 1; n <= ate; n++) await aplicarMigracao(db, n);
   await db.exec(readFileSync(resolve(raiz, 'supabase/seed.sql'), 'utf8'));
   return db;
 }
