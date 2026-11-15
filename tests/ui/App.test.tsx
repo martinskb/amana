@@ -69,6 +69,84 @@ describe('App: cache da config', () => {
     expect(ler('nome')).not.toBeNull();
   });
 
+  it('config guardada com outro formato é ignorada (esqueleto, não tela branca)', async () => {
+    auth.sessao = SESSAO;
+    gravar('config', { nome_negocio: 'X', expediente: null });
+    getConfig.mockReturnValue(new Promise(() => {}));
+    render(<App />);
+    await act(async () => {});
+    expect(screen.queryByRole('heading', { name: 'Agenda' })).toBeNull();
+    expect(screen.getByRole('status', { name: 'Carregando' })).toBeInTheDocument();
+  });
+
+  it('config guardada com outro formato e sem conexão mostra SemConexao', async () => {
+    const { SemConexaoError } = await import('../../src/data/erros');
+    auth.sessao = SESSAO;
+    gravar('config', { ...CONFIG_TESTE, passo_min: '30' });
+    getConfig.mockRejectedValue(new SemConexaoError());
+    render(<App />);
+    expect(await screen.findByText('Não foi possível conectar.')).toBeInTheDocument();
+  });
+
+  it('com config guardada, o título da aba já é o nome do negócio antes da busca', async () => {
+    auth.sessao = SESSAO;
+    gravar('config', { ...CONFIG_TESTE, nome_negocio: 'Guardado' });
+    getConfig.mockReturnValue(new Promise(() => {}));
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Agenda' });
+    expect(document.title).toBe('Guardado');
+  });
+
+  it('sessão que não renova sem internet, com config guardada: mostra a agenda guardada, não SemConexao', async () => {
+    const { SemConexaoError } = await import('../../src/data/erros');
+    auth.erroSessao = { name: 'AuthRetryableFetchError', status: 0 };
+    gravar('config', CONFIG_TESTE);
+    getConfig.mockRejectedValue(new SemConexaoError());
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Agenda' })).toBeInTheDocument();
+    expect(screen.queryByText('Não foi possível conectar.')).toBeNull();
+  });
+
+  it('sessão que não renova sem internet, sem config guardada: mostra SemConexao', async () => {
+    auth.erroSessao = { name: 'AuthRetryableFetchError', status: 0 };
+    render(<App />);
+    expect(await screen.findByText('Não foi possível conectar.')).toBeInTheDocument();
+  });
+
+  it('quando a conexão volta, a sessão é lida de novo: se não vale mais, vai para o login', async () => {
+    const { SemConexaoError } = await import('../../src/data/erros');
+    auth.erroSessao = { name: 'AuthRetryableFetchError', status: 0 };
+    gravar('config', CONFIG_TESTE);
+    getConfig.mockRejectedValue(new SemConexaoError());
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Agenda' });
+    auth.erroSessao = null;
+    auth.sessao = null;
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(await screen.findByLabelText('Usuário')).toBeInTheDocument();
+  });
+
+  it('quando a conexão volta e a sessão renova, a agenda continua', async () => {
+    const { SemConexaoError } = await import('../../src/data/erros');
+    auth.erroSessao = { name: 'AuthRetryableFetchError', status: 0 };
+    gravar('config', CONFIG_TESTE);
+    getConfig.mockRejectedValue(new SemConexaoError());
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Agenda' });
+    auth.erroSessao = null;
+    auth.sessao = SESSAO;
+    getConfig.mockResolvedValue(CONFIG_TESTE);
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+    });
+    await act(async () => {});
+    expect(screen.getByRole('heading', { name: 'Agenda' })).toBeInTheDocument();
+    expect(screen.queryByRole('status', { name: 'Carregando' })).toBeNull();
+    expect(getConfig).toHaveBeenCalledTimes(2);
+  });
+
   it('erro de conexão com config em cache mantém a agenda, sem SemConexao', async () => {
     const { SemConexaoError } = await import('../../src/data/erros');
     auth.sessao = SESSAO;

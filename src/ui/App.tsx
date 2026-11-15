@@ -18,9 +18,32 @@ import Esqueleto from './Esqueleto';
 import Agendar from './publico/Agendar';
 import SemConexao from './SemConexao';
 
+/**
+ * A config guardada no aparelho, se tiver o formato que esta versão do app espera.
+ * Guardada por outra versão (formato diferente): ignorada, como se não houvesse cache.
+ */
+function configGuardada(): Config | null {
+  const c = ler<Config>('config')?.valor as Partial<Config> | null | undefined;
+  if (
+    !c ||
+    typeof c !== 'object' ||
+    !c.expediente ||
+    typeof c.expediente !== 'object' ||
+    typeof c.fuso !== 'string' ||
+    typeof c.passo_min !== 'number' ||
+    typeof c.nome_negocio !== 'string'
+  )
+    return null;
+  return c as Config;
+}
+
 function Telas() {
   // o que ficou guardado no aparelho aparece na hora; a busca atualiza por baixo
-  const [config, setConfig] = useState<Config | null>(() => ler<Config>('config')?.valor ?? null);
+  const [config, setConfig] = useState<Config | null>(() => {
+    const guardada = configGuardada();
+    if (guardada) document.title = guardada.nome_negocio;
+    return guardada;
+  });
   const [erro, setErro] = useState<'conexao' | 'acesso' | 'outro' | null>(null);
   const [semConexao, setSemConexao] = useState(false);
   const temCache = useRef(config !== null);
@@ -95,8 +118,8 @@ function AppDoDono() {
   // undefined = carregando; 'sem-conexao' = não deu para ler/renovar a sessão
   const [sessao, setSessao] = useState<Session | null | 'sem-conexao' | undefined>(undefined);
 
-  const lerSessao = useCallback(async () => {
-    setSessao(undefined);
+  const lerSessao = useCallback(async (semEsqueleto = false) => {
+    if (!semEsqueleto) setSessao(undefined);
     const { data, error } = await supabase.auth.getSession();
     // sem internet ou projeto pausado: não mandar para o login (a sessão pode estar guardada)
     setSessao(error && ehErroDeConexao(error) ? 'sem-conexao' : data.session);
@@ -128,8 +151,30 @@ function AppDoDono() {
     };
   }, [semSessao]);
 
+  const semConexao = sessao === 'sem-conexao';
+  useEffect(() => {
+    if (!semConexao) return;
+    // a sessão não pôde ser lida/renovada: tenta de novo quando a internet voltar (e a cada 30 s)
+    const tentar = () => {
+      if (document.visibilityState === 'visible') void lerSessao(true);
+    };
+    const intervalo = setInterval(tentar, 30_000);
+    window.addEventListener('online', tentar);
+    document.addEventListener('visibilitychange', tentar);
+    return () => {
+      clearInterval(intervalo);
+      window.removeEventListener('online', tentar);
+      document.removeEventListener('visibilitychange', tentar);
+    };
+  }, [semConexao, lerSessao]);
+
   if (sessao === undefined) return <Esqueleto />;
-  if (sessao === 'sem-conexao') return <SemConexao onTentarDeNovo={lerSessao} />;
+  if (sessao === 'sem-conexao') {
+    // com dado guardado, SemConexao nem aparece: a agenda guardada abre com a faixa fina
+    // (as buscas falham); quando a sessão for lida de novo, as Telas remontam e buscam
+    if (configGuardada()) return <Telas key="guardado" />;
+    return <SemConexao onTentarDeNovo={() => void lerSessao()} />;
+  }
   if (!sessao) return <Login nome={nome} />;
-  return <Telas />;
+  return <Telas key="sessao" />;
 }
