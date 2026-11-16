@@ -4,11 +4,12 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ehErroDeConexao } from '../data/auth';
 import { getConfig } from '../data/configuracoes';
 import { SemAcessoError, SemConexaoError } from '../data/erros';
+import { listPessoas } from '../data/pessoas';
 import { getHorariosPublicos } from '../data/publico';
 import { supabase } from '../data/supabase';
 import { apagarAgendaESessao, gravar, ler } from '../lib/cache';
 import { lembrarNome, nomeInicial } from '../lib/nomeNegocio';
-import type { Config } from '../types';
+import type { Config, Pessoa } from '../types';
 import Agenda from './Agenda';
 import Configuracoes from './Configuracoes';
 import { ConfigContext } from './contexto';
@@ -37,6 +38,23 @@ function configGuardada(): Config | null {
   return c as Config;
 }
 
+/** As pessoas guardadas no aparelho, se tiverem o formato que esta versão espera; senão, nenhuma. */
+function pessoasGuardadas(): Pessoa[] {
+  const v = ler<unknown>('pessoas')?.valor;
+  if (!Array.isArray(v)) return [];
+  const ok = v.every(
+    (p: Partial<Pessoa> | null) =>
+      !!p &&
+      typeof p === 'object' &&
+      typeof p.id === 'string' &&
+      typeof p.ativo === 'boolean' &&
+      typeof p.ordem === 'number' &&
+      Array.isArray(p.folgas) &&
+      Array.isArray(p.servicos),
+  );
+  return ok ? (v as Pessoa[]) : [];
+}
+
 function Telas() {
   // o que ficou guardado no aparelho aparece na hora; a busca atualiza por baixo
   const [config, setConfig] = useState<Config | null>(() => {
@@ -47,6 +65,18 @@ function Telas() {
   const [erro, setErro] = useState<'conexao' | 'acesso' | 'outro' | null>(null);
   const [semConexao, setSemConexao] = useState(false);
   const temCache = useRef(config !== null);
+  // sem pessoas (nada guardado ainda), as telas agem como negócio de uma pessoa só
+  const [pessoas, setPessoas] = useState<Pessoa[]>(pessoasGuardadas);
+
+  const carregarPessoas = useCallback(async () => {
+    try {
+      const lista = await listPessoas(supabase);
+      setPessoas(lista);
+      gravar('pessoas', lista);
+    } catch {
+      // fica o que estava guardado; a faixa de sem conexão vem da busca da config
+    }
+  }, []);
 
   const carregar = useCallback(async () => {
     setErro(null);
@@ -66,11 +96,15 @@ function Telas() {
     }
   }, []);
 
-  useEffect(() => {
-    void carregar();
-  }, [carregar]);
+  const carregarTudo = useCallback(async () => {
+    await Promise.all([carregar(), carregarPessoas()]);
+  }, [carregar, carregarPessoas]);
 
-  if (erro === 'conexao') return <SemConexao onTentarDeNovo={carregar} />;
+  useEffect(() => {
+    void carregarTudo();
+  }, [carregarTudo]);
+
+  if (erro === 'conexao') return <SemConexao onTentarDeNovo={carregarTudo} />;
   if (erro === 'acesso')
     return (
       <main role="alert">
@@ -82,13 +116,13 @@ function Telas() {
     return (
       <main role="alert">
         <p>Algo deu errado ao carregar a agenda.</p>
-        <button type="button" onClick={carregar}>Tentar de novo</button>
+        <button type="button" onClick={carregarTudo}>Tentar de novo</button>
       </main>
     );
   if (!config) return <Esqueleto />;
 
   return (
-    <ConfigContext.Provider value={{ config, recarregar: carregar, semConexao }}>
+    <ConfigContext.Provider value={{ config, recarregar: carregar, semConexao, pessoas, recarregarPessoas: carregarPessoas }}>
       <HashRouter>
         <TransicaoRota>
           <Routes>

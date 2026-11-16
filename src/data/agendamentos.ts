@@ -3,7 +3,7 @@ import type { Agendamento, AgendamentoCompleto, Status } from '../types';
 import { executar } from './erros';
 import type { SupabaseClient } from './supabase';
 
-const CAMPOS = 'id, cliente_id, servico_id, inicio, fim, status, observacao, origem';
+const CAMPOS = 'id, cliente_id, servico_id, inicio, fim, status, observacao, origem, pessoa_id';
 const COMPLETO = `${CAMPOS}, nome_informado, criado_em, cliente:clientes(nome,telefone), servico:servicos(nome)`;
 
 /** Agendamentos com início entre 00:00 de `de` e 24:00 de `ate`, em hora local do negócio. */
@@ -55,7 +55,7 @@ export async function criarAgendamento(
 export async function editarAgendamento(
   db: SupabaseClient,
   id: string,
-  campos: Partial<Pick<Agendamento, 'servico_id' | 'inicio' | 'fim' | 'observacao'>>,
+  campos: Partial<Pick<Agendamento, 'servico_id' | 'inicio' | 'fim' | 'observacao' | 'pessoa_id'>>,
 ): Promise<void> {
   await executar(db.from('agendamentos').update(campos).eq('id', id));
 }

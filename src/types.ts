@@ -47,13 +47,18 @@ export interface HorarioAjuste { id: string; inicio: string; tipo: 'fechado' | '
 /** Quem atende. `servicos`: ids dos serviços que ela faz; `folgas`: dias de folga só dela ("YYYY-MM-DD"). */
 export interface Pessoa { id: string; nome: string | null; ativo: boolean; ordem: number; folgas: string[]; servicos: string[] }
 export type ErroPublico = 'link_fechado' | 'dados_invalidos' | 'limite' | 'horario_indisponivel' | 'servico_invalido';
-export type ResultadoPublico = { ok: true; inicio: string } | { ok: false; erro: ErroPublico };
+/** `pessoa`: nome de quem vai atender (null se ela não tem nome; ausente no banco sem a 0006). */
+export type ResultadoPublico = { ok: true; inicio: string; pessoa?: string | null } | { ok: false; erro: ErroPublico };
 /** Serviço ativo no link, com os horários em que ele cabe inteiro. */
 export interface ServicoPublico {
   id: string;
   nome: string;
   duracao_min: number;
   horarios: string[];
+  /** Pessoas com nome que fazem o serviço, cada uma com os horários dela (ausente sem a 0006). */
+  pessoas?: { id: string; horarios: string[] }[];
+  /** Mostrar o passo "com quem": alguém com nome faz o serviço e mais de uma pessoa ativa o faz. */
+  com_escolha?: boolean;
 }
 export interface HorariosPublicos {
   nome_negocio: string;
@@ -63,6 +68,8 @@ export interface HorariosPublicos {
   horarios: string[];
   /** Ausente se o banco ainda não tem a migração 0005. */
   servicos?: ServicoPublico[];
+  /** Pessoas ativas com nome, pela ordem (ausente sem a 0006). */
+  pessoas?: { id: string; nome: string }[];
 }
 export interface Slot { data: string; hora: string; inicio: Date } // "YYYY-MM-DD", "HH:MM"
 export interface SlotPessoa extends Slot { pessoa_id: string }

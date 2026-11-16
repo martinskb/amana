@@ -728,7 +728,7 @@ describe('Agenda', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
     const antes = m.listAjustes.mock.calls.length;
     await userEvent.click(screen.getByRole('button', { name: 'Fechar este horário' }));
-    expect(m.fecharHorario).toHaveBeenCalledWith({}, '2026-11-17T12:00:00.000Z');
+    expect(m.fecharHorario).toHaveBeenCalledWith({}, '2026-11-17T12:00:00.000Z', null);
     await waitFor(() => expect(m.listAjustes.mock.calls.length).toBeGreaterThan(antes));
   });
 
@@ -748,7 +748,7 @@ describe('Agenda', () => {
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-11-17' } });
     fireEvent.change(screen.getByLabelText('Hora'), { target: { value: '19:00' } });
     await userEvent.click(screen.getByRole('button', { name: 'Abrir horário' }));
-    expect(m.criarExtra).toHaveBeenCalledWith({}, '2026-11-17T22:00:00.000Z');
+    expect(m.criarExtra).toHaveBeenCalledWith({}, '2026-11-17T22:00:00.000Z', null);
   });
 
   it('o horário extra aparece livre na grade', async () => {
@@ -774,7 +774,7 @@ describe('Agenda', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
     expect(screen.queryByRole('button', { name: 'Remover horário extra' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Fechar este horário' }));
-    expect(m.fecharHorario).toHaveBeenCalledWith({}, '2026-11-17T12:00:00.000Z');
+    expect(m.fecharHorario).toHaveBeenCalledWith({}, '2026-11-17T12:00:00.000Z', null);
   });
 
   it('o formulário começa em "Sem serviço" e ocupa um horário (30 min)', async () => {

@@ -41,12 +41,13 @@ function chavesComPrefixo(inicio: string): string[] {
   return chaves;
 }
 
-/** Apaga o que é da sessão (config, agenda:*, servicos). Mantém nome, vistos e corte-novos. */
+/** Apaga o que é da sessão (config, agenda:*, servicos, pessoas). Mantém nome, vistos, corte-novos e filtro-pessoa. */
 export function apagarAgendaESessao(): void {
   try {
     for (const k of chavesComPrefixo('agenda:')) localStorage.removeItem(k);
     localStorage.removeItem(PREFIXO + 'config');
     localStorage.removeItem(PREFIXO + 'servicos');
+    localStorage.removeItem(PREFIXO + 'pessoas');
   } catch {
     // ignorado
   }

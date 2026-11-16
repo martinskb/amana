@@ -49,12 +49,14 @@ describe('cache', () => {
     expect(ler('nome')).not.toBeNull();
   });
 
-  it('apagarAgendaESessao mantém nome, vistos e corte-novos', () => {
-    for (const k of ['config', 'servicos', 'agenda:2026-11-09', 'agenda:2026-11-16', 'nome', 'vistos', 'corte-novos']) gravar(k, 1);
+  it('apagarAgendaESessao mantém nome, vistos, corte-novos e filtro-pessoa', () => {
+    for (const k of ['config', 'servicos', 'pessoas', 'agenda:2026-11-09', 'agenda:2026-11-16', 'nome', 'vistos', 'corte-novos', 'filtro-pessoa']) gravar(k, 1);
     localStorage.setItem('outro', 'x');
     apagarAgendaESessao();
     expect(ler('config')).toBeNull();
     expect(ler('servicos')).toBeNull();
+    expect(ler('pessoas')).toBeNull();
+    expect(ler('filtro-pessoa')).not.toBeNull();
     expect(ler('agenda:2026-11-09')).toBeNull();
     expect(ler('agenda:2026-11-16')).toBeNull();
     expect(ler('nome')).not.toBeNull();

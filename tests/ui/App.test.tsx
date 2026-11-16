@@ -3,15 +3,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { gravar, ler } from '../../src/lib/cache';
 import { CONFIG_TESTE } from '../helpers/config';
 import { SESSAO, type AuthFalso } from '../helpers/auth';
+import { PESSOA_TESTE } from '../helpers/pessoas';
+import type { Pessoa } from '../../src/types';
 
-const { auth, getConfig } = vi.hoisted(() => ({ auth: {} as AuthFalso, getConfig: vi.fn() }));
+const { auth, getConfig, listPessoas } = vi.hoisted(() => ({ auth: {} as AuthFalso, getConfig: vi.fn(), listPessoas: vi.fn() }));
 vi.mock('../../src/data/supabase', async () => {
   const { criarAuthFalso } = await import('../helpers/auth');
   criarAuthFalso(auth);
   return { supabase: { auth }, configurado: true };
 });
 vi.mock('../../src/data/configuracoes', () => ({ getConfig, saveConfig: vi.fn() }));
-vi.mock('../../src/ui/Agenda', () => ({ default: () => <h2>Agenda</h2> }));
+vi.mock('../../src/data/pessoas', () => ({ listPessoas }));
+vi.mock('../../src/ui/Agenda', async () => {
+  const { useConfig } = await import('../../src/ui/contexto');
+  function AgendaFalsa() {
+    const { pessoas } = useConfig();
+    return (
+      <>
+        <h2>Agenda</h2>
+        <p data-testid="pessoas">{pessoas.map((p) => p.nome ?? '-').join(',')}</p>
+      </>
+    );
+  }
+  return { default: AgendaFalsa };
+});
 vi.mock('../../src/ui/Configuracoes', () => ({ default: () => <h2>Ajustes</h2> }));
 
 import App from '../../src/ui/App';
@@ -22,6 +37,7 @@ beforeEach(() => {
   auth.sessao = null;
   auth.erroSessao = null;
   getConfig.mockReset().mockResolvedValue(CONFIG_TESTE);
+  listPessoas.mockReset().mockResolvedValue([PESSOA_TESTE]);
   window.location.hash = '';
   adicionados = [];
   const original = window.addEventListener.bind(window);
@@ -178,5 +194,59 @@ describe('App: cache da config', () => {
     await act(async () => {});
     expect(screen.queryByText('Não foi possível conectar.')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Agenda' })).toBeInTheDocument();
+  });
+});
+
+describe('App: pessoas', () => {
+  const ana: Pessoa = { id: 'p1', nome: 'Ana', ativo: true, ordem: 1, folgas: [], servicos: [] };
+  const bia: Pessoa = { id: 'p2', nome: 'Bia', ativo: true, ordem: 2, folgas: [], servicos: [] };
+
+  it('as pessoas guardadas aparecem antes da busca', async () => {
+    auth.sessao = SESSAO;
+    gravar('config', CONFIG_TESTE);
+    gravar('pessoas', [ana, bia]);
+    getConfig.mockReturnValue(new Promise(() => {}));
+    listPessoas.mockReturnValue(new Promise(() => {}));
+    render(<App />);
+    expect(await screen.findByTestId('pessoas')).toHaveTextContent('Ana,Bia');
+  });
+
+  it('pessoas guardadas com outro formato são ignoradas', async () => {
+    auth.sessao = SESSAO;
+    gravar('config', CONFIG_TESTE);
+    gravar('pessoas', [{ id: 'p1' }]);
+    getConfig.mockReturnValue(new Promise(() => {}));
+    listPessoas.mockReturnValue(new Promise(() => {}));
+    render(<App />);
+    expect(await screen.findByTestId('pessoas')).toHaveTextContent(/^$/);
+  });
+
+  it('depois da busca, as pessoas vão para o contexto e para o aparelho', async () => {
+    auth.sessao = SESSAO;
+    listPessoas.mockResolvedValue([ana, bia]);
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId('pessoas')).toHaveTextContent('Ana,Bia'));
+    expect(ler('pessoas')?.valor).toEqual([ana, bia]);
+  });
+
+  it('falha ao buscar as pessoas não derruba a agenda: fica o que estava guardado', async () => {
+    auth.sessao = SESSAO;
+    gravar('pessoas', [ana]);
+    listPessoas.mockRejectedValue(new Error('qualquer'));
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Agenda' });
+    await act(async () => {});
+    expect(screen.getByTestId('pessoas')).toHaveTextContent('Ana');
+  });
+
+  it('SIGNED_OUT apaga amana:pessoas e mantém amana:filtro-pessoa', async () => {
+    auth.sessao = SESSAO;
+    gravar('filtro-pessoa', 'p2');
+    render(<App />);
+    await waitFor(() => expect(ler('pessoas')).not.toBeNull());
+    act(() => auth.emitir('SIGNED_OUT', null));
+    expect(await screen.findByLabelText('Usuário')).toBeInTheDocument();
+    expect(ler('pessoas')).toBeNull();
+    expect(ler('filtro-pessoa')?.valor).toBe('p2');
   });
 });

@@ -315,7 +315,7 @@ export default function Agenda() {
                 <button
                   type="button"
                   className="acao-linha"
-                  onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(p.data, p.hora, config.fuso).toISOString()))}
+                  onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(p.data, p.hora, config.fuso).toISOString(), null))}
                 >
                   <IconeFaltou /> Fechar este horário
                 </button>
@@ -355,7 +355,7 @@ export default function Agenda() {
             onSubmit={(e) => {
               e.preventDefault();
               if (!extraData || !extraHora) return setErroAjuste('Escolha a data e a hora.');
-              void ajustar(() => criarExtra(supabase, instanteLocal(extraData, extraHora, config.fuso).toISOString()));
+              void ajustar(() => criarExtra(supabase, instanteLocal(extraData, extraHora, config.fuso).toISOString(), null));
             }}
           >
             <div className="linha">
