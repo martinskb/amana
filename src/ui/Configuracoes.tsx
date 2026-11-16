@@ -5,7 +5,8 @@ import { supabase } from '../data/supabase';
 import { DIAS_SEMANA, horarioDoDia, resumoExpediente } from '../lib/expediente';
 import { abreviaDia, dataLocal } from '../lib/slots';
 import { telefoneLegivel } from '../lib/whatsapp';
-import type { DiaSemana, Servico } from '../types';
+import { ativas, nomeDaPessoa } from '../lib/pessoas';
+import type { DiaSemana, Pessoa, Servico } from '../types';
 import Chuva from './Chuva';
 import Clientes from './Clientes';
 import Painel from './Painel';
@@ -16,6 +17,7 @@ import PainelAgenda from './ajustes/PainelAgenda';
 import PainelExpediente from './ajustes/PainelExpediente';
 import PainelFolgas, { resumoFolgas } from './ajustes/PainelFolgas';
 import PainelNegocio from './ajustes/PainelNegocio';
+import PainelPessoa, { PainelDesativadas } from './ajustes/PainelPessoa';
 import PainelServico from './ajustes/PainelServico';
 import SecaoConta from './ajustes/SecaoConta';
 import { useConfig } from './contexto';
@@ -26,6 +28,8 @@ type Aberto =
   | { tipo: 'expediente'; dias: DiaSemana[] }
   | { tipo: 'folgas' }
   | { tipo: 'servico'; servico?: Servico }
+  | { tipo: 'pessoa'; pessoa?: Pessoa }
+  | { tipo: 'desativadas' }
   | { tipo: 'backup' }
   | { tipo: 'instalar' };
 
@@ -35,6 +39,8 @@ const ROTULOS: Record<Aberto['tipo'], string> = {
   expediente: 'Expediente',
   folgas: 'Folgas',
   servico: 'Serviço',
+  pessoa: 'Pessoa',
+  desativadas: 'Desativadas',
   backup: 'Backup',
   instalar: 'Tela inicial',
 };
@@ -52,6 +58,8 @@ function chaveDoAberto(a: Aberto): string {
       return `expediente:${a.dias.join(',')}`;
     case 'servico':
       return `servico:${a.servico?.id ?? 'novo'}`;
+    case 'pessoa':
+      return `pessoa:${a.pessoa?.id ?? 'nova'}`;
     default:
       return a.tipo;
   }
@@ -76,7 +84,7 @@ function Capitulo({ titulo, children }: { titulo: string; children: ReactNode })
  * salva só o que mostra. Depois de salvar, o painel fecha e "salvo! ✓" aparece à mão perto da linha.
  */
 export default function Configuracoes() {
-  const { config } = useConfig();
+  const { config, pessoas, recarregarPessoas } = useConfig();
   const [aberto, setAberto] = useState<Aberto | null>(null);
   const ultimo = useRef<Aberto | null>(null);
   if (aberto) ultimo.current = aberto; // o conteúdo continua na tela enquanto o painel sai
@@ -99,6 +107,8 @@ export default function Configuracoes() {
   }
 
   function servicoSalvo(gravado: Servico) {
+    // serviço novo: o banco liga a todas as pessoas ativas
+    if (!servicos.some((s) => s.id === gravado.id)) void recarregarPessoas();
     setServicos((lista) => (lista.some((s) => s.id === gravado.id) ? lista.map((s) => (s.id === gravado.id ? gravado : s)) : [...lista, gravado]));
     salvou(`servico:${gravado.id}`);
   }
@@ -113,6 +123,18 @@ export default function Configuracoes() {
   }
 
   const hoje = dataLocal(new Date(), config.fuso);
+  const pessoasAtivas = ativas(pessoas);
+  const desativadas = pessoas.length - pessoasAtivas.length;
+  const servicosAtivos = servicos.filter((s) => s.ativo);
+  const todasAsFolgas = [...config.folgas, ...pessoasAtivas.flatMap((p) => p.folgas)];
+  /** "Corte · Escova"; sem serviço ativo no negócio, nada (todo mundo faz tudo). */
+  const servicosDe = (p: Pessoa) => {
+    if (servicosAtivos.length === 0) return '';
+    const nomes = servicosAtivos.filter((s) => p.servicos.includes(s.id)).map((s) => s.nome);
+    return nomes.length > 0 ? nomes.join(' · ') : 'nenhum serviço';
+  };
+  // sem pessoas carregadas ainda, não dá para dizer quem faz o quê
+  const ninguemFaz = (s: Servico) => s.ativo && pessoas.length > 0 && !pessoasAtivas.some((p) => p.servicos.includes(s.id));
   const diaSalvo = salvo?.startsWith('exp:') ? Number(salvo.slice(4)) : null;
   let backup = 'nenhum ainda';
   if (config.ultimo_backup) {
@@ -132,6 +154,10 @@ export default function Configuracoes() {
         return <PainelFolgas onSalvo={() => salvou('folgas')} />;
       case 'servico':
         return <PainelServico servico={p.servico} onSalvo={servicoSalvo} />;
+      case 'pessoa':
+        return <PainelPessoa pessoa={p.pessoa} servicos={servicos} onSalvo={salvou} />;
+      case 'desativadas':
+        return <PainelDesativadas onSalvo={salvou} />;
       case 'backup':
         return (
           <div className="painel-conteudo">
@@ -219,7 +245,7 @@ export default function Configuracoes() {
 
             <Capitulo titulo="Folgas">
               <ul className="linhas-ajuste">
-                <LinhaAjuste rotulo="Folgas" valor={resumoFolgas(config.folgas, hoje)} salvo={salvo === 'folgas'} onAbrir={() => setAberto({ tipo: 'folgas' })} />
+                <LinhaAjuste rotulo="Folgas" valor={resumoFolgas(todasAsFolgas, hoje)} salvo={salvo === 'folgas'} onAbrir={() => setAberto({ tipo: 'folgas' })} />
               </ul>
             </Capitulo>
 
@@ -232,6 +258,7 @@ export default function Configuracoes() {
                     valor={`${s.duracao_min} min`}
                     salvo={salvo === `servico:${s.id}`}
                     onAbrir={() => setAberto({ tipo: 'servico', servico: s })}
+                    nota={ninguemFaz(s) ? 'ninguém faz' : undefined}
                     fim={
                       // o rótulo em volta dá 52 px de toque à chave, que desenhada tem 50×30
                       <label className="chave-toque">
@@ -251,6 +278,31 @@ export default function Configuracoes() {
                 + novo serviço
               </button>
               {erroServicos && <p role="alert">{erroServicos}</p>}
+            </Capitulo>
+
+            <Capitulo titulo="Pessoas">
+              <ul className="linhas-ajuste">
+                {pessoasAtivas.map((p) => (
+                  <LinhaAjuste
+                    key={p.id}
+                    rotulo={nomeDaPessoa(p, pessoas)}
+                    valor={servicosDe(p)}
+                    salvo={salvo === `pessoa:${p.id}`}
+                    onAbrir={() => setAberto({ tipo: 'pessoa', pessoa: p })}
+                  />
+                ))}
+                {desativadas > 0 && (
+                  <LinhaAjuste
+                    rotulo={`desativadas (${desativadas})`}
+                    valor=""
+                    salvo={salvo === 'desativadas'}
+                    onAbrir={() => setAberto({ tipo: 'desativadas' })}
+                  />
+                )}
+              </ul>
+              <button type="button" className="texto" onClick={() => setAberto({ tipo: 'pessoa' })}>
+                + adicionar pessoa
+              </button>
             </Capitulo>
           </div>
 

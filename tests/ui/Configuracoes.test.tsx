@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Config } from '../../src/types';
+import type { Config, Pessoa } from '../../src/types';
 import { CONFIG_TESTE } from '../helpers/config';
 import { renderComConfig } from '../helpers/render';
 
@@ -13,13 +13,27 @@ const m = vi.hoisted(() => ({
   listAgendamentosDoCliente: vi.fn(),
   getSession: vi.fn(),
   signOut: vi.fn(),
+  reativarPessoa: vi.fn(),
+  salvarFolgasPessoa: vi.fn(),
 }));
 const { saveConfig, listServicos, saveServico, listClientes, listAgendamentosDoCliente, signOut } = m;
 vi.mock('../../src/data/supabase', () => ({ supabase: { auth: { getSession: m.getSession, signOut: m.signOut } } }));
 vi.mock('../../src/data/configuracoes', () => ({ saveConfig: m.saveConfig, getConfig: vi.fn(), definirChaveBackup: vi.fn() }));
 vi.mock('../../src/data/servicos', () => ({ listServicos: m.listServicos, saveServico: m.saveServico }));
 vi.mock('../../src/data/clientes', () => ({ listClientes: m.listClientes }));
-vi.mock('../../src/data/agendamentos', () => ({ listAgendamentosDoCliente: m.listAgendamentosDoCliente }));
+vi.mock('../../src/data/agendamentos', () => ({
+  listAgendamentosDoCliente: m.listAgendamentosDoCliente,
+  listAgendamentosFuturosDaPessoa: vi.fn(async () => []),
+}));
+vi.mock('../../src/data/pessoas', () => ({
+  reativarPessoa: m.reativarPessoa,
+  salvarFolgasPessoa: m.salvarFolgasPessoa,
+  criarPessoa: vi.fn(),
+  salvarPessoa: vi.fn(),
+  desativarPessoa: vi.fn(),
+  apagarPessoa: vi.fn(),
+  pessoaTemAgendamentos: vi.fn(async () => true),
+}));
 
 import { supabase } from '../../src/data/supabase';
 import Configuracoes from '../../src/ui/Configuracoes';
@@ -35,6 +49,8 @@ beforeEach(() => {
   listAgendamentosDoCliente.mockReset().mockResolvedValue([]);
   m.getSession.mockReset().mockResolvedValue({ data: { session: { user: { email: 'joao@dono.agenda' } } } });
   signOut.mockReset().mockResolvedValue({ error: null });
+  m.reativarPessoa.mockReset().mockResolvedValue(undefined);
+  m.salvarFolgasPessoa.mockReset().mockResolvedValue(undefined);
 });
 
 const abrir = (nome: RegExp | string) => userEvent.click(screen.getByRole('button', { name: nome }));
@@ -44,10 +60,10 @@ const campo = (rotulo: string, valor: string) =>
   fireEvent.change(within(dialogo()).getByLabelText(rotulo), { target: { value: valor } });
 
 describe('Ajustes: o índice de capítulos', () => {
-  it('os capítulos aparecem na ordem Negócio, Agenda, Expediente, Folgas, Serviços, Clientes, Backup, Tela inicial, Conta', () => {
+  it('os capítulos aparecem na ordem Negócio, Agenda, Expediente, Folgas, Serviços, Pessoas, Clientes, Backup, Tela inicial, Conta', () => {
     renderComConfig(<Configuracoes />);
     const titulos = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(titulos).toEqual(['Negócio', 'Agenda', 'Expediente', 'Folgas', 'Serviços', 'Clientes', 'Backup', 'Tela inicial', 'Conta']);
+    expect(titulos).toEqual(['Negócio', 'Agenda', 'Expediente', 'Folgas', 'Serviços', 'Pessoas', 'Clientes', 'Backup', 'Tela inicial', 'Conta']);
   });
 
   it('cada linha mostra o valor atual', async () => {
@@ -331,5 +347,83 @@ describe('Ajustes: reabrir outra linha logo depois de fechar (painel ainda saind
     await userEvent.keyboard('{Escape}');
     await abrir('Domingo, fechado');
     expect(within(dialogo()).queryAllByDisplayValue('09:00')).toHaveLength(0);
+  });
+});
+
+describe('Ajustes: pessoas', () => {
+  const ESCOVA = { id: 's2', nome: 'Escova', duracao_min: 60, ativo: true };
+  const ana: Pessoa = { id: 'p1', nome: 'Ana', ativo: true, ordem: 1, folgas: [], servicos: ['s1'] };
+  const semNome: Pessoa = { id: 'p2', nome: null, ativo: true, ordem: 2, folgas: [], servicos: ['s1', 's2'] };
+  const bia: Pessoa = { id: 'p3', nome: 'Bia', ativo: false, ordem: 3, folgas: [], servicos: ['s1'] };
+
+  it('uma linha por ativa com nome de exibição e serviços, e "+ adicionar pessoa"', async () => {
+    listServicos.mockResolvedValue([CORTE, ESCOVA]);
+    renderComConfig(<Configuracoes />, CONFIG_TESTE, [ana, semNome]);
+    expect(await screen.findByRole('button', { name: 'Ana, Corte' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pessoa 2, Corte · Escova' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ adicionar pessoa' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /desativadas/ })).toBeNull();
+  });
+
+  it('"+ adicionar pessoa" abre o painel de pessoa nova', async () => {
+    renderComConfig(<Configuracoes />, CONFIG_TESTE, [ana]);
+    await abrir('+ adicionar pessoa');
+    expect(within(dialogo()).getByRole('heading', { name: 'Nova pessoa' })).toBeInTheDocument();
+  });
+
+  it('desativadas (N) aparece só com desativadas, e reativa por ali', async () => {
+    const { recarregarPessoas } = renderComConfig(<Configuracoes />, CONFIG_TESTE, [ana, semNome, bia]);
+    await abrir(/^desativadas \(1\)/);
+    await userEvent.click(within(dialogo()).getByRole('button', { name: 'Reativar Bia' }));
+    expect(m.reativarPessoa).toHaveBeenCalledWith(supabase, 'p3');
+    await waitFor(() => expect(recarregarPessoas).toHaveBeenCalled());
+  });
+
+  it('serviço ativo que nenhuma pessoa ativa faz mostra "ninguém faz"', async () => {
+    listServicos.mockResolvedValue([CORTE, ESCOVA]);
+    renderComConfig(<Configuracoes />, CONFIG_TESTE, [ana, { ...semNome, ativo: false }]);
+    await screen.findByRole('button', { name: 'Escova, 60 min' });
+    expect(screen.getAllByText('ninguém faz')).toHaveLength(1);
+    expect(screen.getByText('ninguém faz').closest('li')).toHaveTextContent('Escova');
+  });
+
+  it('serviço novo recarrega as pessoas (o banco liga a todas)', async () => {
+    const { recarregarPessoas } = renderComConfig(<Configuracoes />, CONFIG_TESTE, [ana]);
+    await abrir('+ novo serviço');
+    campo('Nome do serviço', 'Barba');
+    await salvar();
+    await waitFor(() => expect(recarregarPessoas).toHaveBeenCalled());
+  });
+});
+
+describe('Ajustes: folgas por pessoa', () => {
+  const ana: Pessoa = { id: 'p1', nome: 'Ana', ativo: true, ordem: 1, folgas: ['2099-03-01'], servicos: [] };
+  const bia: Pessoa = { id: 'p2', nome: 'Bia', ativo: true, ordem: 2, folgas: [], servicos: [] };
+
+  it('com uma pessoa, o painel não pergunta de quem', async () => {
+    renderComConfig(<Configuracoes />, CONFIG_TESTE, [{ ...ana, folgas: [] }]);
+    await abrir(/^Folgas,/);
+    expect(within(dialogo()).queryByLabelText('De quem')).toBeNull();
+  });
+
+  it('com duas, cada folga diz de quem e grava no lugar certo', async () => {
+    const { recarregarPessoas } = renderComConfig(<Configuracoes />, { ...CONFIG_TESTE, folgas: ['2099-01-01'] }, [ana, bia]);
+    await abrir(/^Folgas,/);
+    expect(within(dialogo()).getByText('01/01/2099 · o negócio todo')).toBeInTheDocument();
+    expect(within(dialogo()).getByText('01/03/2099 · Ana')).toBeInTheDocument();
+    await userEvent.selectOptions(within(dialogo()).getByLabelText('De quem'), 'Bia');
+    campo('Nova folga', '2099-12-25');
+    await userEvent.click(within(dialogo()).getByRole('button', { name: 'Adicionar folga' }));
+    expect(within(dialogo()).getByText('25/12/2099 · Bia')).toBeInTheDocument();
+    await salvar();
+    expect(saveConfig).toHaveBeenCalledWith(supabase, { folgas: ['2099-01-01'] });
+    expect(m.salvarFolgasPessoa).toHaveBeenCalledWith(supabase, 'p2', ['2099-12-25']);
+    expect(m.salvarFolgasPessoa).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(recarregarPessoas).toHaveBeenCalled());
+  });
+
+  it('o resumo conta também as folgas das pessoas ativas', () => {
+    renderComConfig(<Configuracoes />, { ...CONFIG_TESTE, folgas: ['2099-01-01'] }, [ana, bia]);
+    expect(screen.getByRole('button', { name: 'Folgas, 2 folgas · próxima 01/01' })).toBeInTheDocument();
   });
 });

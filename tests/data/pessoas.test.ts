@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
-import { editarAgendamento, listAgendamentos } from '../../src/data/agendamentos';
+import { editarAgendamento, listAgendamentos, listAgendamentosFuturosDaPessoa } from '../../src/data/agendamentos';
 import { criarExtra, fecharHorario, listAjustes } from '../../src/data/ajustes';
 import {
   apagarPessoa,
@@ -154,6 +154,23 @@ describe('dados das pessoas', () => {
 });
 
 describe('dados existentes com pessoa', () => {
+  it('listAgendamentosFuturosDaPessoa: dela, ativos, de agora em diante, pela hora', async () => {
+    let params: URLSearchParams | undefined;
+    servidor.use(
+      http.get(`${REST}/agendamentos`, ({ request }) => {
+        params = new URL(request.url).searchParams;
+        return HttpResponse.json([]);
+      }),
+    );
+    const antes = new Date().toISOString();
+    await listAgendamentosFuturosDaPessoa(db, 'p2');
+    expect(params!.get('pessoa_id')).toBe('eq.p2');
+    expect(params!.get('status')).toBe('in.(marcado,confirmado)');
+    expect(params!.get('inicio')! >= `gte.${antes}`).toBe(true);
+    expect(params!.get('order')).toBe('inicio.asc');
+    expect(params!.get('select')).toContain('cliente:clientes(nome,telefone)');
+  });
+
   it('listAgendamentos e listAjustes pedem pessoa_id', async () => {
     const selects: string[] = [];
     servidor.use(

@@ -44,6 +44,20 @@ export async function listNovosPeloLink(db: SupabaseClient, desde: string): Prom
   );
 }
 
+/** Clientes ativos (marcado/confirmado) da pessoa de agora em diante, pela hora. */
+export async function listAgendamentosFuturosDaPessoa(db: SupabaseClient, pessoaId: string): Promise<AgendamentoCompleto[]> {
+  return executar(
+    db
+      .from('agendamentos')
+      .select(COMPLETO)
+      .eq('pessoa_id', pessoaId)
+      .in('status', ['marcado', 'confirmado'])
+      .gte('inicio', new Date().toISOString())
+      .order('inicio')
+      .returns<AgendamentoCompleto[]>(),
+  );
+}
+
 /** Sem `pessoa_id`, o banco põe a primeira pessoa livre no horário. */
 export async function criarAgendamento(
   db: SupabaseClient,

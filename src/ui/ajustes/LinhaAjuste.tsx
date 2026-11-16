@@ -19,10 +19,12 @@ interface Props {
   salvo?: boolean;
   /** Algo que fica na própria linha, depois do valor (ex.: a chave "ativo" do serviço). */
   fim?: ReactNode;
+  /** Um aviso curto em `--sutil` depois do valor (ex.: "ninguém faz"). Fica fora do nome do botão. */
+  nota?: string;
 }
 
 /** Uma linha do resumo dos Ajustes: o nome à esquerda, o valor atual à direita e "›" quando abre um painel. */
-export default function LinhaAjuste({ rotulo, valor, onAbrir, salvo = false, fim }: Props) {
+export default function LinhaAjuste({ rotulo, valor, onAbrir, salvo = false, fim, nota }: Props) {
   const conteudo = (
     <>
       <span className="la-rotulo">
@@ -30,13 +32,14 @@ export default function LinhaAjuste({ rotulo, valor, onAbrir, salvo = false, fim
         {salvo && <NotaSalvo />}
       </span>
       <span className="la-valor">{valor}</span>
+      {nota && <span className="la-nota">{nota}</span>}
       {onAbrir && <IconeDireita tamanho={16} />}
     </>
   );
   return (
     <li className="linha-ajuste">
       {onAbrir ? (
-        <button type="button" className="la-corpo" aria-label={`${rotulo}, ${valor}`} onClick={onAbrir}>
+        <button type="button" className="la-corpo" aria-label={valor ? `${rotulo}, ${valor}` : rotulo} onClick={onAbrir}>
           {conteudo}
         </button>
       ) : (
