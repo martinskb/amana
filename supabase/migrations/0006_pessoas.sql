@@ -234,36 +234,87 @@ $$;
 revoke execute on function horarios_livres_em(timestamptz) from public, anon, authenticated;
 revoke execute on function inicios_para_duracao_em(timestamptz, integer) from public, anon, authenticated;
 
--- O link usa a união entre as pessoas (sem repetir início).
-create or replace function horarios_publicos() returns jsonb
+-- ---------------------------------------------------------------------------
+-- Link público por pessoa. Pessoa sem nome nunca aparece (nem o id), mas entra na união dos horários
+-- e pode receber o agendamento "Sem preferência".
+
+-- Interna: a resposta do link num instante (a pública chama com now()).
+create function horarios_publicos_em(agora timestamptz) returns jsonb
 language sql stable security definer set search_path = public
 as $$
+  with fazem as (
+    -- quem faz cada serviço ativo, entre as pessoas ativas
+    select ps.servico_id, p.id as pessoa_id, p.nome, p.ordem
+    from pessoa_servicos ps
+      join pessoas p on p.id = ps.pessoa_id and p.ativo
+      join servicos s on s.id = ps.servico_id and s.ativo
+  ),
+  srv as (
+    select s.* from servicos s where s.ativo and exists (select 1 from fazem f where f.servico_id = s.id)
+  ),
+  ini as (
+    -- inícios em que cabe o serviço inteiro, só de quem o faz
+    select s.id as servico_id, d.pessoa_id, d.inicio
+    from srv s cross join lateral inicios_para_duracao_em(agora, s.duracao_min) d
+    where exists (select 1 from fazem f where f.servico_id = s.id and f.pessoa_id = d.pessoa_id)
+  )
   select jsonb_build_object(
     'nome_negocio', c.nome_negocio,
     'telefone_negocio', c.telefone_negocio,
     'link_ativo', c.link_ativo,
     'horarios', coalesce(
       (select jsonb_agg(to_char(x.h at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') order by x.h)
-       from (select distinct l.inicio as h from horarios_livres_em(now()) l) x),
+       from (select distinct l.inicio as h from horarios_livres_em(agora) l) x),
+      '[]'::jsonb),
+    'pessoas', coalesce(
+      (select jsonb_agg(jsonb_build_object('id', p.id, 'nome', p.nome) order by p.ordem)
+       from pessoas p where p.ativo and p.nome is not null),
       '[]'::jsonb),
     'servicos', coalesce(
       (select jsonb_agg(jsonb_build_object(
          'id', s.id, 'nome', s.nome, 'duracao_min', s.duracao_min,
          'horarios', coalesce(
            (select jsonb_agg(to_char(x.h at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') order by x.h)
-            from (select distinct d.inicio as h from inicios_para_duracao_em(now(), s.duracao_min) d) x),
-           '[]'::jsonb)
+            from (select distinct i.inicio as h from ini i where i.servico_id = s.id) x),
+           '[]'::jsonb),
+         'pessoas', coalesce(
+           (select jsonb_agg(jsonb_build_object(
+              'id', f.pessoa_id,
+              'horarios', coalesce(
+                (select jsonb_agg(to_char(i.inicio at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') order by i.inicio)
+                 from ini i where i.servico_id = s.id and i.pessoa_id = f.pessoa_id),
+                '[]'::jsonb)
+            ) order by f.ordem)
+            from fazem f where f.servico_id = s.id and f.nome is not null),
+           '[]'::jsonb),
+         'com_escolha',
+           exists (select 1 from fazem f where f.servico_id = s.id and f.nome is not null)
+           and (select count(*) from fazem f where f.servico_id = s.id) > 1
        ) order by s.nome)
-       from servicos s where s.ativo),
+       from srv s),
       '[]'::jsonb)
   )
   from configuracoes c where c.id = 1
 $$;
 
--- Agendar pelo link: as regras da 0005; o agendamento vai para a primeira pessoa (por ordem) que tem
--- a duração inteira livre nesse início.
-create or replace function agendar_publico_em(p_nome text, p_telefone text, p_inicio timestamptz, p_agora timestamptz,
-                                              p_ip text, p_servico uuid default null)
+create or replace function horarios_publicos() returns jsonb
+language sql stable security definer set search_path = public
+as $$
+  select horarios_publicos_em(now())
+$$;
+
+revoke execute on function horarios_publicos_em(timestamptz) from public, anon, authenticated;
+grant execute on function horarios_publicos() to anon, authenticated;
+
+-- Agendar pelo link com pessoa. As regras da 0005 continuam (link, dados, serviço, travas e limites).
+-- Com p_pessoa: ela precisa estar ativa, ter nome e fazer o serviço (senão servico_invalido) e ter a
+-- duração inteira livre (senão horario_indisponivel). Sem p_pessoa ("Sem preferência"): entre as que
+-- fazem o serviço e têm a duração livre, a de menos agendamentos ativos no dia; empate, a menor ordem.
+drop function agendar_publico(text, text, timestamptz, uuid);
+drop function agendar_publico_em(text, text, timestamptz, timestamptz, text, uuid);
+
+create function agendar_publico_em(p_nome text, p_telefone text, p_inicio timestamptz, p_agora timestamptz, p_ip text,
+                                   p_servico uuid default null, p_pessoa uuid default null)
 returns jsonb
 language plpgsql volatile security definer set search_path = public
 as $$
@@ -274,7 +325,8 @@ declare
   id_cliente uuid;
   srv servicos;
   duracao integer;
-  id_pessoa uuid;
+  com_servico boolean;
+  candidata record;
 begin
   select * into cfg from configuracoes where id = 1;
 
@@ -284,15 +336,24 @@ begin
   if char_length(nome_limpo) not between 1 and 80 or tel is null then
     return jsonb_build_object('ok', false, 'erro', 'dados_invalidos');
   end if;
-  if exists (select 1 from servicos where ativo) then
+  com_servico := exists (select 1 from servicos where ativo);
+  if com_servico then
     select * into srv from servicos where id = p_servico and ativo;
     if srv.id is null then
       return jsonb_build_object('ok', false, 'erro', 'servico_invalido');
     end if;
   end if;
+  if p_pessoa is not null and not exists (
+    select 1 from pessoas p
+    where p.id = p_pessoa and p.ativo and p.nome is not null
+      and (not com_servico or exists (select 1 from pessoa_servicos ps where ps.pessoa_id = p.id and ps.servico_id = srv.id))
+  ) then
+    return jsonb_build_object('ok', false, 'erro', 'servico_invalido');
+  end if;
   duracao := coalesce(srv.duracao_min, cfg.passo_min);
 
-  -- trava única: o teto geral e o limite por WhatsApp contam o mesmo conjunto
+  -- trava única: o teto geral e o limite por WhatsApp contam o mesmo conjunto; também serializa os
+  -- pedidos "Sem preferência" do mesmo horário (o segundo já vê o primeiro e vai para outra pessoa)
   perform pg_advisory_xact_lock(hashtext('agendar_publico'));
   -- serializa os pedidos do mesmo IP
   perform pg_advisory_xact_lock(hashtext('agendar_publico:' || p_ip));
@@ -308,24 +369,49 @@ begin
         and a.inicio > p_agora) >= 2 then
     return jsonb_build_object('ok', false, 'erro', 'limite');
   end if;
-  select d.pessoa_id into id_pessoa from inicios_para_duracao_em(p_agora, duracao) d where d.inicio = p_inicio limit 1;
-  if id_pessoa is null then
-    return jsonb_build_object('ok', false, 'erro', 'horario_indisponivel');
-  end if;
 
-  begin
-    -- dentro do bloco protegido: se a trava do banco recusar o horário, o cliente novo também é desfeito
-    insert into clientes (nome, telefone) values (nome_limpo, tel) on conflict (telefone) do nothing;
-    select c.id into id_cliente from clientes c where c.telefone = tel;
-    insert into agendamentos (cliente_id, servico_id, inicio, fim, status, origem, nome_informado, pessoa_id)
-    values (id_cliente, srv.id, p_inicio, p_inicio + make_interval(mins => duracao), 'marcado', 'link', nome_limpo, id_pessoa);
-  exception when exclusion_violation then
-    return jsonb_build_object('ok', false, 'erro', 'horario_indisponivel');
-  end;
+  -- candidatas na ordem de preferência; se a trava recusar uma (o dono marcou no mesmo instante), tenta a próxima
+  for candidata in
+    select d.pessoa_id, p.nome
+    from inicios_para_duracao_em(p_agora, duracao) d join pessoas p on p.id = d.pessoa_id
+    where d.inicio = p_inicio
+      and (p_pessoa is null or d.pessoa_id = p_pessoa)
+      and (not com_servico or exists (select 1 from pessoa_servicos ps where ps.pessoa_id = d.pessoa_id and ps.servico_id = srv.id))
+    order by (
+      select count(*) from agendamentos a
+      where a.pessoa_id = d.pessoa_id and a.status in ('marcado', 'confirmado')
+        and (a.inicio at time zone cfg.fuso)::date = (p_inicio at time zone cfg.fuso)::date
+    ), p.ordem
+  loop
+    begin
+      -- dentro do bloco protegido: se a trava do banco recusar o horário, o cliente novo também é desfeito
+      insert into clientes (nome, telefone) values (nome_limpo, tel) on conflict (telefone) do nothing;
+      select c.id into id_cliente from clientes c where c.telefone = tel;
+      insert into agendamentos (cliente_id, servico_id, inicio, fim, status, origem, nome_informado, pessoa_id)
+      values (id_cliente, srv.id, p_inicio, p_inicio + make_interval(mins => duracao), 'marcado', 'link', nome_limpo,
+              candidata.pessoa_id);
+    exception when exclusion_violation then
+      continue;
+    end;
 
-  delete from tentativas_publicas where criado_em < p_agora - interval '30 days';
-  insert into tentativas_publicas (ip, criado_em) values (p_ip, p_agora);
+    delete from tentativas_publicas where criado_em < p_agora - interval '30 days';
+    insert into tentativas_publicas (ip, criado_em) values (p_ip, p_agora);
 
-  return jsonb_build_object('ok', true, 'inicio', to_char(p_inicio at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'));
+    return jsonb_build_object('ok', true, 'inicio', to_char(p_inicio at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+                              'pessoa', candidata.nome);
+  end loop;
+
+  return jsonb_build_object('ok', false, 'erro', 'horario_indisponivel');
 end
 $$;
+
+-- Pública: o app instalado antes desta versão chama sem `pessoa` (Sem preferência).
+create function agendar_publico(nome text, telefone text, inicio timestamptz, servico uuid default null, pessoa uuid default null)
+returns jsonb
+language sql volatile security definer set search_path = public
+as $$
+  select agendar_publico_em(nome, telefone, inicio, now(), ip_cliente(), servico, pessoa)
+$$;
+
+revoke execute on function agendar_publico_em(text, text, timestamptz, timestamptz, text, uuid, uuid) from public, anon, authenticated;
+grant execute on function agendar_publico(text, text, timestamptz, uuid, uuid) to anon, authenticated;
