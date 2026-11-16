@@ -18,10 +18,12 @@ interface Props {
   onEntendi: () => void;
   /** Muda quando a agenda gravou algo: recarrega o próximo cliente. */
   versao: number;
+  /** O filtro da agenda: só os clientes dela; null = todos. */
+  pessoa?: string | null;
 }
 
 /** Coluna lateral da tela larga sem nada selecionado: próximo cliente de hoje, Amanhã e novos pelo link. */
-export default function ResumoLateral({ novos, onEntendi, versao }: Props) {
+export default function ResumoLateral({ novos, onEntendi, versao, pessoa = null }: Props) {
   const { config } = useConfig();
   const voltas = useAoVoltar();
   const [hojeAgs, setHojeAgs] = useState<AgendamentoCompleto[] | null>(null);
@@ -41,7 +43,8 @@ export default function ResumoLateral({ novos, onEntendi, versao }: Props) {
     return () => clearInterval(t);
   }, []);
 
-  const proximo = hojeAgs ? proximoCliente(hojeAgs, agora, config.fuso) : null;
+  const daPessoa = hojeAgs && pessoa !== null ? hojeAgs.filter((a) => a.pessoa_id === pessoa) : hojeAgs;
+  const proximo = daPessoa ? proximoCliente(daPessoa, agora, config.fuso) : null;
 
   return (
     <aside className="resumo-lateral" aria-label="Resumo">
@@ -69,7 +72,7 @@ export default function ResumoLateral({ novos, onEntendi, versao }: Props) {
           </div>
         )}
       </section>
-      <CartaoAmanha />
+      <CartaoAmanha pessoa={pessoa} />
       {novos.length > 0 && (
         <section className="resumo-secao" role="status">
           <h3 className="capitulo">Pelo link</h3>

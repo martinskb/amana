@@ -18,6 +18,8 @@ export interface NovosPeloLink {
   ver: (a: AgendamentoCompleto) => void;
   /** "Entendi": todos os novos ficam vistos. */
   verTodos: () => void;
+  /** Marca só estes como vistos (o "Entendi" com o filtro de uma pessoa). */
+  verEstes: (lista: AgendamentoCompleto[]) => void;
   buscar: () => Promise<void>;
 }
 
@@ -103,6 +105,7 @@ export function useNovosPeloLink(): NovosPeloLink {
   );
   const ver = useCallback((a: AgendamentoCompleto) => marcar(() => [a]), [marcar]);
   const verTodos = useCallback(() => marcar((novos) => novos), [marcar]);
+  const verEstes = useCallback((lista: AgendamentoCompleto[]) => marcar(() => lista), [marcar]);
 
   useEffect(() => {
     void buscar();
@@ -118,5 +121,5 @@ export function useNovosPeloLink(): NovosPeloLink {
     };
   }, [buscar]);
 
-  return { novos: filtrar(estado, new Date()), chegaramAgora: estado.chegaramAgora, ver, verTodos, buscar };
+  return { novos: filtrar(estado, new Date()), chegaramAgora: estado.chegaramAgora, ver, verTodos, verEstes, buscar };
 }

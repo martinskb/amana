@@ -23,6 +23,8 @@ interface Props {
   chegaram?: ReadonlySet<string>;
   /** Item aberto no painel lateral ("ag:<id>" ou "h:<data>:<hora>"). */
   selecionado?: string | null;
+  /** Nome de exibição por id de pessoa: com ele, cada cliente e cada livre (no dia) dizem de quem são. */
+  etiquetas?: ReadonlyMap<string, string> | null;
   onItem: (item: ItemLinha) => void;
 }
 
@@ -44,7 +46,7 @@ const somarMin = (hora: string, min: number) => {
 };
 
 /** Linha do tempo de um dia: hora à esquerda, trilho e um ponto por agendamento; livres tracejados. */
-export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selecionado = null, onItem }: Props) {
+export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selecionado = null, etiquetas = null, onItem }: Props) {
   const { config } = useConfig();
   const menos = usePrefereMenosMovimento();
   // o mesmo instante decide se é hoje e onde fica a linha: na meia-noite, o dia seguinte vira hoje
@@ -75,13 +77,16 @@ export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selec
 
     const grupo = item.tipo === 'livres' && item.de !== item.ate;
     const rotulo = grupo ? `Marcar ${dia} entre ${item.de} e ${item.ate}` : `Marcar ${dia} às ${hora}`;
+    // "livre · Ana · João": quem está livre nesse bloco
+    const quem = etiquetas && item.tipo === 'livre' && item.pessoas ? item.pessoas.map((id) => etiquetas.get(id) ?? '') : [];
+    const texto = grupo ? `livre até ${somarMin(item.ate, config.passo_min)}` : ['livre', ...quem].join(' · ');
     return {
       passado: false,
       no: (
         <button {...comum} className={`lt-item lt-livre${atual ? ' selecionado' : ''}`} aria-label={rotulo}>
           <span className="lt-hora">{hora}</span>{' '}
           <span className="lt-texto">
-            {grupo ? `livre até ${somarMin(item.ate, config.passo_min)}` : 'livre'} <IconeMais tamanho={14} />
+            {texto} <IconeMais tamanho={14} />
           </span>
         </button>
       ),
@@ -100,7 +105,7 @@ export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selec
       no: (
         <button
           type="button"
-          className={`lt-item lt-ag ${a.status}${atual ? ' selecionado' : ''}`}
+          className={`lt-item lt-ag ${a.status}${atual ? ' selecionado' : ''}${etiquetas ? ' com-pessoa' : ''}`}
           aria-current={atual || undefined}
           onClick={() => onItem({ tipo: 'agendamento', hora, agendamento: a })}
         >
@@ -128,6 +133,7 @@ export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selec
             </span>
             {novo && <span className="so-leitor">, novo, marcado pelo link</span>}
           </span>
+          {etiquetas && <span className="lt-pessoa">{etiquetas.get(a.pessoa_id) ?? ''}</span>}
         </button>
       ),
     };

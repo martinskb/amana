@@ -4,7 +4,8 @@ import { listServicos } from '../data/servicos';
 import { supabase } from '../data/supabase';
 import { gravar, ler } from '../lib/cache';
 import { abreviaDia, dataLocal, freeSlots, gerarHorarios, horaLocal, instanteLocal, nomeDiaExtenso, somarDias } from '../lib/slots';
-import type { AgendamentoCompleto, Pessoa, Servico } from '../types';
+import { ativas, nomeDaPessoa, variasPessoas } from '../lib/pessoas';
+import type { AgendamentoCompleto, HorarioAjuste, Pessoa, Servico } from '../types';
 import { useConfig } from './contexto';
 import BackupBanner from './BackupBanner';
 import CabecalhoAgenda from './CabecalhoAgenda';
@@ -27,9 +28,12 @@ import { useAoVoltar } from './useAoVoltar';
 import { useAgendaSemana } from './useAgendaSemana';
 import { useNovosPeloLink } from './useNovosPeloLink';
 import FaixaSemConexao from './FaixaSemConexao';
+import FiltroPessoas from './FiltroPessoas';
+import { useFiltroPessoa } from './useFiltroPessoa';
 import { AnuncioNovos, NotaNovosFora } from './NovosNaAgenda';
 import { diasDaSemana, segundaDe } from '../lib/semanaCalendario';
 
+/** Sem pessoas carregadas (nada guardado e a busca falhou): a agenda age como negócio de uma pessoa só. */
 const UMA_PESSOA: Pessoa = { id: 'unica', nome: null, ativo: true, ordem: 1, folgas: [], servicos: [] };
 
 type EstadoPainel =
@@ -72,7 +76,24 @@ function chaveDoConteudo(p: Exclude<EstadoPainel, null>): string {
 const ddmm = (data: string) => `${data.slice(8, 10)}/${data.slice(5, 7)}`;
 
 export default function Agenda() {
-  const { config, recarregar: recarregarConfig, semConexao: configSemConexao } = useConfig();
+  const { config, recarregar: recarregarConfig, semConexao: configSemConexao, pessoas } = useConfig();
+  const [filtro, setFiltro] = useFiltroPessoa(pessoas);
+  const varias = variasPessoas(pessoas);
+  // quem atende na agenda; sem pessoas carregadas, uma pessoa só que fica com tudo
+  const daAgenda = useMemo(() => (ativas(pessoas).length > 0 ? pessoas : [UMA_PESSOA]), [pessoas]);
+  const semPessoas = daAgenda[0] === UMA_PESSOA;
+  const primeira = ativas(daAgenda)[0].id;
+  /** De quem é o agendamento. Guardado por uma versão antiga (sem pessoa_id): da primeira ativa, como no banco. */
+  const pessoaDe = useCallback(
+    (a: { pessoa_id?: string | null }) => (semPessoas ? UMA_PESSOA.id : (a.pessoa_id ?? primeira)),
+    [semPessoas, primeira],
+  );
+  const doFiltro = useCallback((a: { pessoa_id?: string | null }) => filtro === null || pessoaDe(a) === filtro, [filtro, pessoaDe]);
+  // nome de cada pessoa nos itens: só com 2+ ativas e o filtro em todos
+  const etiquetas = useMemo(
+    () => (varias && filtro === null ? new Map(pessoas.map((p) => [p.id, nomeDaPessoa(p, pessoas)])) : null),
+    [varias, filtro, pessoas],
+  );
   const hoje = dataLocal(new Date(), config.fuso);
   const [modo, setModo] = useState<'dia' | 'semana'>('dia');
   const [diaSelecionado, setDiaSelecionado] = useState(hoje);
@@ -132,7 +153,9 @@ export default function Agenda() {
   const selecionado = larga && painel !== null ? chaveDoPainel(painel) : null;
 
   // agendamentos novos pelo link, vistos por agendamento (busca a cada 30 s e ao voltar, como a semana)
-  const { novos, chegaramAgora, ver, verTodos, buscar: buscarNovos } = useNovosPeloLink();
+  const { novos: todosNovos, chegaramAgora, ver, verTodos, verEstes, buscar: buscarNovos } = useNovosPeloLink();
+  // os novos também seguem o filtro
+  const novos = useMemo(() => (filtro === null ? todosNovos : todosNovos.filter(doFiltro)), [todosNovos, filtro, doFiltro]);
   const idsNovos = useMemo(() => new Set(novos.map((a) => a.id)), [novos]);
   const diasComNovo = useMemo(() => new Set(novos.map((a) => dataLocal(new Date(a.inicio), config.fuso))), [novos, config.fuso]);
   // trocou de semana: busca os novos junto com a semana nova (o hook já busca ao montar)
@@ -185,24 +208,41 @@ export default function Agenda() {
     for (const d of diasDaSemana(segunda)) mapa.set(d, []);
     if (!agendamentos) return { porDia: mapa, comExpediente };
     const visiveis = agendamentos.filter((a) => a.status !== 'cancelado');
-    for (const a of visiveis) {
+    for (const a of visiveis.filter(doFiltro)) {
       const ini = new Date(a.inicio);
       mapa.get(dataLocal(ini, config.fuso))?.push({ tipo: 'agendamento', hora: horaLocal(ini, config.fuso), agendamento: a });
     }
-    // Provisório até a agenda ter pessoas: uma pessoa só, com todos os extras e fechados do negócio.
+    // ajustes guardados por uma versão antiga, sem pessoa: extra da primeira, fechado do negócio todo
+    const ajustesComPessoa: HorarioAjuste[] = ajustes.map((a) => ({
+      ...a,
+      pessoa_id: semPessoas ? (a.tipo === 'extra' ? UMA_PESSOA.id : null) : (a.pessoa_id ?? (a.tipo === 'extra' ? primeira : null)),
+    }));
+    const pessoaDoFiltro = filtro === null ? undefined : daAgenda.find((p) => p.id === filtro);
     const livres = freeSlots({
       config: { ...config, antecedencia_min: 0 },
-      agendamentos: visiveis.map((a) => ({ ...a, pessoa_id: UMA_PESSOA.id })),
-      ajustes: ajustes.map((a) => ({ ...a, pessoa_id: a.tipo === 'extra' ? UMA_PESSOA.id : null })),
-      pessoas: [UMA_PESSOA],
+      agendamentos: visiveis.map((a) => ({ ...a, pessoa_id: pessoaDe(a) })),
+      ajustes: ajustesComPessoa,
+      pessoas: pessoaDoFiltro ? [pessoaDoFiltro] : daAgenda,
       de: segunda,
       ate,
       agora: new Date(),
     });
-    for (const s of livres) mapa.get(s.data)?.push({ tipo: 'livre', hora: s.hora });
+    // um livre por horário, com quem está livre nele (já vem pela ordem das pessoas)
+    const livresPorHora = new Map<string, { data: string; hora: string; pessoas: string[] }>();
+    for (const s of livres) {
+      const chave = `${s.data} ${s.hora}`;
+      const l = livresPorHora.get(chave);
+      if (l) l.pessoas.push(s.pessoa_id);
+      else livresPorHora.set(chave, { data: s.data, hora: s.hora, pessoas: [s.pessoa_id] });
+    }
+    for (const l of livresPorHora.values()) mapa.get(l.data)?.push({ tipo: 'livre', hora: l.hora, pessoas: l.pessoas });
     const passo = config.passo_min * 60_000;
-    const fechados = ajustes.filter((a) => a.tipo === 'fechado');
-    for (const h of gerarHorarios({ config, ajustes, de: segunda, ate })) {
+    // com o filtro, só os fechados do negócio e os dela
+    const ajustesVistos = pessoaDoFiltro
+      ? ajustesComPessoa.filter((a) => a.pessoa_id === null || a.pessoa_id === pessoaDoFiltro.id)
+      : ajustesComPessoa;
+    const fechados = ajustesVistos.filter((a) => a.tipo === 'fechado');
+    for (const h of gerarHorarios({ config, ajustes: ajustesVistos, de: segunda, ate, pessoa: pessoaDoFiltro })) {
       comExpediente.add(h.data);
       if (!h.fechado) continue;
       const ini = h.inicio.getTime();
@@ -214,7 +254,7 @@ export default function Agenda() {
     }
     for (const itens of mapa.values()) itens.sort((x, y) => x.hora.localeCompare(y.hora));
     return { porDia: mapa, comExpediente };
-  }, [agendamentos, ajustes, config, segunda, ate]);
+  }, [agendamentos, ajustes, config, segunda, ate, doFiltro, pessoaDe, filtro, daAgenda, semPessoas, primeira]);
   // quantos clientes cada dia tem, para a bolinha e o nome da faixa
   const contagem = useMemo(
     () => Object.fromEntries([...porDia].map(([d, itens]) => [d, itens.filter((i) => i.tipo === 'agendamento').length])),
@@ -422,6 +462,7 @@ export default function Agenda() {
             novos={idsNovos}
             chegaram={chegaramAgora}
             selecionado={selecionado}
+            etiquetas={etiquetas}
             onItem={(item) => abrirItem(diaSelecionado, item)}
           />
         )}
@@ -464,6 +505,7 @@ export default function Agenda() {
               {atualizando && <span className="sutil atualizando">atualizando…</span>}
             </div>
           </div>
+          {varias && <FiltroPessoas pessoas={pessoas} escolhida={filtro} onEscolher={setFiltro} />}
           {larga && (
             <div className="acoes-topo">
               <button type="button" className="texto" onClick={() => setPainel({ tipo: 'novo', data: diaSelecionado, hora: '' })}>
@@ -531,6 +573,7 @@ export default function Agenda() {
                           novos={idsNovos}
                           chegaram={chegaramAgora}
                           selecionado={selecionado}
+                          etiquetas={etiquetas}
                           onItem={(item) => abrirItem(data, item)}
                         />
                       )}
@@ -539,10 +582,10 @@ export default function Agenda() {
             </div>
           )}
 
-          {!larga && <CartaoAmanha />}
+          {!larga && <CartaoAmanha pessoa={filtro} />}
           <BackupBanner />
         </div>
-        {larga && painel === null && <ResumoLateral novos={novos} onEntendi={verTodos} versao={versao} />}
+        {larga && painel === null && <ResumoLateral novos={novos} onEntendi={filtro === null ? verTodos : () => verEstes(novos)} versao={versao} pessoa={filtro} />}
         {/* sempre aqui, nos dois modos: trocar a largura não desmonta o que está aberto */}
         <Painel
           aberto={painel !== null}

@@ -3,7 +3,8 @@ import type { AgendamentoCompleto } from '../types';
 /** Uma linha da grade de um dia. */
 export type Item =
   | { tipo: 'agendamento'; hora: string; agendamento: AgendamentoCompleto }
-  | { tipo: 'livre'; hora: string }
+  /** `pessoas`: ids de quem está livre nesse bloco (pela ordem). */
+  | { tipo: 'livre'; hora: string; pessoas?: string[] }
   | { tipo: 'fechado'; hora: string; ajusteId: string };
 
 /** Na semana, livres seguidos viram um grupo "de–até". */

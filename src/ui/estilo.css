@@ -364,6 +364,11 @@ button.texto:hover { color: var(--titulo); }
 .alterna button { position: relative; min-width: 44px; min-height: 30px; padding: 0 12px; border: 0; background: transparent; color: var(--sutil); font-size: 13px; font-weight: 500; }
 .alterna button::after { content: ''; position: absolute; inset: -8px 0; } /* toque de 46px sem crescer o desenho */
 .alterna button[aria-pressed='true'] { background: var(--sup2); color: var(--texto); }
+/* filtro por pessoa: uma faixa só que rola para o lado (até 20 pessoas), sem alargar a página */
+.filtro-pessoas { display: flex; gap: 6px; margin: 12px -16px 0; padding: 4px 16px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.filtro-pessoas::-webkit-scrollbar { display: none; }
+.filtro-pessoas button { flex: none; min-height: 44px; padding: 0 14px; border: 1px solid var(--borda); border-radius: var(--raio-pilula); background: transparent; color: var(--sutil); font-size: 14px; font-weight: 500; white-space: nowrap; }
+.filtro-pessoas button[aria-pressed='true'] { background: var(--sup2); border-color: var(--sup2); color: var(--texto); }
 .acoes-topo { display: flex; gap: 16px; margin: 4px 0 0 -4px; }
 @media (min-width: 1280px) { .faixa-semana { max-width: 560px; } }
 
@@ -405,6 +410,9 @@ button.texto:hover { color: var(--titulo); }
 .lt-ag.faltou .lt-nome { color: var(--sutil); }
 .lt-estado { font-size: 12px; color: var(--sutil); white-space: nowrap; }
 .lt-sub { display: block; font-size: 13px; color: var(--sutil); }
+/* com 2+ pessoas e o filtro em todos: quem atende, à direita */
+.lt-ag.com-pessoa .lt-corpo { padding-right: 96px; }
+.lt-pessoa { position: absolute; right: 0; top: 12px; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--sutil); }
 .lt-sub .alerta { color: var(--perigo); }
 .lt-livre .lt-texto { display: flex; align-items: center; gap: 4px; padding: 12px 0 12px 16px; border-bottom-style: dashed; border-bottom-color: #3a333a; font-size: 13px; color: var(--sutil); }
 .lt-livre .lt-texto svg { color: var(--marca); }

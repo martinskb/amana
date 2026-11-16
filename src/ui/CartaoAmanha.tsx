@@ -10,8 +10,11 @@ import { useConfig } from './contexto';
 import { agendamentosGuardadosDoDia } from './useAgendaSemana';
 import { useAoVoltar } from './useAoVoltar';
 
-/** Cartão "Amanhã" na Agenda (spec v3, seção 2.1): substitui a antiga aba Lembretes. */
-export default function CartaoAmanha() {
+/**
+ * Cartão "Amanhã" na Agenda (spec v3, seção 2.1): substitui a antiga aba Lembretes.
+ * `pessoa`: só os clientes dela (o filtro da agenda); null = todos.
+ */
+export default function CartaoAmanha({ pessoa = null }: { pessoa?: string | null }) {
   const { config } = useConfig();
   const voltas = useAoVoltar();
   const { de: amanha } = diasDoPeriodo('amanha', new Date(), config.fuso);
@@ -21,7 +24,8 @@ export default function CartaoAmanha() {
 
   useEffect(() => {
     setErro(false);
-    const aLembrar = (r: AgendamentoCompleto[]) => r.filter((a) => a.status === 'marcado' || a.status === 'confirmado');
+    const aLembrar = (r: AgendamentoCompleto[]) =>
+      r.filter((a) => (a.status === 'marcado' || a.status === 'confirmado') && (pessoa === null || a.pessoa_id === pessoa));
     listAgendamentos(supabase, amanha, amanha).then(
       (r) => setLista(aLembrar(r)),
       () => {
@@ -31,7 +35,7 @@ export default function CartaoAmanha() {
         else setErro(true);
       },
     );
-  }, [amanha, voltas, config.fuso]);
+  }, [amanha, voltas, config.fuso, pessoa]);
 
   const contagem = useContador(lista?.length ?? 0);
 
