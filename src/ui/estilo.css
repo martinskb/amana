@@ -172,6 +172,16 @@ input[type='checkbox'].chave:disabled { opacity: 0.55; }
 .publico > *:not(.chuva) { position: relative; }
 .publico h1 { font-family: var(--fonte-titulo); font-weight: 800; letter-spacing: -0.04em; font-size: 44px; line-height: 1.05; color: var(--titulo); margin: 0; overflow-wrap: anywhere; animation: sobe-8 400ms var(--curva) both; }
 .publico .lead { margin: 8px 0 22px; font-size: 17px; }
+/* link da equipe: hoje e amanhã de uma pessoa, só para olhar */
+.publico.equipe h1 { font-size: 32px; margin-bottom: 8px; }
+.equipe-lista { list-style: none; padding: 0; margin: 0; }
+.equipe-lista li { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 8px 0; border-bottom: 1px solid var(--borda); }
+.equipe-lista li.passado { opacity: 0.8; }
+.equipe-lista li.passado strong { color: var(--sutil); }
+.equipe-hora { flex: none; width: 48px; color: var(--sutil); font-variant-numeric: tabular-nums; }
+.equipe-quem { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.equipe-quem strong { font-size: 17px; }
+.equipe-lista .botao.redondo { flex: none; }
 .publico .capitulo { margin: 22px 0 10px; }
 .aviso-publico { margin: 18px 0; color: var(--texto); }
 .dias-faixa { display: flex; align-items: center; gap: 8px; }

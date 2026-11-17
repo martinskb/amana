@@ -17,6 +17,7 @@ import Login from './Login';
 import TransicaoRota from './TransicaoRota';
 import Esqueleto from './Esqueleto';
 import Agendar from './publico/Agendar';
+import AgendaEquipe from './publico/AgendaEquipe';
 import SemConexao from './SemConexao';
 
 /**
@@ -141,9 +142,20 @@ function Telas() {
   );
 }
 
+/** O código do link da equipe no endereço, decodificado e aparado ('' se vier quebrado). */
+function codigoDaEquipe(hash: string): string {
+  try {
+    return decodeURIComponent(hash.slice('#/equipe/'.length)).trim();
+  } catch {
+    return '';
+  }
+}
+
 export default function App() {
   // a página pública não pede login
   if (window.location.hash.startsWith('#/agendar')) return <Agendar />;
+  // o link da equipe também não pede login: o código está no endereço
+  if (window.location.hash.startsWith('#/equipe/')) return <AgendaEquipe codigo={codigoDaEquipe(window.location.hash)} />;
   return <AppDoDono />;
 }
 
