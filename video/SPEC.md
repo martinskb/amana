@@ -15,7 +15,7 @@ MOTION:  chegada expo.out 0,5–0,7 s; câmera e pan power2.inOut 0,6–0,9 s; s
          títulos por palavra: blur 6 px → 0 e opacidade em 0,13 s, 0,08 s entre palavras, sem deslocamento;
          toque: dedo (círculo 84 px, #F3EEE9 a 35%) chega 0,2 s antes, aperta 0,85 por 0,12 s, a tela troca no frame do toque.
 SHOTS:   0–4,5 aperto: bolhas empilhando cada vez mais rápido, contador 1→47, "tem horário?" crescendo; gota cai (som) → íris.
-         4,5–10,5 chuva: a gota cai e vira o ponto do logo "amana"; "amana = chuva, em tupi"; Caveat "respira."
+         4,5–10,5 chuva: a gota cai e vira o ponto do logo "amana"; o Caveat "respira." logo abaixo (sem frase explicando o nome)
          10,5–21 agenda: celular sobe; "seu dia, num olhar"; rolagem; zoom em "marcou sozinho!"; toque em Rafa → filtro.
          21–37,5 link do cliente: whip; serviço → com quem → dia/hora → dados → "Pronto, Lucas!" (pop).
          37,5–42 caiu na agenda: zoom no "marcou sozinho! · pelo link".

@@ -10,14 +10,8 @@
     #lg-marca .l { display: inline-block; }
     #lg-gota { width: 0.36em; height: 0.47em; flex: none; }
     #lg-gota path { fill: #b272de; }
-    #lg-frase {
-      position: absolute; left: 0; right: 0; top: 1010px; text-align: center;
-      font-weight: 600; font-size: 54px; letter-spacing: -0.02em; color: #a89ea8;
-    }
-    #lg-frase em { font-style: normal; color: #b272de; }
-    #lg-frase .w { display: inline-block; }
     #lg-respira {
-      position: absolute; left: 0; right: 0; top: 1190px; text-align: center;
+      position: absolute; left: 0; right: 0; top: 1010px; text-align: center;
       font-family: "Caveat", cursive; font-weight: 700; font-size: 120px; color: #b272de;
     }
     #lg-respira span { display: inline-block; padding: 0 20px; }
@@ -28,7 +22,6 @@
       <span class="l">a</span><span class="l">m</span><span class="l">a</span><span class="l">n</span><span class="l">a</span>
       <svg id="lg-gota" viewBox="0 0 20 26" aria-hidden="true"><path d="M10 1C10 1 2 12 2 17a8 8 0 0 0 16 0C18 12 10 1 10 1Z" /></svg>
     </div>
-    <p id="lg-frase"><span class="w">amana</span> <span class="w">quer</span> <span class="w">dizer</span> <span class="w"><em>chuva</em>,</span> <span class="w">em</span> <span class="w">tupi.</span></p>
     <p id="lg-respira"><span>respira.</span></p>
     <!-- a onda roxa da cena anterior fecha num ponto e abre a chuva -->
     <div id="lg-roxo"></div>
@@ -47,12 +40,10 @@
     tl.set("#lg-gota", { opacity: 0 }, 0);
     tl.set("#lg-gota", { opacity: 1 }, 2.15);
     // o nome e o respiro
-    tl.fromTo("#lg-frase .w", { opacity: 0, filter: "blur(6px)" },
-      { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.08, ease: "power2.out" }, 3.1);
     tl.fromTo("#lg-respira span", { opacity: 0, rotation: -3, clipPath: "inset(0 100% 0 0)" },
-      { opacity: 1, rotation: -3, clipPath: "inset(0 0% 0 0)", duration: 0.6, ease: "power2.out" }, 4.1);
+      { opacity: 1, rotation: -3, clipPath: "inset(0 0% 0 0)", duration: 0.6, ease: "power2.out" }, 3.4);
     // saída
-    tl.to(["#lg-marca", "#lg-frase", "#lg-respira"], { opacity: 0, filter: "blur(10px)", duration: 0.3, stagger: 0.04, ease: "power3.in" }, 5.55);
+    tl.to(["#lg-marca", "#lg-respira"], { opacity: 0, filter: "blur(10px)", duration: 0.3, stagger: 0.04, ease: "power3.in" }, 5.55);
     window.__timelines["logo"] = tl;
   </script>
 </template>
