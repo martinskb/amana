@@ -24,7 +24,10 @@ export interface Servico { id: string; nome: string; duracao_min: number; ativo:
 export interface Cliente { id: string; nome: string; telefone: string; criado_em: string }
 export interface Agendamento {
   id: string;
-  cliente_id: string;
+  /** null quando o cliente foi apagado pela limpeza automática. */
+  cliente_id: string | null;
+  /** Nome copiado do cliente ao agendar; fica depois que o cadastro some. */
+  cliente_nome?: string | null;
   servico_id: string | null;
   inicio: string; // ISO com fuso
   fim: string;
@@ -38,7 +41,8 @@ export interface Agendamento {
 }
 /** Agendamento com os dados de exibição do cliente e do serviço. */
 export interface AgendamentoCompleto extends Agendamento {
-  cliente: Pick<Cliente, 'nome' | 'telefone'>;
+  /** Sempre presente; `telefone` null quando o cliente não tem mais cadastro. */
+  cliente: { nome: string; telefone: string | null };
   servico: Pick<Servico, 'nome'> | null;
   criado_em: string;
 }

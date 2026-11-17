@@ -93,6 +93,21 @@ describe('camada de dados', () => {
     expect(select).toContain('servico:servicos(nome)');
   });
 
+  it('listAgendamentos devolve o agendamento sem cadastro com o nome guardado e telefone nulo', async () => {
+    const linha = { ...novo, id: 'a1', pessoa_id: 'p1', criado_em: '2026-11-01T10:00:00Z', servico: null };
+    servidor.use(
+      http.get(`${REST}/agendamentos`, () =>
+        HttpResponse.json([
+          { ...linha, cliente_id: null, cliente: null, cliente_nome: 'Ana' },
+          { ...linha, id: 'a2', cliente: { nome: 'Bia', telefone: '11999990000' } },
+        ]),
+      ),
+    );
+    const r = await listAgendamentos(db, '2026-11-17', '2026-11-17');
+    expect(r[0].cliente).toEqual({ nome: 'Ana', telefone: null });
+    expect(r[1].cliente).toEqual({ nome: 'Bia', telefone: '11999990000' });
+  });
+
   it('listAgendamentosDoCliente filtra pelo cliente e ordena decrescente', async () => {
     let params: URLSearchParams | undefined;
     servidor.use(
