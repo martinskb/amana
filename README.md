@@ -15,6 +15,7 @@ O dono instala a agenda na tela de início do celular, como um aplicativo. O cli
 - Expediente por dia da semana (manhã e tarde, por exemplo), folgas, horários fechados e horários extras.
 - Serviços com duração própria: um "Corte + barba" de 60 minutos ocupa uma hora inteira na agenda.
 - Várias pessoas atendendo: cada uma com os serviços que faz, folgas próprias e agenda própria, com filtro por pessoa. Com uma pessoa só, nada disso aparece.
+- Link da agenda para cada pessoa da equipe: sem login e só para olhar, mostra os clientes dela de hoje e de amanhã. O dono troca o link quando quiser e decide se ele mostra o WhatsApp dos clientes.
 - Lista de clientes com busca e histórico.
 - Backup automático toda semana no Google Drive, e backup manual quando quiser.
 

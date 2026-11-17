@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SemConexaoError } from '../../src/data/erros';
@@ -56,7 +56,8 @@ describe('página do link da equipe', () => {
     expect(hoje).toHaveTextContent('Corte + barba');
     expect(within(hoje).getByText('Marcos').closest('li')).toHaveClass('passado');
     expect(within(screen.getByRole('region', { name: /^amanhã/ })).getByText('nenhum cliente')).toBeInTheDocument();
-    expect(document.title).toBe('Barbearia do João');
+    // o título vem de um efeito, que roda depois da pintura: espera (com a suíte carregada, ele atrasa)
+    await waitFor(() => expect(document.title).toBe('Barbearia do João'));
   });
 
   it('botão de WhatsApp só nos clientes com telefone', async () => {

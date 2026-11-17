@@ -71,6 +71,14 @@ Com duas ou mais pessoas:
 
 Com uma pessoa só, nada disso aparece e tudo fica como sempre foi.
 
+### Link da agenda de cada pessoa
+
+No painel de uma pessoa (Ajustes → Pessoas → toque nela), toque em **Criar link** e depois em **Copiar link** para mandar para ela. O link abre, sem login, só os clientes dela de hoje e de amanhã, para olhar: ela não consegue marcar, cancelar nem ver a agenda dos outros.
+
+- **Pode chamar os clientes no WhatsApp**: ligue se essa pessoa fala direto com os clientes dela. O botão abre o WhatsApp do celular dela, com o número dela. Desligado, o link nem mostra os telefones.
+- **Trocar link**: se a pessoa saiu ou o link foi parar onde não devia. O link antigo para de funcionar na hora; mande o novo para quem precisa.
+- Desativar a pessoa também desliga o link dela.
+
 ## Ajustes
 
 Em **Ajustes** você muda o nome e o WhatsApp do negócio, a duração de cada horário, quantos dias o link mostra, o expediente de cada dia (pode ter mais de um intervalo, por exemplo manhã e tarde), as folgas, os serviços (nome e duração; desligar um serviço tira ele do link) e as pessoas. A lista de **Clientes** (busca e histórico) e o **Backup** também ficam em Ajustes.

@@ -182,6 +182,11 @@ const TELAS = [
       await clicar('.ficha');
     },
   },
+  // ---- link da equipe ----
+  { nome: 'equipe', rota: '/equipe/ana', logado: false, inteira: true },
+  { nome: 'equipe-whatsapp', rota: '/equipe/com-whats', logado: false, inteira: true },
+  { nome: 'equipe-invalido', rota: '/equipe/x', logado: false },
+  { nome: 'p3-painel-pessoa-link', rota: '/config', pessoas: 3, passos: () => clicar('button', 'Ana, ') },
   { nome: 'p20-agenda', rota: '/', larguras: [360, 390], pessoas: 20 },
   { nome: 'p20-agenda-rolada', rota: '/', larguras: [390], pessoas: 20, passos: () => avaliar(`document.querySelector('.filtro-pessoas').scrollLeft = 400`) },
   { nome: 'carregando', rota: '/', pendurar: true },
