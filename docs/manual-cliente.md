@@ -78,6 +78,7 @@ No painel de uma pessoa (Ajustes → Pessoas → toque nela), toque em **Criar l
 - **Pode chamar os clientes no WhatsApp**: ligue se essa pessoa fala direto com os clientes dela. O botão abre o WhatsApp do celular dela, com o número dela. Desligado, o link nem mostra os telefones.
 - **Trocar link**: se a pessoa saiu ou o link foi parar onde não devia. O link antigo para de funcionar na hora; mande o novo para quem precisa.
 - Desativar a pessoa também desliga o link dela.
+- O backup não guarda os links, então quem pegar o arquivo não abre a agenda de ninguém. Se um dia precisar restaurar um backup, crie os links de novo.
 
 ## Ajustes
 

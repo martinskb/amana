@@ -16,6 +16,21 @@ describe('exportBackup', () => {
     expect(Number.isNaN(Date.parse(b.gerado_em))).toBe(false);
   });
 
+  it('pede as pessoas sem o código do link da equipe', async () => {
+    let colunas: string | null = null;
+    servidor.use(
+      http.get(`${REST}/:tabela`, ({ params, request }) => {
+        if (params.tabela === 'pessoas') colunas = new URL(request.url).searchParams.get('select');
+        return HttpResponse.json([]);
+      }),
+    );
+    await exportBackup(dbTeste);
+    expect(colunas).not.toBeNull();
+    expect(colunas).not.toBe('*');
+    expect(colunas).not.toContain('link_codigo');
+    expect(colunas).toContain('link_whatsapp');
+  });
+
   it('traz as linhas cruas de cada tabela', async () => {
     servidor.use(
       http.get(`${REST}/:tabela`, ({ params }) =>

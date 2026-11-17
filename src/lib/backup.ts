@@ -4,7 +4,10 @@ import type { SupabaseClient } from '../data/supabase';
 import type { Agendamento, Cliente, Config, HorarioAjuste, Pessoa, Servico } from '../types';
 import { dataLocal, FUSO } from './slots';
 
-/** Uma linha da tabela `pessoas` (sem os serviços, que vêm em `pessoa_servicos`). */
+/**
+ * Uma linha da tabela `pessoas` (sem os serviços, que vêm em `pessoa_servicos`). Backups novos não
+ * trazem `link_codigo`; os de antes da 0008 trazem, e a restauração ignora.
+ */
 export type LinhaPessoa = Omit<Pessoa, 'servicos'> & { criado_em?: string };
 
 export interface BackupFile {
@@ -52,7 +55,8 @@ export async function exportBackup(db: SupabaseClient): Promise<BackupFile> {
     tudo<Agendamento>('agendamentos'),
     tudo<Omit<Config, 'backup_ativo'>>('configuracoes', COLUNAS_CONFIG), // sem o hash da chave de backup
     tudo<HorarioAjuste>('horarios_ajuste'),
-    tudo<LinhaPessoa>('pessoas'),
+    // sem link_codigo: quem pegar o arquivo não abre a agenda das pessoas
+    tudo<LinhaPessoa>('pessoas', 'id, nome, ativo, ordem, folgas, link_whatsapp, criado_em'),
     tudo<{ pessoa_id: string; servico_id: string }>('pessoa_servicos', '*', ['pessoa_id', 'servico_id']),
   ]);
   return {
