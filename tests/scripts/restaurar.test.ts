@@ -140,8 +140,8 @@ describe('restaurar', { timeout: 30_000 }, () => {
       ...ARQUIVO,
       versao: 2,
       pessoas: [
-        { id: P1, nome: 'Ana', ativo: true, ordem: 1, folgas: ['2026-12-24'], criado_em: '2026-11-01T00:00:00.000Z' },
-        { id: P2, nome: null, ativo: false, ordem: 2, folgas: [], criado_em: '2026-11-02T00:00:00.000Z' },
+        { id: P1, nome: 'Ana', ativo: true, ordem: 1, folgas: ['2026-12-24'], criado_em: '2026-11-01T00:00:00.000Z', link_codigo: 'f'.repeat(64), link_whatsapp: true },
+        { id: P2, nome: null, ativo: false, ordem: 2, folgas: [], criado_em: '2026-11-02T00:00:00.000Z', link_codigo: null, link_whatsapp: false },
       ],
       pessoa_servicos: [{ pessoa_id: P1, servico_id: S1 }],
       agendamentos: ARQUIVO.agendamentos.map((a, i) => ({ ...a, pessoa_id: i === 2 ? P2 : P1 })),

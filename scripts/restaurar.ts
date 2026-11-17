@@ -21,7 +21,7 @@ const COLUNAS = {
     'dias_abertos', 'link_ativo', 'telefone_negocio', 'modelo_cancelamento',
   ],
   horarios_ajuste: ['id', 'inicio', 'tipo', 'criado_em', 'pessoa_id'],
-  pessoas: ['id', 'nome', 'ativo', 'ordem', 'folgas', 'criado_em'],
+  pessoas: ['id', 'nome', 'ativo', 'ordem', 'folgas', 'criado_em', 'link_codigo', 'link_whatsapp'],
   pessoa_servicos: ['pessoa_id', 'servico_id'],
 } as const;
 const JSON_COLS = new Set(['expediente', 'folgas']);
