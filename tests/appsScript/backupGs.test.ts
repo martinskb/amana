@@ -29,7 +29,7 @@ const vivos = (g: ReturnType<typeof criarGoogleFalso>) =>
   g.arquivos.filter((f) => f.pasta === pastaViva(g) && !f.lixeira).map((f) => f.nome);
 
 describe('Backup.gs', () => {
-  it('fazerBackup cria a planilha com as 4 abas e o JSON, e chama concluir_backup', () => {
+  it('fazerBackup cria a planilha com as 5 abas e o JSON, e chama concluir_backup', () => {
     const g = criarGoogleFalso({ responder: ok });
     const s = carregarScript(g, CONFIG);
     const r = s.fazerBackup();
@@ -44,8 +44,8 @@ describe('Backup.gs', () => {
     }
     expect(vivos(g).sort()).toEqual(['Backup Agenda 2026-11-15', 'backup-agenda-2026-11-15.json']);
     const planilha = g.arquivos.find((f) => f.nome === 'Backup Agenda 2026-11-15')!;
-    expect(Object.keys(planilha.abas!)).toEqual(['Agendamentos', 'Clientes', 'Serviços', 'Configurações']);
-    expect(planilha.abas!.Agendamentos[1]).toEqual(['18/11/2026', '09:00', 'João', '5511987654321', '—', 'Marcado', 'Link', '']);
+    expect(Object.keys(planilha.abas!)).toEqual(['Agendamentos', 'Clientes', 'Serviços', 'Pessoas', 'Configurações']);
+    expect(planilha.abas!.Agendamentos[1]).toEqual(['18/11/2026', '09:00', 'João', '5511987654321', '—', '', 'Marcado', 'Link', '']);
     expect(JSON.parse(g.arquivos.find((f) => f.nome.endsWith('.json'))!.conteudo!)).toEqual(DADOS);
     expect(g.emails).toEqual([]);
   });

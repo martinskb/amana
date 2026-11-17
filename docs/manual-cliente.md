@@ -56,6 +56,21 @@ Quando aparecer o aviso amarelo, toque em **Baixar backup**, depois em **Salvar 
 
 Usar a agenda todo dia evita a pausa.
 
+## Pessoas (quando mais de uma pessoa atende)
+
+Em **Ajustes → Pessoas**, toque em **+ adicionar pessoa**. O nome é opcional: sem nome, ela aparece como "Pessoa 2", e só quem tem nome aparece no link para o cliente escolher. Marque os serviços que ela faz (uma pessoa nova já vem com todos). Na mesma tela dá para **Desativar** quem saiu: antes, passe os clientes marcados dela para outra pessoa.
+
+Com duas ou mais pessoas:
+
+- No topo da Agenda aparece o filtro **todos · Ana · Bia**. Escolha uma pessoa para ver só a agenda dela; o celular lembra a escolha.
+- Cada cliente mostra com quem está marcado, e o horário livre mostra quem está livre (**livre · Ana · Bia**).
+- Ao marcar, o campo **Com quem** mostra só quem faz o serviço e está livre. No detalhe do cliente, toque em **com Ana** para passar para outra pessoa.
+- Ao fechar um horário, escolha **Para**: o negócio todo ou uma pessoa. Em **Folgas**, cada folga é do negócio ou de uma pessoa.
+- No link, o cliente escolhe **com quem** ou **Sem preferência** (aí a agenda escolhe quem estiver mais livre no dia).
+- As mensagens dizem com quem: "às 10h com Ana".
+
+Com uma pessoa só, nada disso aparece e tudo fica como sempre foi.
+
 ## Ajustes
 
-Em **Ajustes** você muda o nome e o WhatsApp do negócio, a duração de cada horário, quantos dias o link mostra, o expediente de cada dia (pode ter mais de um intervalo, por exemplo manhã e tarde), as folgas e os serviços (nome e duração; desligar um serviço tira ele do link). A lista de **Clientes** (busca e histórico) e o **Backup** também ficam em Ajustes.
+Em **Ajustes** você muda o nome e o WhatsApp do negócio, a duração de cada horário, quantos dias o link mostra, o expediente de cada dia (pode ter mais de um intervalo, por exemplo manhã e tarde), as folgas, os serviços (nome e duração; desligar um serviço tira ele do link) e as pessoas. A lista de **Clientes** (busca e histórico) e o **Backup** também ficam em Ajustes.

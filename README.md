@@ -2,7 +2,7 @@
 
 *Amana* quer dizer "chuva" em tupi. Em Belém, a chuva da tarde é o alívio depois do mormaço; a Amana é o alívio de quem passa o dia respondendo "tem horário?" no WhatsApp.
 
-Agenda online para pequenos negócios de serviço, como barbearias, salões e estúdios, feita para quem atende sozinho e organiza tudo pelo celular.
+Agenda online para pequenos negócios de serviço, como barbearias, salões e estúdios, feita para quem organiza tudo pelo celular, atendendo sozinho ou com uma equipe pequena.
 
 O dono instala a agenda na tela de início do celular, como um aplicativo. O cliente recebe um link, escolhe o serviço, o dia e o horário e marca sozinho, sem baixar nada nem criar conta. Do outro lado, o dono vê o horário aparecer na agenda e conversa com o cliente pelo WhatsApp com mensagens já prontas.
 
@@ -14,11 +14,13 @@ O dono instala a agenda na tela de início do celular, como um aplicativo. O cli
 - Lembrete dos clientes de amanhã com um toque.
 - Expediente por dia da semana (manhã e tarde, por exemplo), folgas, horários fechados e horários extras.
 - Serviços com duração própria: um "Corte + barba" de 60 minutos ocupa uma hora inteira na agenda.
+- Várias pessoas atendendo: cada uma com os serviços que faz, folgas próprias e agenda própria, com filtro por pessoa. Com uma pessoa só, nada disso aparece.
 - Lista de clientes com busca e histórico.
 - Backup automático toda semana no Google Drive, e backup manual quando quiser.
 
 **Para o cliente, pelo link de agendamento**
 - Escolhe o serviço, o dia e um horário em que esse serviço cabe por inteiro.
+- Quando mais de uma pessoa faz o serviço, escolhe com quem, ou "Sem preferência".
 - Informa só o nome e o WhatsApp.
 - Nunca vê dados de outros clientes, só os horários livres.
 
@@ -74,6 +76,8 @@ Cada mudança no banco vira um arquivo novo em `supabase/migrations/`, numerado 
 
 Para atualizar um projeto que já está no ar, rode no **SQL Editor** do Supabase só as migrações que ainda faltam, em ordem. Quando uma migração muda o que a página pública recebe ou envia, publique o site primeiro e aplique a migração depois. Assim, quem estiver com a página aberta não é pego no meio da troca.
 
+A exceção é a `0006_pessoas.sql`: o app novo já lê as pessoas, então aplique a 0006 **antes** de publicar esta versão. O app e a página antigos continuam funcionando com o banco novo (os agendamentos sem pessoa vão para a primeira pessoa livre).
+
 ## Implantação e uso
 
 - [Guia de implantação](docs/implantacao.md): passo a passo para colocar a agenda no ar para um novo negócio.
@@ -81,7 +85,7 @@ Para atualizar um projeto que já está no ar, rode no **SQL Editor** do Supabas
 
 ## Restaurar um backup
 
-O backup é um arquivo JSON com clientes, serviços, agendamentos, configurações e horários fechados ou extras. Para colocá-lo de volta no banco:
+O backup é um arquivo JSON com clientes, serviços, pessoas (e quem faz cada serviço), agendamentos, configurações e horários fechados ou extras. Backups antigos, de antes das pessoas, também restauram: o script cria a pessoa única, como a migração 0006. Para colocá-lo de volta no banco:
 
 ```bash
 SUPABASE_DB_URL='postgresql://postgres:SENHA@db.XXXX.supabase.co:5432/postgres' \

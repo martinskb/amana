@@ -60,13 +60,35 @@ function porId(lista) {
   return mapa;
 }
 
+/** As pessoas pela ordem (backup v2; o v1 não tem). */
+function pessoasOrdenadas(dados) {
+  return (dados.pessoas || []).slice().sort(function (a, b) {
+    return a.ordem - b.ordem;
+  });
+}
+
+/**
+ * Nome de exibição por id, igual ao do app: o nome; sem nome, "Pessoa N" pela posição entre as
+ * ativas; desativada sem nome, "Pessoa (desativada)".
+ */
+function nomesDasPessoas(dados) {
+  var nomes = {};
+  var n = 0;
+  pessoasOrdenadas(dados).forEach(function (p) {
+    if (p.ativo) n += 1;
+    nomes[p.id] = p.nome ? p.nome : p.ativo ? 'Pessoa ' + n : 'Pessoa (desativada)';
+  });
+  return nomes;
+}
+
 function linhasAgendamentos(dados, fuso) {
   var clientes = porId(dados.clientes);
   var servicos = porId(dados.servicos);
+  var pessoas = nomesDasPessoas(dados);
   var ordenados = (dados.agendamentos || []).slice().sort(function (a, b) {
     return new Date(a.inicio).getTime() - new Date(b.inicio).getTime();
   });
-  var linhas = [['Data', 'Hora', 'Cliente', 'WhatsApp', 'Serviço', 'Situação', 'Origem', 'Observação']];
+  var linhas = [['Data', 'Hora', 'Cliente', 'WhatsApp', 'Serviço', 'Pessoa', 'Situação', 'Origem', 'Observação']];
   ordenados.forEach(function (a) {
     var c = clientes[a.cliente_id] || {};
     var s = a.servico_id ? servicos[a.servico_id] : null;
@@ -76,6 +98,7 @@ function linhasAgendamentos(dados, fuso) {
       c.nome || '',
       c.telefone || '',
       s ? s.nome : '—',
+      (a.pessoa_id && pessoas[a.pessoa_id]) || '',
       SITUACOES[a.status] || a.status,
       a.origem === 'link' ? 'Link' : 'Dono',
       a.observacao || '',
@@ -99,6 +122,26 @@ function linhasServicos(dados) {
   var linhas = [['Nome', 'Duração (min)', 'Ativo']];
   (dados.servicos || []).forEach(function (s) {
     linhas.push([s.nome, s.duracao_min, s.ativo ? 'Sim' : 'Não']);
+  });
+  return linhas;
+}
+
+function linhasPessoas(dados) {
+  var servicos = porId(dados.servicos);
+  var nomes = nomesDasPessoas(dados);
+  var linhas = [['Nome', 'Ativa', 'Serviços']];
+  pessoasOrdenadas(dados).forEach(function (p) {
+    var faz = (dados.pessoa_servicos || [])
+      .filter(function (ps) {
+        return ps.pessoa_id === p.id && servicos[ps.servico_id];
+      })
+      .map(function (ps) {
+        return servicos[ps.servico_id].nome;
+      })
+      .sort(function (a, b) {
+        return a.localeCompare(b, 'pt-BR');
+      });
+    linhas.push([nomes[p.id], p.ativo ? 'Sim' : 'Não', faz.join(', ')]);
   });
   return linhas;
 }
@@ -185,6 +228,7 @@ function executarBackup(deps) {
       Agendamentos: linhasAgendamentos(dados, fuso),
       Clientes: linhasClientes(dados, fuso),
       Serviços: linhasServicos(dados),
+      Pessoas: linhasPessoas(dados),
       Configurações: linhasConfiguracoes(dados),
     });
     deps.salvarJson(deps.nomes.arquivo, JSON.stringify(dados, null, 2));

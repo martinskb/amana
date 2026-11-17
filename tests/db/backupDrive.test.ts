@@ -21,9 +21,12 @@ describe('backup no Drive: banco', { timeout: 30_000 }, () => {
     await db.query(`insert into clientes (nome, telefone) values ('Ana', '5511987654321')`);
     const j = await exportar(db);
     expect(Object.keys(j).sort()).toEqual(
-      ['agendamentos', 'clientes', 'configuracoes', 'gerado_em', 'horarios_ajuste', 'servicos', 'versao'],
+      ['agendamentos', 'clientes', 'configuracoes', 'gerado_em', 'horarios_ajuste', 'pessoa_servicos', 'pessoas', 'servicos', 'versao'],
     );
-    expect(j.versao).toBe(1);
+    expect(j.versao).toBe(2);
+    // a pessoa única da migração, ligada aos serviços
+    expect((j.pessoas as { nome: string | null; ordem: number }[]).map((p) => [p.nome, p.ordem])).toEqual([[null, 1]]);
+    expect((j.pessoa_servicos as unknown[]).length).toBe((j.servicos as unknown[]).length);
     expect((j.clientes as { nome: string }[]).map((c) => c.nome)).toEqual(['Ana']);
   });
 

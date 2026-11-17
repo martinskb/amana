@@ -7,10 +7,12 @@ import { dbTeste, REST, servidor, usarServidor } from '../helpers/msw';
 usarServidor();
 
 describe('exportBackup', () => {
-  it('com tabelas vazias devolve versao 1 e quatro listas vazias', async () => {
+  it('com tabelas vazias devolve versao 2 e as listas vazias, com pessoas e pessoa_servicos', async () => {
     servidor.use(http.get(`${REST}/:tabela`, () => HttpResponse.json([])));
     const b = await exportBackup(dbTeste);
-    expect(b).toMatchObject({ versao: 1, clientes: [], servicos: [], agendamentos: [], configuracoes: [], horarios_ajuste: [] });
+    expect(b).toMatchObject({
+      versao: 2, clientes: [], servicos: [], agendamentos: [], configuracoes: [], horarios_ajuste: [], pessoas: [], pessoa_servicos: [],
+    });
     expect(Number.isNaN(Date.parse(b.gerado_em))).toBe(false);
   });
 
@@ -38,5 +40,21 @@ describe('exportBackup', () => {
     const b = await exportBackup(dbTeste);
     expect(b.agendamentos).toHaveLength(2500);
     expect(b.agendamentos.at(-1)).toEqual({ id: '02499' });
+  });
+
+  it('pessoa_servicos (sem coluna id) é ordenada pelas chaves', async () => {
+    let ordem: string | null = null;
+    servidor.use(
+      http.get(`${REST}/:tabela`, ({ params, request }) => {
+        if (params.tabela === 'pessoa_servicos') {
+          ordem = new URL(request.url).searchParams.get('order');
+          return HttpResponse.json([{ pessoa_id: 'p1', servico_id: 's1' }]);
+        }
+        return HttpResponse.json([]);
+      }),
+    );
+    const b = await exportBackup(dbTeste);
+    expect(ordem).toBe('pessoa_id.asc,servico_id.asc');
+    expect(b.pessoa_servicos).toEqual([{ pessoa_id: 'p1', servico_id: 's1' }]);
   });
 });
