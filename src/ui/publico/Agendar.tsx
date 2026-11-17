@@ -269,7 +269,14 @@ export default function Agendar() {
                   setHorario(null);
                 }}
               >
-                Sem preferência
+                <span className="servico-nome">
+                  {!daPessoa && (
+                    <span className="servico-ok" aria-hidden="true">
+                      ✓{' '}
+                    </span>
+                  )}
+                  Sem preferência
+                </span>
               </button>
               {servico!.pessoas!.map((p) => (
                 <button
@@ -282,7 +289,14 @@ export default function Agendar() {
                     setHorario(null);
                   }}
                 >
-                  {nomes.get(p.id) ?? ''}
+                  <span className="servico-nome">
+                    {daPessoa?.id === p.id && (
+                      <span className="servico-ok" aria-hidden="true">
+                        ✓{' '}
+                      </span>
+                    )}
+                    {nomes.get(p.id) ?? ''}
+                  </span>
                 </button>
               ))}
             </div>

@@ -411,7 +411,7 @@ describe('página pública com pessoas', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Corte 30 min' }));
     expect(screen.getByText('2 · com quem')).toBeInTheDocument();
     const botoes = within(comQuem()!).getAllByRole('button');
-    expect(botoes.map((b) => b.textContent)).toEqual(['Sem preferência', 'Ana', 'Bia']);
+    expect(botoes.map((b) => b.textContent?.replace('✓', '').trim())).toEqual(['Sem preferência', 'Ana', 'Bia']);
     expect(botoes[0]).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('3 · dia')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'qua 18' }));
@@ -435,6 +435,15 @@ describe('página pública com pessoas', () => {
     await userEvent.click(within(comQuem()!).getByRole('button', { name: 'Sem preferência' }));
     expect(screen.getByRole('button', { name: '9h' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'qui 19' })).toBeInTheDocument();
+  });
+
+  it('a escolha do "com quem" ganha ✓ como o serviço, sem mudar o nome acessível', async () => {
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte 30 min' }));
+    expect(within(comQuem()!).getByRole('button', { name: 'Sem preferência' })).toHaveTextContent('✓');
+    await userEvent.click(within(comQuem()!).getByRole('button', { name: 'Ana' }));
+    expect(within(comQuem()!).getByRole('button', { name: 'Ana' })).toHaveTextContent('✓');
+    expect(within(comQuem()!).getByRole('button', { name: 'Sem preferência' })).not.toHaveTextContent('✓');
   });
 
   it('trocar para um serviço que a pessoa não faz volta para Sem preferência', async () => {

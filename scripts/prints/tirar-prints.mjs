@@ -225,6 +225,23 @@ for (const t of TELAS.filter((t) => !escolhidas || escolhidas.includes(t.nome)))
       await t.passos();
       await espera(t.depois ?? 900);
     }
+    // AUDITAR=1: mede o que estoura a largura e os toques menores que 44 px (só elementos visíveis)
+    if (process.env.AUDITAR) {
+      const r = await avaliar(`(() => {
+        const vw = innerWidth;
+        const largo = document.documentElement.scrollWidth > vw + 1;
+        const vis = (e) => { const s = getComputedStyle(e); const b = e.getBoundingClientRect();
+          return s.visibility !== 'hidden' && s.display !== 'none' && b.width > 0 && b.height > 0 && !e.closest('[inert],[aria-hidden="true"]'); };
+        const fora = [...document.querySelectorAll('body *')].filter((e) => vis(e) && e.getBoundingClientRect().right > vw + 1 && !e.closest('.filtro-pessoas,.dias,.chuva,.faixa-dias'))
+          .slice(0, 3).map((e) => e.tagName.toLowerCase() + '.' + [...e.classList].join('.'));
+        const pequenos = [...document.querySelectorAll('button, a[href], input, select, [role=button]')].filter(vis).filter((e) => {
+          const b = e.getBoundingClientRect(); const alvo = e.closest('label') ?? e; const bl = alvo.getBoundingClientRect();
+          return Math.max(b.height, bl.height) < 44 || Math.max(b.width, bl.width) < 24;
+        }).slice(0, 4).map((e) => (e.getAttribute('aria-label') || e.textContent || e.tagName).trim().slice(0, 30) + ' ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height));
+        return JSON.stringify({ largo, fora, pequenos });
+      })()`);
+      console.log('auditoria', `${t.nome}-${w}`, r);
+    }
     let clip;
     if (t.inteira) {
       const altura = await avaliar('document.documentElement.scrollHeight');
