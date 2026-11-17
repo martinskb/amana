@@ -146,6 +146,44 @@ const TELAS = [
   },
   { nome: 'publico', rota: '/agendar', logado: false, inteira: true },
   { nome: 'publico-sem-servico', rota: '/agendar', logado: false, inteira: true, servicos: false },
+  // ---- pessoas (3 ativas: Ana, uma sem nome e João; Carla desativada) ----
+  { nome: 'p3-agenda', rota: '/', larguras: AGENDA, pessoas: 3 },
+  { nome: 'p3-agenda-filtro', rota: '/', larguras: AGENDA, pessoas: 3, passos: () => clicar('.filtro-pessoas button', 'Ana') },
+  { nome: 'p3-agenda-semana', rota: '/', larguras: [390, 1280], pessoas: 3, passos: () => clicar('.alterna button', 'semana') },
+  { nome: 'p3-livre-fechar', rota: '/', pessoas: 3, passos: () => clicar('.lt-livre') },
+  {
+    nome: 'p3-novo', rota: '/', pessoas: 3,
+    passos: async () => {
+      await clicar('.lt-livre');
+      await espera(600);
+      await clicar('.painel button', 'Marcar cliente');
+    },
+  },
+  {
+    nome: 'p3-detalhes-trocar', rota: '/', pessoas: 3,
+    passos: async () => {
+      await clicar('.lt-ag', 'Rafael Costa');
+      await espera(600);
+      await clicar('.painel button.com-quem');
+    },
+  },
+  { nome: 'p3-ajustes', rota: '/config', inteira: true, pessoas: 3 },
+  { nome: 'p3-painel-pessoa', rota: '/config', pessoas: 3, passos: () => clicar('button', 'Ana, ') },
+  { nome: 'p3-painel-nova', rota: '/config', pessoas: 3, passos: () => clicar('button', '+ adicionar pessoa') },
+  { nome: 'p3-folgas', rota: '/config', pessoas: 3, passos: () => clicar('button', 'Folgas,') },
+  { nome: 'p3-publico', rota: '/agendar', logado: false, inteira: true, pessoas: 3, passos: () => clicar('.servicos button', 'Corte 30') },
+  {
+    nome: 'p3-publico-escolhida', rota: '/agendar', logado: false, inteira: true, pessoas: 3,
+    passos: async () => {
+      await clicar('.servicos button', 'Corte 30');
+      await espera(400);
+      await clicar('.com-quem button', 'João');
+      await espera(400);
+      await clicar('.ficha');
+    },
+  },
+  { nome: 'p20-agenda', rota: '/', larguras: [360, 390], pessoas: 20 },
+  { nome: 'p20-agenda-rolada', rota: '/', larguras: [390], pessoas: 20, passos: () => avaliar(`document.querySelector('.filtro-pessoas').scrollLeft = 400`) },
   { nome: 'carregando', rota: '/', pendurar: true },
   // sem rede, o app espera as novas tentativas do supabase-js e o prazo de 10 s antes de avisar
   { nome: 'sem-conexao', rota: '/', bloquear: true, espera: 16000 },
@@ -160,7 +198,7 @@ for (const t of TELAS.filter((t) => !escolhidas || escolhidas.includes(t.nome)))
   for (const w of t.larguras ?? [390, 1280]) {
     const h = w < 700 ? 844 : 800;
     await cmd('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 2, mobile: w < 700 });
-    await fetch(`http://localhost:${PORTA_FALSO}/__modo?servicos=${t.servicos === false ? 0 : 1}`);
+    await fetch(`http://localhost:${PORTA_FALSO}/__modo?servicos=${t.servicos === false ? 0 : 1}&pessoas=${t.pessoas ?? 1}`);
     // um arquivo estático da mesma origem, só para mexer no localStorage antes de o app abrir
     await cmd('Page.navigate', { url: BASE + 'favicon.svg' });
     await espera(300);
@@ -194,7 +232,7 @@ for (const t of TELAS.filter((t) => !escolhidas || escolhidas.includes(t.nome)))
     if (t.pendurar) await cmd('Fetch.disable');
   }
 }
-await fetch(`http://localhost:${PORTA_FALSO}/__modo?servicos=1`);
+await fetch(`http://localhost:${PORTA_FALSO}/__modo?servicos=1&pessoas=1`);
 ws.close();
 for (const f of filhos) f.kill();
 await espera(500); // o navegador termina de gravar o perfil antes de ele ser apagado

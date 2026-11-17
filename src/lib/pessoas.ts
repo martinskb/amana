@@ -58,3 +58,9 @@ export function nomeNaMensagem(pessoaId: string | null | undefined, pessoas: Pes
   if (!pessoaId || !variasPessoas(pessoas)) return null;
   return pessoas.find((p) => p.id === pessoaId)?.nome ?? null;
 }
+
+/** "Ana · João · Bia +17": até `max` nomes; o resto vira "+N" (o livre não estoura a linha com muita gente). */
+export function resumoNomes(nomes: string[], max = 3): string {
+  if (nomes.length <= max) return nomes.join(' · ');
+  return `${nomes.slice(0, max).join(' · ')} +${nomes.length - max}`;
+}

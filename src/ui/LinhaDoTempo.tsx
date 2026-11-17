@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { nomeDivergente } from '../lib/nomes';
+import { resumoNomes } from '../lib/pessoas';
 import { abreviaDia, dataLocal, horaLocal, instanteLocal } from '../lib/slots';
 import type { AgendamentoCompleto, Status } from '../types';
 import { usePrefereMenosMovimento } from './animacao';
@@ -80,7 +81,7 @@ export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selec
     const rotulo = grupo ? `Marcar ${dia} entre ${item.de} e ${item.ate}` : `Marcar ${dia} às ${hora}`;
     // "livre · Ana · João": quem está livre nesse bloco
     const quem = etiquetas && item.tipo === 'livre' && item.pessoas ? item.pessoas.map((id) => etiquetas.get(id) ?? '') : [];
-    const texto = grupo ? `livre até ${somarMin(item.ate, config.passo_min)}` : ['livre', ...quem].join(' · ');
+    const texto = grupo ? `livre até ${somarMin(item.ate, config.passo_min)}` : quem.length ? `livre · ${resumoNomes(quem)}` : 'livre';
     return {
       passado: false,
       no: (

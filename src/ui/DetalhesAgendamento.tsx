@@ -142,6 +142,7 @@ export default function DetalhesAgendamento({ agendamento: a, agendamentos = [],
           {trocando &&
             (outras.length > 0 ? (
               <div role="group" aria-label="Trocar para" className="trocar-pessoa">
+                <span className="sutil">Passar para:</span>
                 {outras.map((p) => (
                   <button key={p.id} type="button" onClick={() => void passarPara(p)}>
                     {nomeDaPessoa(p, pessoas)}

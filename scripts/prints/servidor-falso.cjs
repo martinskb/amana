@@ -14,6 +14,8 @@
 //
 // uso: node scripts/prints/servidor-falso.cjs   (PORTA_FALSO, padrão 5198)
 // GET /__modo?servicos=0 tira os serviços (página do cliente sem serviço); ?servicos=1 devolve.
+// GET /__modo?pessoas=1|3|20: uma pessoa sem nome (como depois da 0006); três (Ana, uma sem nome e
+// João, cada uma com seus serviços); ou vinte, para ver o filtro rolar.
 const http = require('http');
 
 const PORTA = Number(process.env.PORTA_FALSO || 5198);
@@ -82,10 +84,46 @@ const agendamentos = [
   ag('a8', ana, corteBarba, 7, 10 * 60, 'marcado', 'link', { criado_em: recente }),
 ].sort((a, b) => a.inicio.localeCompare(b.inicio));
 
+// ---- pessoas ----
+const todos = todosServicos.map((s) => s.id);
+const PESSOAS = {
+  1: [{ id: 'p1', nome: null, ativo: true, ordem: 1, folgas: [], servicos: todos }],
+  3: [
+    { id: 'p1', nome: 'Ana', ativo: true, ordem: 1, folgas: [], servicos: todos },
+    { id: 'p2', nome: null, ativo: true, ordem: 2, folgas: [], servicos: ['s1', 's3'] },
+    { id: 'p3', nome: 'João', ativo: true, ordem: 3, folgas: [], servicos: ['s1', 's2'] },
+    { id: 'p4', nome: 'Carla', ativo: false, ordem: 4, folgas: [], servicos: ['s1'] },
+  ],
+  20: Array.from({ length: 20 }, (_, i) => ({
+    id: `p${i + 1}`,
+    nome: ['Ana', 'João', 'Bia', 'Rafa', 'Duda', 'Léo', 'Marina', 'Caio', 'Lu', 'Teo'][i % 10] + (i >= 10 ? ' ' + (i - 9) : ''),
+    ativo: true, ordem: i + 1, folgas: [], servicos: todos,
+  })),
+};
+let pessoas = PESSOAS[1];
+const ativas = () => pessoas.filter((x) => x.ativo);
+// os agendamentos se espalham entre as ativas, pela posição
+const comPessoa = (lista) => lista.map((a, i) => ({ ...a, pessoa_id: ativas()[i % ativas().length].id }));
+const linhaPessoa = ({ servicos: ss, ...x }) => ({ ...x, pessoa_servicos: ss.map((servico_id) => ({ servico_id })) });
+
 const livres = [1, 3, 4].flatMap((d) => [9 * 60, 11 * 60, 14 * 60, 17 * 60 + 30].map((m) => em(d, m)));
 const publico = () => ({
   nome_negocio: config.nome_negocio, telefone_negocio: config.telefone_negocio, link_ativo: true, horarios: livres,
-  servicos: servicos.map((s) => ({ ...s, horarios: livres })),
+  pessoas: ativas().filter((x) => x.nome).map((x) => ({ id: x.id, nome: x.nome })),
+  servicos: servicos
+    .map((s) => {
+      const fazem = ativas().filter((x) => x.servicos.includes(s.id));
+      const comNome = fazem.filter((x) => x.nome);
+      // cada pessoa com uma parte dos horários, para a escolha mudar a lista
+      const dela = (i) => livres.filter((_, j) => j % comNome.length === i);
+      return {
+        ...s,
+        horarios: livres,
+        com_escolha: comNome.length > 0 && fazem.length > 1,
+        pessoas: comNome.map((x, i) => ({ id: x.id, horarios: dela(i) })),
+      };
+    })
+    .filter((s) => ativas().some((x) => x.servicos.includes(s.id))),
 });
 const user = { id: 'u1', aud: 'authenticated', role: 'authenticated', email: 'dono@exemplo.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
 
@@ -118,13 +156,15 @@ http.createServer((q, r) => {
     let body = [];
     if (p === '/__modo') {
       if (u.searchParams.has('servicos')) servicos = u.searchParams.get('servicos') === '0' ? [] : todosServicos;
-      body = { servicos: servicos.length };
+      if (u.searchParams.has('pessoas')) pessoas = PESSOAS[u.searchParams.get('pessoas')] ?? PESSOAS[1];
+      body = { servicos: servicos.length, pessoas: pessoas.length };
     } else if (p.startsWith('/auth/v1/user')) body = user;
     else if (p.endsWith('/rpc/horarios_publicos')) body = publico();
     else if (p.endsWith('/configuracoes')) {
       if (q.method === 'PATCH' && corpo) Object.assign(config, JSON.parse(corpo));
       body = um ? config : [config];
-    } else if (p.endsWith('/agendamentos')) body = filtrar(agendamentos, u.searchParams);
+    } else if (p.endsWith('/agendamentos')) body = filtrar(comPessoa(agendamentos), u.searchParams);
+    else if (p.endsWith('/pessoas')) body = pessoas.map(linhaPessoa);
     else if (p.endsWith('/servicos')) body = servicos;
     else if (p.endsWith('/clientes')) body = filtrar(clientes, u.searchParams);
     else if (p.endsWith('/horarios_ajuste')) body = [];

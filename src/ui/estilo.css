@@ -370,7 +370,7 @@ button.texto:hover { color: var(--titulo); }
 .filtro-pessoas button { flex: none; min-height: 44px; padding: 0 14px; border: 1px solid var(--borda); border-radius: var(--raio-pilula); background: transparent; color: var(--sutil); font-size: 14px; font-weight: 500; white-space: nowrap; }
 .filtro-pessoas button[aria-pressed='true'] { background: var(--sup2); border-color: var(--sup2); color: var(--texto); }
 /* detalhe do agendamento: "com Ana ›" e para quem passar */
-.trocar-pessoa { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.trocar-pessoa { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 12px; }
 .trocar-pessoa button { min-height: 44px; padding: 0 14px; border: 1px solid var(--borda); border-radius: var(--raio-pilula); background: transparent; color: var(--texto); font-size: 14px; }
 .acoes-topo { display: flex; gap: 16px; margin: 4px 0 0 -4px; }
 @media (min-width: 1280px) { .faixa-semana { max-width: 560px; } }

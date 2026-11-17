@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ativas, fazServico, livresPara, nomeDaPessoa, nomeNaMensagem, variasPessoas } from '../../src/lib/pessoas';
+import { ativas, fazServico, livresPara, nomeDaPessoa, nomeNaMensagem, resumoNomes, variasPessoas } from '../../src/lib/pessoas';
 import type { Pessoa } from '../../src/types';
 
 const pessoa = (id: string, ordem: number, over: Partial<Pessoa> = {}): Pessoa => ({
@@ -107,5 +107,13 @@ describe('livresPara e nomeNaMensagem', () => {
     expect(nomeNaMensagem('p3', [ana, cida])).toBeNull();
     expect(nomeNaMensagem('p1', [ana, { ...bia, ativo: false }])).toBeNull();
     expect(nomeNaMensagem(undefined, [ana, bia])).toBeNull();
+  });
+});
+
+describe('resumoNomes', () => {
+  it('até três nomes por inteiro; mais que isso, "+N"', () => {
+    expect(resumoNomes(['Ana', 'Bia'])).toBe('Ana · Bia');
+    expect(resumoNomes(['Ana', 'Bia', 'Caio'])).toBe('Ana · Bia · Caio');
+    expect(resumoNomes(['Ana', 'Bia', 'Caio', 'Duda', 'Edu'])).toBe('Ana · Bia · Caio +2');
   });
 });
