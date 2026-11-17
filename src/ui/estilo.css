@@ -112,7 +112,6 @@ input[type='checkbox'] { min-height: 0; accent-color: var(--marca); }
 .aviso-conexao { max-width: 420px; margin: 10vh auto 0; }
 
 /* ===== Agenda ===== */
-.aviso-nome { border: 1px solid #6b3a38; background: rgba(240, 116, 112, 0.07); border-radius: var(--raio-campo); padding: 10px 12px; font-size: 14px; }
 .desdobra { animation: desdobra var(--medio) var(--curva); transform-origin: top; }
 @keyframes desdobra { from { opacity: 0; transform: translateY(-6px); } }
 
@@ -403,8 +402,8 @@ button.texto:hover { color: var(--titulo); }
 .linha-tempo { position: relative; list-style: none; margin: 0; padding: 0; }
 .linha-tempo::before { content: ''; position: absolute; left: 61px; top: 0; bottom: 0; width: 1px; background: var(--borda); }
 .linha-tempo > li { min-width: 0; }
-/* passado: o nome apagado para --sutil e a linha a 0,8; com 0,55 o texto --sutil caía para 3:1 e o
-   "digitou" para 2,8:1; a 0,8 todo texto fica ≥ 4,5:1 (--sutil 5,1:1, --perigo 4,7:1) */
+/* passado: o nome apagado para --sutil e a linha a 0,8; com 0,55 o texto --sutil caía para 3:1;
+   a 0,8 todo texto fica ≥ 4,5:1 (--sutil 5,1:1) */
 .linha-tempo > li.passado { opacity: 0.8; }
 .linha-tempo > li.passado .lt-nome { color: var(--sutil); }
 .lt-item {
@@ -426,7 +425,6 @@ button.texto:hover { color: var(--titulo); }
 /* com 2+ pessoas e o filtro em todos: quem atende, à direita */
 .lt-ag.com-pessoa .lt-corpo { padding-right: 96px; }
 .lt-pessoa { position: absolute; right: 0; top: 12px; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--sutil); }
-.lt-sub .alerta { color: var(--perigo); }
 .lt-livre .lt-texto { display: flex; align-items: center; gap: 4px; padding: 12px 0 12px 16px; border-bottom-style: dashed; border-bottom-color: #3a333a; font-size: 13px; color: var(--sutil); }
 .lt-livre .lt-texto svg { color: var(--marca); }
 .lt-livre:hover .lt-texto, .lt-fechado:hover .lt-texto { color: var(--texto); }

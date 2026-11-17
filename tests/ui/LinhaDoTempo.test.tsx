@@ -97,11 +97,12 @@ describe('LinhaDoTempo', () => {
     expect(container.querySelectorAll('.lt-ponto')).toHaveLength(4);
   });
 
-  it('mostra o serviço, "pelo link" e o nome digitado diferente na linha de baixo', () => {
+  it('mostra o serviço e "pelo link" na linha de baixo, sem o nome digitado', () => {
     const a = ag('a1', '10:00', 'João', 'marcado', { origem: 'link', nome_informado: 'Fulano' });
     renderComConfig(<LinhaDoTempo data={DIA} itens={[item(a, '10:00')]} modo="dia" novos={new Set()} onItem={() => {}} />);
     const botao = screen.getByRole('button', { name: /^10:00 João/ });
-    expect(botao).toHaveTextContent('Corte · pelo link · digitou Fulano');
+    expect(botao).toHaveTextContent('Corte · pelo link');
+    expect(botao).not.toHaveTextContent('digitou');
   });
 
   it('um agendamento novo pelo link ganha ", novo, marcado pelo link" no nome acessível', () => {
