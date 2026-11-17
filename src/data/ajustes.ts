@@ -8,7 +8,7 @@ export async function listAjustes(db: SupabaseClient, de: string, ate: string): 
   return executar(
     db
       .from('horarios_ajuste')
-      .select('id, inicio, tipo')
+      .select('id, inicio, tipo, pessoa_id')
       .gte('inicio', instanteLocal(de, '00:00', FUSO).toISOString())
       .lt('inicio', instanteLocal(somarDias(ate, 1), '00:00', FUSO).toISOString())
       .order('inicio')
@@ -16,12 +16,14 @@ export async function listAjustes(db: SupabaseClient, de: string, ate: string): 
   );
 }
 
-export async function fecharHorario(db: SupabaseClient, inicio: string): Promise<void> {
-  await executar(db.from('horarios_ajuste').insert({ inicio, tipo: 'fechado' }));
+/** `pessoaId` null: fecha para o negócio todo. */
+export async function fecharHorario(db: SupabaseClient, inicio: string, pessoaId: string | null): Promise<void> {
+  await executar(db.from('horarios_ajuste').insert({ inicio, tipo: 'fechado', pessoa_id: pessoaId }));
 }
 
-export async function criarExtra(db: SupabaseClient, inicio: string): Promise<void> {
-  await executar(db.from('horarios_ajuste').insert({ inicio, tipo: 'extra' }));
+/** Extra é sempre de uma pessoa; `pessoaId` null deixa o banco pôr a primeira ativa. */
+export async function criarExtra(db: SupabaseClient, inicio: string, pessoaId: string | null): Promise<void> {
+  await executar(db.from('horarios_ajuste').insert(pessoaId ? { inicio, tipo: 'extra', pessoa_id: pessoaId } : { inicio, tipo: 'extra' }));
 }
 
 export async function removerAjuste(db: SupabaseClient, id: string): Promise<void> {

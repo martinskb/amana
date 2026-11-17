@@ -34,6 +34,11 @@ describe('build de produção', { timeout: 120_000 }, () => {
     expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(['192x192', '512x512']);
   });
 
+  it('publica o favicon da gota', () => {
+    expect(readFileSync(join(saida, 'favicon.svg'), 'utf8')).toContain('<path');
+    expect(readFileSync(join(saida, 'index.html'), 'utf8')).toContain('rel="icon" href="/favicon.svg"');
+  });
+
   it('gera o service worker', () => {
     expect(existsSync(join(saida, 'sw.js'))).toBe(true);
   });
@@ -54,14 +59,30 @@ describe('build de produção', { timeout: 120_000 }, () => {
 
   it('manifest usa as cores do tema escuro', () => {
     const manifest = JSON.parse(readFileSync(join(saida, 'manifest.webmanifest'), 'utf8'));
-    expect(manifest.background_color).toBe('#161412');
-    expect(manifest.theme_color).toBe('#161412');
+    expect(manifest.background_color).toBe('#121012');
+    expect(manifest.theme_color).toBe('#121012');
+  });
+
+  it('manifest se chama Amana', () => {
+    const manifest = JSON.parse(readFileSync(join(saida, 'manifest.webmanifest'), 'utf8'));
+    expect(manifest.name).toBe('Amana');
+    expect(manifest.short_name).toBe('Amana');
+  });
+
+  it('o CSS não tem mais a marca antiga', () => {
+    const css = arquivos(saida).filter((f) => f.endsWith('.css')).map((f) => readFileSync(f, 'utf8')).join('\n').toLowerCase();
+    expect(css).not.toContain('playfair');
+    expect(css).not.toContain('hanken');
+    expect(css).not.toContain('#b9894f');
+    expect(css).not.toContain('#2a2219'); // degradê marrom dos cartões de destaque
+    expect(css).toContain('#b272de');
   });
 
   it('embute as fontes latinas no build e no cache do PWA', () => {
     const fontes = arquivos(saida).filter((f) => f.endsWith('.woff2'));
-    expect(fontes.some((f) => f.includes('playfair-display-latin'))).toBe(true);
-    expect(fontes.some((f) => f.includes('hanken-grotesk-latin'))).toBe(true);
+    expect(fontes.some((f) => f.includes('bricolage-grotesque-latin-wght'))).toBe(true);
+    expect(fontes.some((f) => f.includes('caveat-latin-700'))).toBe(true);
+    expect(fontes.filter((f) => /latin-ext/.test(f))).toEqual([]);
     expect(fontes.filter((f) => /cyrillic|greek|vietnamese/.test(f))).toEqual([]);
     expect(readFileSync(join(saida, 'sw.js'), 'utf8')).toContain('.woff2');
   });

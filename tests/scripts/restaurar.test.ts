@@ -99,7 +99,7 @@ describe('restaurar', { timeout: 30_000 }, () => {
 
   it('recusa arquivo de outra versão', async () => {
     const db = await novoBanco();
-    await expect(restaurar(consulta(db), { ...ARQUIVO, versao: 2 as 1 }, { confirmarSubstituir: true })).rejects.toThrow(/versão/);
+    await expect(restaurar(consulta(db), { ...ARQUIVO, versao: 3 as 1 }, { confirmarSubstituir: true })).rejects.toThrow(/versão/);
   });
 
   it('recusa backup sem a linha de configuração e não mexe no banco', async () => {
@@ -117,5 +117,46 @@ describe('restaurar', { timeout: 30_000 }, () => {
     await restaurar(consulta(db), v1 as BackupFile, { confirmarSubstituir: false });
     expect((await db.query('select * from clientes')).rows).toHaveLength(2);
     expect((await db.query('select * from horarios_ajuste')).rows).toHaveLength(0);
+  });
+
+  it('backup v1 (sem pessoas): cria a pessoa única, liga todos os serviços e dá a ela os agendamentos e o extra', async () => {
+    const db = await novoBanco();
+    await restaurar(consulta(db), ARQUIVO, { confirmarSubstituir: false });
+    const pessoas = (await db.query<{ id: string; nome: string | null; ordem: number; ativo: boolean }>('select id, nome, ordem, ativo from pessoas')).rows;
+    expect(pessoas).toHaveLength(1);
+    expect(pessoas[0]).toMatchObject({ nome: null, ordem: 1, ativo: true });
+    const unica = pessoas[0].id;
+    expect((await db.query('select pessoa_id, servico_id from pessoa_servicos')).rows).toEqual([{ pessoa_id: unica, servico_id: S1 }]);
+    const ags = (await db.query<{ pessoa_id: string }>('select distinct pessoa_id from agendamentos')).rows;
+    expect(ags).toEqual([{ pessoa_id: unica }]);
+    expect((await db.query('select pessoa_id from horarios_ajuste')).rows).toEqual([{ pessoa_id: unica }]);
+  });
+
+  it('backup v2: ida e volta com pessoas, quem faz o quê e a pessoa de cada agendamento e ajuste', async () => {
+    const db = await novoBanco();
+    const P1 = 'eeeeeeee-0000-0000-0000-000000000001';
+    const P2 = 'eeeeeeee-0000-0000-0000-000000000002';
+    const v2: BackupFile = {
+      ...ARQUIVO,
+      versao: 2,
+      pessoas: [
+        { id: P1, nome: 'Ana', ativo: true, ordem: 1, folgas: ['2026-12-24'], criado_em: '2026-11-01T00:00:00.000Z' },
+        { id: P2, nome: null, ativo: false, ordem: 2, folgas: [], criado_em: '2026-11-02T00:00:00.000Z' },
+      ],
+      pessoa_servicos: [{ pessoa_id: P1, servico_id: S1 }],
+      agendamentos: ARQUIVO.agendamentos.map((a, i) => ({ ...a, pessoa_id: i === 2 ? P2 : P1 })),
+      horarios_ajuste: [
+        { id: 'dddddddd-0000-0000-0000-000000000001', inicio: '2026-11-17T22:00:00.000Z', tipo: 'extra', pessoa_id: P1 },
+        { id: 'dddddddd-0000-0000-0000-000000000002', inicio: '2026-11-18T12:00:00.000Z', tipo: 'fechado', pessoa_id: null },
+      ],
+    };
+    await restaurar(consulta(db), v2, { confirmarSubstituir: false });
+    const pessoas = (await db.query<Record<string, unknown>>('select * from pessoas order by ordem')).rows;
+    expect(pessoas.map((p) => ({ ...p, criado_em: iso(p.criado_em) }))).toEqual(v2.pessoas);
+    expect((await db.query('select pessoa_id, servico_id from pessoa_servicos')).rows).toEqual(v2.pessoa_servicos);
+    const ags = (await db.query<{ id: string; pessoa_id: string }>('select id, pessoa_id from agendamentos order by id')).rows;
+    expect(ags.map((a) => a.pessoa_id)).toEqual([P1, P1, P2]);
+    const ajustes = (await db.query<{ pessoa_id: string | null }>('select pessoa_id from horarios_ajuste order by inicio')).rows;
+    expect(ajustes).toEqual([{ pessoa_id: P1 }, { pessoa_id: null }]);
   });
 });

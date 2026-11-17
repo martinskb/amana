@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { ehErroDeConexao } from '../data/auth';
 import { supabase } from '../data/supabase';
+import Chuva from './Chuva';
+import MarcaAmana from './MarcaAmana';
 
 const SEM_CONEXAO = 'Sem conexão com o servidor. Confira a internet e tente de novo.';
 
@@ -31,9 +33,12 @@ export default function Login({ nome }: { nome: string }) {
 
   return (
     <main className="login">
+      <Chuva altura={420} />
+      <MarcaAmana tamanho={22} />
       <h1>{nome}</h1>
+      <p className="frase-mao">chega de "tem horário?"</p>
       <p className="sutil subtitulo">Entre para ver sua agenda</p>
-      <form onSubmit={entrar} className="cartao">
+      <form onSubmit={entrar} className="login-form">
         <label>
           Usuário
           <input

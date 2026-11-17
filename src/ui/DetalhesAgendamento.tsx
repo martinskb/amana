@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { mudarStatus } from '../data/agendamentos';
+import { editarAgendamento, mudarStatus } from '../data/agendamentos';
+import { ConflitoDeHorarioError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import { linkAgendamento } from '../lib/link';
 import { mensagemCancelar, mensagemConfirmar } from '../lib/mensagens';
+import { livresPara, nomeDaPessoa, nomeNaMensagem, variasPessoas } from '../lib/pessoas';
 import { abreviaDia, dataLocal, horaLocal } from '../lib/slots';
 import { waLink } from '../lib/whatsapp';
-import type { AgendamentoCompleto, Status } from '../types';
+import type { Agendamento, AgendamentoCompleto, Pessoa, Status } from '../types';
 import { useConfig } from './contexto';
-import { IconeWhatsApp } from './icones';
+import { IconeCheck, IconeDireita, IconeFaltou, IconeLapis, IconeWhatsApp, IconeX } from './icones';
 import { nomeDivergente } from '../lib/nomes';
 
 const NOMES: Record<Status, string> = {
@@ -20,19 +22,25 @@ const NOMES: Record<Status, string> = {
 
 interface Props {
   agendamento: AgendamentoCompleto;
+  /** Os agendamentos já carregados (com pessoa), para saber quem está livre no horário. */
+  agendamentos?: readonly Agendamento[];
+  /** Quantos serviços ativos o negócio tem (sem nenhum, todo mundo faz tudo). */
+  servicosAtivos?: number;
   onEditar: () => void;
   onMudou: () => void;
   onFechar: () => void;
 }
 
-export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou, onFechar }: Props) {
-  const { config } = useConfig();
+export default function DetalhesAgendamento({ agendamento: a, agendamentos = [], servicosAtivos = 1, onEditar, onMudou, onFechar }: Props) {
+  const { config, pessoas } = useConfig();
+  const varias = variasPessoas(pessoas);
+  const [trocando, setTrocando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [cancelado, setCancelado] = useState(false);
   const [confirmado, setConfirmado] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [perguntandoCancelar, setPerguntandoCancelar] = useState(false);
-  const dados = { nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso };
+  const dados = { nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso, pessoa: nomeNaMensagem(a.pessoa_id, pessoas) };
 
   // grava antes e só depois oferece o WhatsApp: o Safari não abre janela depois de esperar a rede
   async function confirmarNoWhatsApp() {
@@ -50,6 +58,7 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
   }
   const inicio = new Date(a.inicio);
   const data = dataLocal(inicio, config.fuso);
+  const quando = `${abreviaDia(data)} ${data.slice(8, 10)}/${data.slice(5, 7)} às ${horaLocal(inicio, config.fuso)}`;
 
   async function mudar(status: Status) {
     setErro(null);
@@ -68,16 +77,15 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
   if (confirmado)
     return (
       <div className="painel-conteudo">
-        <h3>{a.cliente.nome}</h3>
+        <h3 className="painel-titulo">{a.cliente.nome}</h3>
+        <p className="painel-resumo">{quando}</p>
         <p className="sutil">Situação: {NOMES.confirmado}</p>
-        <div className="linha">
-          <a className="botao" href={waLink(a.cliente.telefone, mensagemConfirmar(dados))} target="_blank" rel="noreferrer">
-            Abrir WhatsApp
-          </a>
-          <button type="button" onClick={onMudou}>
-            Fechar
-          </button>
-        </div>
+        <a className="botao larga" href={waLink(a.cliente.telefone, mensagemConfirmar(dados))} target="_blank" rel="noreferrer">
+          <IconeWhatsApp /> Abrir WhatsApp
+        </a>
+        <button type="button" className="texto fechar-texto" onClick={onMudou}>
+          Fechar
+        </button>
       </div>
     );
 
@@ -85,30 +93,67 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
     const mensagem = mensagemCancelar(dados, linkAgendamento());
     return (
       <div className="painel-conteudo">
-        <h3>{a.cliente.nome}</h3>
-        <p>
-          {abreviaDia(data)} {data.slice(8, 10)}/{data.slice(5, 7)} às {horaLocal(inicio, config.fuso)}
-        </p>
+        <h3 className="painel-titulo">{a.cliente.nome}</h3>
+        <p className="painel-resumo">{quando}</p>
         <p className="sutil">Situação: {NOMES.cancelado}</p>
-        <div className="linha">
-          <a className="botao" href={waLink(a.cliente.telefone, mensagem)} target="_blank" rel="noreferrer">
-            Avisar no WhatsApp
-          </a>
-          <button type="button" onClick={onMudou}>
-            Fechar
-          </button>
-        </div>
+        <a className="botao larga" href={waLink(a.cliente.telefone, mensagem)} target="_blank" rel="noreferrer">
+          <IconeWhatsApp /> Avisar no WhatsApp
+        </a>
+        <button type="button" className="texto fechar-texto" onClick={onMudou}>
+          Fechar
+        </button>
       </div>
     );
   }
 
+  const atual = pessoas.find((p) => p.id === a.pessoa_id);
+  // para quem dá para passar: faz o serviço e está livre no horário
+  const outras = varias
+    ? livresPara({ pessoas, servicoId: a.servico_id, servicosAtivos, inicio, fim: new Date(a.fim), agendamentos, ignorar: a.id }).filter(
+        (p) => p.id !== a.pessoa_id,
+      )
+    : [];
+
+  async function passarPara(p: Pessoa) {
+    setErro(null);
+    try {
+      await editarAgendamento(supabase, a.id, { pessoa_id: p.id });
+      onMudou();
+    } catch (e) {
+      setErro(e instanceof ConflitoDeHorarioError ? 'Esse horário já está ocupado.' : 'Não foi possível atualizar. Confira a internet e tente de novo.');
+    }
+  }
+
+  const minutos = Math.round((new Date(a.fim).getTime() - inicio.getTime()) / 60000);
+
   return (
     <div className="painel-conteudo">
-      <h3>{a.cliente.nome}</h3>
-      <p>
-        {abreviaDia(data)} {data.slice(8, 10)}/{data.slice(5, 7)} às {horaLocal(inicio, config.fuso)} · {a.servico?.nome ?? 'sem serviço'}
+      <h3 className="painel-titulo">{a.cliente.nome}</h3>
+      <p className="painel-resumo">
+        {quando} · {a.servico?.nome ?? 'sem serviço'}
+        {minutos > 0 && ` · ${minutos} min`}
       </p>
       <p className="sutil">Situação: {NOMES[a.status]}</p>
+      {varias && (
+        <>
+          <button type="button" className="acao-linha com-quem" aria-expanded={trocando} onClick={() => setTrocando((t) => !t)}>
+            com {atual ? nomeDaPessoa(atual, pessoas) : 'Pessoa (desativada)'} <IconeDireita tamanho={16} />
+          </button>
+          {trocando &&
+            (outras.length > 0 ? (
+              <div role="group" aria-label="Trocar para" className="trocar-pessoa">
+                <span className="sutil">Passar para:</span>
+                {outras.map((p) => (
+                  <button key={p.id} type="button" onClick={() => void passarPara(p)}>
+                    {nomeDaPessoa(p, pessoas)}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="sutil">Ninguém mais livre que faça esse serviço nesse horário.</p>
+            ))}
+        </>
+      )}
       {a.observacao && <p>{a.observacao}</p>}
       {nomeDivergente(a.cliente.nome, a.nome_informado) && (
         <p role="note" className="aviso-nome">
@@ -117,25 +162,33 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
         </p>
       )}
       {erro && <p role="alert">{erro}</p>}
-      <div className="acoes">
-        {a.status === 'marcado' && (
-          <button type="button" className="primario larga" disabled={confirmando} onClick={confirmarNoWhatsApp}>
-            <IconeWhatsApp /> Confirmar no WhatsApp
+      {a.status === 'marcado' && (
+        <button type="button" className="primario larga" disabled={confirmando} onClick={confirmarNoWhatsApp}>
+          <IconeWhatsApp /> Confirmar no WhatsApp
+        </button>
+      )}
+      <ul className="acoes">
+        <li>
+          <button type="button" className="acao-linha" onClick={() => mudar('concluido')}>
+            <IconeCheck /> Concluir
           </button>
-        )}
-        <button type="button" onClick={() => mudar('concluido')}>
-          Concluir
-        </button>
-        <button type="button" onClick={() => mudar('faltou')}>
-          Faltou
-        </button>
-        <button type="button" onClick={onEditar}>
-          Editar
-        </button>
-        <a className="botao" href={waLink(a.cliente.telefone, '')} target="_blank" rel="noreferrer">
-          <IconeWhatsApp /> WhatsApp
-        </a>
-      </div>
+        </li>
+        <li>
+          <button type="button" className="acao-linha" onClick={() => mudar('faltou')}>
+            <IconeFaltou /> Faltou
+          </button>
+        </li>
+        <li>
+          <button type="button" className="acao-linha" onClick={onEditar}>
+            <IconeLapis /> Editar
+          </button>
+        </li>
+        <li>
+          <a className="acao-linha" href={waLink(a.cliente.telefone, '')} target="_blank" rel="noreferrer">
+            <IconeWhatsApp /> WhatsApp
+          </a>
+        </li>
+      </ul>
       {perguntandoCancelar ? (
         <div className="confirmar-cancelar" role="group" aria-label="Confirmar cancelamento">
           <p>Cancelar o horário de {a.cliente.nome}?</p>
@@ -149,14 +202,14 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
           </div>
         </div>
       ) : (
-        <div className="linha">
-          <button type="button" className="perigo" onClick={() => setPerguntandoCancelar(true)}>
-            Cancelar agendamento
+        <>
+          <button type="button" className="acao-linha perigo" onClick={() => setPerguntandoCancelar(true)}>
+            <IconeX /> Cancelar agendamento
           </button>
-          <button type="button" onClick={onFechar}>
+          <button type="button" className="texto fechar-texto" onClick={onFechar}>
             Fechar
           </button>
-        </div>
+        </>
       )}
     </div>
   );

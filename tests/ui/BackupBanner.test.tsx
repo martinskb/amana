@@ -35,7 +35,10 @@ describe('aviso de backup', () => {
     // 1º toque busca os dados; o menu de compartilhar só abre no 2º toque (exigência do Safari)
     expect(m.exportBackup).toHaveBeenCalled();
     expect(m.salvarBackup).not.toHaveBeenCalled();
-    await userEvent.click(await screen.findByRole('button', { name: 'Salvar arquivo' }));
+    const salvarArquivo = await screen.findByRole('button', { name: 'Salvar arquivo' });
+    // na agenda o único botão cheio é o "+": o do aviso é de contorno
+    expect(salvarArquivo).not.toHaveClass('primario');
+    await userEvent.click(salvarArquivo);
     expect(m.salvarBackup).toHaveBeenCalledWith({ versao: 1 }, {});
     await waitFor(() => expect(screen.queryByText(/último backup/)).not.toBeInTheDocument());
     expect(recarregar).toHaveBeenCalled();

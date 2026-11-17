@@ -3,7 +3,7 @@ import type { Agendamento, AgendamentoCompleto, Status } from '../types';
 import { executar } from './erros';
 import type { SupabaseClient } from './supabase';
 
-const CAMPOS = 'id, cliente_id, servico_id, inicio, fim, status, observacao, origem';
+const CAMPOS = 'id, cliente_id, servico_id, inicio, fim, status, observacao, origem, pessoa_id';
 const COMPLETO = `${CAMPOS}, nome_informado, criado_em, cliente:clientes(nome,telefone), servico:servicos(nome)`;
 
 /** Agendamentos com início entre 00:00 de `de` e 24:00 de `ate`, em hora local do negócio. */
@@ -44,14 +44,32 @@ export async function listNovosPeloLink(db: SupabaseClient, desde: string): Prom
   );
 }
 
-export async function criarAgendamento(db: SupabaseClient, a: Omit<Agendamento, 'id'>): Promise<Agendamento> {
+/** Clientes ativos (marcado/confirmado) da pessoa de agora em diante, pela hora. */
+export async function listAgendamentosFuturosDaPessoa(db: SupabaseClient, pessoaId: string): Promise<AgendamentoCompleto[]> {
+  return executar(
+    db
+      .from('agendamentos')
+      .select(COMPLETO)
+      .eq('pessoa_id', pessoaId)
+      .in('status', ['marcado', 'confirmado'])
+      .gte('inicio', new Date().toISOString())
+      .order('inicio')
+      .returns<AgendamentoCompleto[]>(),
+  );
+}
+
+/** Sem `pessoa_id`, o banco põe a primeira pessoa livre no horário. */
+export async function criarAgendamento(
+  db: SupabaseClient,
+  a: Omit<Agendamento, 'id' | 'pessoa_id'> & { pessoa_id?: string },
+): Promise<Agendamento> {
   return executar(db.from('agendamentos').insert(a).select(CAMPOS).single<Agendamento>());
 }
 
 export async function editarAgendamento(
   db: SupabaseClient,
   id: string,
-  campos: Partial<Pick<Agendamento, 'servico_id' | 'inicio' | 'fim' | 'observacao'>>,
+  campos: Partial<Pick<Agendamento, 'servico_id' | 'inicio' | 'fim' | 'observacao' | 'pessoa_id'>>,
 ): Promise<void> {
   await executar(db.from('agendamentos').update(campos).eq('id', id));
 }

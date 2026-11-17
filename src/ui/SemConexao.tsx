@@ -1,6 +1,6 @@
 export default function SemConexao({ onTentarDeNovo }: { onTentarDeNovo: () => void }) {
   return (
-    <main className="aviso-conexao cartao" role="alert">
+    <main className="aviso-conexao" role="alert">
       <h1>Não foi possível conectar.</h1>
       <p>Confira se o celular está com internet.</p>
       <p>

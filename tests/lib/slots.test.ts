@@ -1,7 +1,7 @@
 import { fromZonedTime } from 'date-fns-tz';
 import { describe, expect, it } from 'vitest';
-import { diasDoLink, diasDoPeriodo, formatSlotsMessage, freeSlots, gerarHorarios } from '../../src/lib/slots';
-import type { Agendamento, Config, HorarioAjuste, Slot, Status } from '../../src/types';
+import { diasDoLink, diasDoPeriodo, formatSlotsMessage, freeSlots, gerarHorarios, nomeDiaExtenso } from '../../src/lib/slots';
+import type { Agendamento, Config, HorarioAjuste, Pessoa, Slot, Status } from '../../src/types';
 
 const FUSO = 'America/Sao_Paulo';
 const sp = (s: string) => fromZonedTime(s, FUSO);
@@ -33,17 +33,31 @@ const ag = (inicio: string, fim: string, status: Status = 'marcado'): Agendament
   status,
   observacao: null,
   origem: 'dono',
+  pessoa_id: 'p1',
 });
+
+const pessoa = (id: string, ordem: number, over: Partial<Pessoa> = {}): Pessoa => ({
+  id,
+  nome: null,
+  ativo: true,
+  ordem,
+  folgas: [],
+  servicos: [],
+  ...over,
+});
+const P1 = pessoa('p1', 1);
+const P2 = pessoa('p2', 2);
 
 const TERCA = '2026-11-17';
 const horas = (slots: Slot[]) => slots.map((s) => s.hora);
 const SEGUNDA_20H = sp('2026-11-16 20:00');
 const terca = (over: Partial<Parameters<typeof freeSlots>[0]> = {}) =>
-  freeSlots({ config, agendamentos: [], ajustes: [], de: TERCA, ate: TERCA, agora: SEGUNDA_20H, ...over });
-const ajuste = (tipo: 'fechado' | 'extra', local: string): HorarioAjuste => ({
+  freeSlots({ config, agendamentos: [], ajustes: [], pessoas: [P1], de: TERCA, ate: TERCA, agora: SEGUNDA_20H, ...over });
+const ajuste = (tipo: 'fechado' | 'extra', local: string, pessoa_id: string | null = tipo === 'extra' ? 'p1' : null): HorarioAjuste => ({
   id: tipo + local,
   tipo,
   inicio: sp(local).toISOString(),
+  pessoa_id,
 });
 
 const MANHA = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30'];
@@ -104,7 +118,7 @@ describe('freeSlots', () => {
   });
 
   it('período de vários dias em ordem', () => {
-    const r = freeSlots({ config, agendamentos: [], ajustes: [], de: TERCA, ate: '2026-11-18', agora: SEGUNDA_20H });
+    const r = freeSlots({ config, agendamentos: [], ajustes: [], pessoas: [P1], de: TERCA, ate: '2026-11-18', agora: SEGUNDA_20H });
     expect(r).toHaveLength(28);
     expect(r[14].data).toBe('2026-11-18');
   });
@@ -137,6 +151,47 @@ describe('freeSlots', () => {
   });
 });
 
+describe('freeSlots por pessoa', () => {
+  const dela = (r: ReturnType<typeof freeSlots>, id: string) => horas(r.filter((s) => s.pessoa_id === id));
+  const duas = (over: Partial<Parameters<typeof freeSlots>[0]> = {}) => terca({ pessoas: [P1, P2], ...over });
+
+  it('cada slot diz de quem é; ordem por início e depois pela ordem da pessoa', () => {
+    const r = duas();
+    expect(r).toHaveLength(TERCA_LIVRE.length * 2);
+    expect(r.slice(0, 2).map((s) => [s.hora, s.pessoa_id])).toEqual([['09:00', 'p1'], ['09:00', 'p2']]);
+  });
+
+  it('livre para uma pessoa e ocupada para a outra', () => {
+    const r = duas({ agendamentos: [ag(`${TERCA} 10:00`, `${TERCA} 10:30`)] });
+    expect(dela(r, 'p1')).not.toContain('10:00');
+    expect(dela(r, 'p2')).toContain('10:00');
+  });
+
+  it('folga de uma pessoa só tira os horários dela', () => {
+    const r = terca({ pessoas: [P1, { ...P2, folgas: [TERCA] }] });
+    expect(dela(r, 'p1')).toEqual(TERCA_LIVRE);
+    expect(dela(r, 'p2')).toEqual([]);
+  });
+
+  it('fechado do negócio tira de todas, fechado de uma tira só dela', () => {
+    const r = duas({ ajustes: [ajuste('fechado', `${TERCA} 10:00`, null), ajuste('fechado', `${TERCA} 14:00`, 'p2')] });
+    expect(dela(r, 'p1')).toEqual(TERCA_LIVRE.filter((h) => h !== '10:00'));
+    expect(dela(r, 'p2')).toEqual(TERCA_LIVRE.filter((h) => h !== '10:00' && h !== '14:00'));
+  });
+
+  it('extra de uma pessoa só abre para ela', () => {
+    const r = duas({ ajustes: [ajuste('extra', `${TERCA} 19:00`, 'p2')] });
+    expect(dela(r, 'p1')).not.toContain('19:00');
+    expect(dela(r, 'p2').at(-1)).toBe('19:00');
+  });
+
+  it('pessoa desativada não tem horário', () => {
+    const r = terca({ pessoas: [P1, { ...P2, ativo: false }] });
+    expect(dela(r, 'p2')).toEqual([]);
+    expect(dela(r, 'p1')).toEqual(TERCA_LIVRE);
+  });
+});
+
 describe('gerarHorarios', () => {
   it('marca fechado: true no horário fechado e mantém os outros', () => {
     const r = gerarHorarios({ config, ajustes: [ajuste('fechado', `${TERCA} 10:00`)], de: TERCA, ate: TERCA });
@@ -147,6 +202,19 @@ describe('gerarHorarios', () => {
   it('inclui o extra fora do expediente, ordenado', () => {
     const r = gerarHorarios({ config, ajustes: [ajuste('extra', `${TERCA} 12:30`)], de: TERCA, ate: TERCA });
     expect(r.map((h) => h.hora)).toEqual([...MANHA, '12:30', ...TARDE]);
+  });
+
+  it('com pessoa: folga dela, extra dela e fechado do negócio ou dela', () => {
+    const ajustes = [
+      ajuste('extra', `${TERCA} 12:30`, 'p2'),
+      ajuste('extra', `${TERCA} 19:00`, 'p1'),
+      ajuste('fechado', `${TERCA} 10:00`, 'p1'),
+      ajuste('fechado', `${TERCA} 11:00`, null),
+    ];
+    const r = gerarHorarios({ config, ajustes, de: TERCA, ate: TERCA, pessoa: P2 });
+    expect(r.map((h) => h.hora)).toEqual([...MANHA, '12:30', ...TARDE]);
+    expect(r.filter((h) => h.fechado).map((h) => h.hora)).toEqual(['11:00']);
+    expect(gerarHorarios({ config, ajustes, de: TERCA, ate: TERCA, pessoa: { ...P2, folgas: [TERCA] } }).map((h) => h.hora)).toEqual(['12:30']);
   });
 });
 
@@ -183,5 +251,13 @@ describe('diasDoPeriodo', () => {
 
   it('amanhã às 23:30 de São Paulo usa a data local', () => {
     expect(diasDoPeriodo('amanha', sp(`${TERCA} 23:30`), FUSO)).toEqual({ de: '2026-11-18', ate: '2026-11-18' });
+  });
+});
+
+describe('nomeDiaExtenso', () => {
+  it('escreve o dia por extenso, sem zero à esquerda, e com o mês quando pedido', () => {
+    expect(nomeDiaExtenso('2026-11-14')).toBe('sábado, 14');
+    expect(nomeDiaExtenso('2026-11-09')).toBe('segunda, 9');
+    expect(nomeDiaExtenso('2026-03-01', true)).toBe('domingo, 1 de março');
   });
 });

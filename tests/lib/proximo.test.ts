@@ -6,7 +6,7 @@ const F = 'America/Sao_Paulo';
 // terça 17/11, 08:00 em São Paulo
 const AGORA = new Date('2026-11-17T11:00:00Z');
 const ag = (id: string, inicio: string, status: Status = 'marcado'): AgendamentoCompleto => ({
-  id, cliente_id: 'c', servico_id: null, inicio, fim: inicio, status, observacao: null, origem: 'dono',
+  id, cliente_id: 'c', servico_id: null, inicio, fim: inicio, status, observacao: null, origem: 'dono', pessoa_id: 'p1',
   criado_em: '2026-11-01T00:00:00Z', cliente: { nome: id, telefone: '5511900000000' }, servico: null,
 });
 

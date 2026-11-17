@@ -22,9 +22,11 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('CabecalhoAgenda', () => {
-  it('mostra o nome do negócio', () => {
+  it('mostra o logo da Amana à esquerda; o nome do negócio fica no título da agenda', () => {
     renderComConfig(<CabecalhoAgenda />);
-    expect(screen.getByText(CONFIG_TESTE.nome_negocio)).toBeInTheDocument();
+    const cab = screen.getByRole('banner');
+    expect(cab.firstElementChild).toBe(screen.getByRole('img', { name: 'Amana' }));
+    expect(screen.queryByText(CONFIG_TESTE.nome_negocio)).toBeNull();
   });
 
   it('com o link aberto, a chave mostra "Link aberto" e aria-pressed=true', () => {

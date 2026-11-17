@@ -8,16 +8,16 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon-192.png', 'icon-512.png'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       workbox: { globPatterns: ['**/*.{js,css,html,png,woff2}'] },
       manifest: {
-        name: 'Agenda Fácil',
-        short_name: 'Agenda',
+        name: 'Amana',
+        short_name: 'Amana',
         lang: 'pt-BR',
         display: 'standalone',
         start_url: '/',
-        background_color: '#161412',
-        theme_color: '#161412',
+        background_color: '#121012',
+        theme_color: '#121012',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },

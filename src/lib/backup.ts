@@ -1,19 +1,28 @@
 import { COLUNAS_CONFIG, saveConfig } from '../data/configuracoes';
 import { executar } from '../data/erros';
 import type { SupabaseClient } from '../data/supabase';
-import type { Agendamento, Cliente, Config, HorarioAjuste, Servico } from '../types';
+import type { Agendamento, Cliente, Config, HorarioAjuste, Pessoa, Servico } from '../types';
 import { dataLocal, FUSO } from './slots';
 
+/** Uma linha da tabela `pessoas` (sem os serviços, que vêm em `pessoa_servicos`). */
+export type LinhaPessoa = Omit<Pessoa, 'servicos'> & { criado_em?: string };
+
 export interface BackupFile {
-  versao: 1;
+  /** 1: antes das pessoas; 2: com `pessoas` e `pessoa_servicos`. */
+  versao: 1 | 2;
   gerado_em: string;
   clientes: Cliente[];
   servicos: Servico[];
-  agendamentos: Agendamento[];
+  /** Backups de antes das pessoas não têm `pessoa_id`. */
+  agendamentos: (Omit<Agendamento, 'pessoa_id'> & { pessoa_id?: string })[];
   /** sem backup_ativo (coluna gerada) e sem o hash da chave */
   configuracoes: Omit<Config, 'backup_ativo'>[];
   /** v2: horários fechados e extras. Ausente nos backups da v1. */
-  horarios_ajuste?: HorarioAjuste[];
+  horarios_ajuste?: (Omit<HorarioAjuste, 'pessoa_id'> & { pessoa_id?: string | null })[];
+  /** v2: quem atende. */
+  pessoas?: LinhaPessoa[];
+  /** v2: quem faz cada serviço. */
+  pessoa_servicos?: { pessoa_id: string; servico_id: string }[];
 }
 
 const SETE_DIAS = 7 * 24 * 60 * 60 * 1000;
@@ -26,24 +35,37 @@ export function backupIsStale(ultimo: string | null, agora: Date): boolean {
 }
 
 export async function exportBackup(db: SupabaseClient): Promise<BackupFile> {
-  async function tudo<T>(tabela: string, colunas = '*'): Promise<T[]> {
+  // ordem estável para paginar: pelo id, ou pelas chaves quando a tabela não tem id
+  async function tudo<T>(tabela: string, colunas = '*', ordem: string[] = ['id']): Promise<T[]> {
     const linhas: T[] = [];
     for (let de = 0; ; de += PAGINA) {
-      const pagina = await executar(
-        db.from(tabela).select(colunas).order('id').range(de, de + PAGINA - 1).returns<T[]>(),
-      );
+      let consulta = db.from(tabela).select(colunas);
+      for (const c of ordem) consulta = consulta.order(c);
+      const pagina = await executar(consulta.range(de, de + PAGINA - 1).returns<T[]>());
       linhas.push(...pagina);
       if (pagina.length < PAGINA) return linhas;
     }
   }
-  const [clientes, servicos, agendamentos, configuracoes, horarios_ajuste] = await Promise.all([
+  const [clientes, servicos, agendamentos, configuracoes, horarios_ajuste, pessoas, pessoa_servicos] = await Promise.all([
     tudo<Cliente>('clientes'),
     tudo<Servico>('servicos'),
     tudo<Agendamento>('agendamentos'),
     tudo<Omit<Config, 'backup_ativo'>>('configuracoes', COLUNAS_CONFIG), // sem o hash da chave de backup
     tudo<HorarioAjuste>('horarios_ajuste'),
+    tudo<LinhaPessoa>('pessoas'),
+    tudo<{ pessoa_id: string; servico_id: string }>('pessoa_servicos', '*', ['pessoa_id', 'servico_id']),
   ]);
-  return { versao: 1, gerado_em: new Date().toISOString(), clientes, servicos, agendamentos, configuracoes, horarios_ajuste };
+  return {
+    versao: 2,
+    gerado_em: new Date().toISOString(),
+    clientes,
+    servicos,
+    agendamentos,
+    configuracoes,
+    horarios_ajuste,
+    pessoas,
+    pessoa_servicos,
+  };
 }
 
 /**

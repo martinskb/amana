@@ -9,7 +9,7 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 ## 2. Supabase
 
 - [ ] Criar a conta em supabase.com (entrar com a conta Google do negócio) e um projeto na região São Paulo. Guardar a senha do banco **com o cliente**.
-- [ ] Em **SQL Editor**, rodar, nesta ordem, `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_link_publico.sql`, `supabase/migrations/0003_backup_drive.sql`, `supabase/migrations/0004_link_seguranca.sql`, `supabase/migrations/0005_servico_no_link.sql` e `supabase/seed.sql`. (Projeto que já existia: rodar só as migrações que faltam, em ordem.)
+- [ ] Em **SQL Editor**, rodar, nesta ordem, `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_link_publico.sql`, `supabase/migrations/0003_backup_drive.sql`, `supabase/migrations/0004_link_seguranca.sql`, `supabase/migrations/0005_servico_no_link.sql`, `supabase/migrations/0006_pessoas.sql` e `supabase/seed.sql`. (Projeto que já existia: rodar só as migrações que faltam, em ordem. A 0006 vai **antes** de publicar a versão do app com pessoas; veja "Atualizar para a versão com pessoas" abaixo.)
 - [ ] Em **Authentication → Users → Add user → Create new user**, criar o dono com o e-mail `<usuario>@dono.agenda` (por exemplo `joao@dono.agenda`), uma senha de **8 ou mais caracteres** e **Auto Confirm User** marcado. No app, o dono entra com o usuário (`joao`) e a senha. Esse e-mail nunca recebe mensagens: se o dono esquecer a senha, troque aqui no painel.
 - [ ] Copiar o **User UID** desse usuário e rodar no SQL Editor:
       `insert into donos (user_id) values ('<User UID>');`
@@ -50,6 +50,13 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 - [ ] Se um dia gerar uma chave nova no app, trocar o valor da propriedade `CHAVE_BACKUP` (a antiga para de funcionar na hora).
 - [ ] Ao autorizar, o Google pede acesso ao Drive inteiro: o `DriveApp` do Apps Script não funciona com o acesso restrito (`drive.file`). O script só mexe na pasta "Backups da Agenda"; use de preferência uma conta Google só do negócio.
 - Observação: o acesso semanal do script ao Supabase pode ajudar a evitar a pausa do plano gratuito, mas isso não é garantido. Continua valendo o passo de reativação do manual.
+
+## 5c. Atualizar para a versão com pessoas (projeto que já estava no ar)
+
+- [ ] No **SQL Editor**, rodar `supabase/migrations/0006_pessoas.sql`. Ela cria a "Pessoa 1", sem nome, que faz todos os serviços e fica com todos os agendamentos e horários extras que já existem.
+- [ ] Só depois publicar o site novo (merge na `main`). Com uma pessoa só, a agenda e o link ficam iguais aos de antes.
+- [ ] No projeto do Apps Script, trocar o conteúdo de `logica.js` pelo da pasta `apps-script/` do repositório. O backup passa a ter a aba **Pessoas** e a coluna **Pessoa** nos agendamentos. Não precisa rodar `instalar` de novo.
+- [ ] Conferir em Ajustes o capítulo **Pessoas** com a "Pessoa 1". Se o negócio tiver mais gente, cadastrar cada uma e marcar os serviços que ela faz.
 
 ## 6. Teste no iPhone do cliente
 

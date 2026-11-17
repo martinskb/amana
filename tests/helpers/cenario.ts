@@ -1,6 +1,6 @@
 import type { PGlite } from '@electric-sql/pglite';
 import { fromZonedTime } from 'date-fns-tz';
-import type { Agendamento, Config, HorarioAjuste } from '../../src/types';
+import type { Agendamento, Config, HorarioAjuste, Pessoa } from '../../src/types';
 
 export const FUSO = 'America/Sao_Paulo';
 export const sp = (local: string) => fromZonedTime(local, FUSO);
@@ -25,11 +25,15 @@ export const CONFIG_CENARIO: Config = {
   backup_ativo: false,
 };
 
+/** A "Pessoa 1" da 0006, com um id fixo para o TypeScript e o SQL falarem da mesma pessoa. */
+export const PESSOA_1 = 'eeeeeeee-0000-0000-0000-000000000001';
+export const PESSOA_CENARIO: Pessoa = { id: PESSOA_1, nome: null, ativo: true, ordem: 1, folgas: [], servicos: [] };
+
 /** Terça 17/11: extra às 19:00, fechado às 10:00, marcado 14:00–14:30, cancelado 15:00–15:30. Sexta 20/11 é folga com extra às 10:00. */
 export const AJUSTES_CENARIO: HorarioAjuste[] = [
-  { id: 'aaaaaaaa-0000-0000-0000-000000000001', tipo: 'extra', inicio: sp('2026-11-17 19:00').toISOString() },
-  { id: 'aaaaaaaa-0000-0000-0000-000000000002', tipo: 'fechado', inicio: sp('2026-11-17 10:00').toISOString() },
-  { id: 'aaaaaaaa-0000-0000-0000-000000000003', tipo: 'extra', inicio: sp('2026-11-20 10:00').toISOString() },
+  { id: 'aaaaaaaa-0000-0000-0000-000000000001', tipo: 'extra', inicio: sp('2026-11-17 19:00').toISOString(), pessoa_id: PESSOA_1 },
+  { id: 'aaaaaaaa-0000-0000-0000-000000000002', tipo: 'fechado', inicio: sp('2026-11-17 10:00').toISOString(), pessoa_id: null },
+  { id: 'aaaaaaaa-0000-0000-0000-000000000003', tipo: 'extra', inicio: sp('2026-11-20 10:00').toISOString(), pessoa_id: PESSOA_1 },
 ];
 
 const ag = (id: string, inicio: string, fim: string, status: Agendamento['status']): Agendamento => ({
@@ -41,6 +45,7 @@ const ag = (id: string, inicio: string, fim: string, status: Agendamento['status
   status,
   observacao: null,
   origem: 'dono',
+  pessoa_id: PESSOA_1,
 });
 
 export const AGENDAMENTOS_CENARIO: Agendamento[] = [
@@ -58,20 +63,30 @@ export async function inserirCenario(db: PGlite, config: Config = CONFIG_CENARIO
       config.passo_min, config.antecedencia_min, config.dias_abertos, config.link_ativo, config.telefone_negocio,
     ],
   );
+  // ainda sem nada ligado a ela: dá para trocar o id
+  await db.query('update pessoas set id = $1 where ordem = 1', [PESSOA_1]);
   await db.query(`insert into clientes (id, nome, telefone) values ('bbbbbbbb-0000-0000-0000-000000000001', 'João', '5511987654321')`);
   for (const a of AJUSTES_CENARIO) {
-    await db.query('insert into horarios_ajuste (id, inicio, tipo) values ($1, $2, $3)', [a.id, a.inicio, a.tipo]);
+    await db.query('insert into horarios_ajuste (id, inicio, tipo, pessoa_id) values ($1, $2, $3, $4)', [a.id, a.inicio, a.tipo, a.pessoa_id]);
   }
   for (const a of AGENDAMENTOS_CENARIO) {
     await db.query(
-      'insert into agendamentos (id, cliente_id, inicio, fim, status) values ($1, $2, $3, $4, $5)',
-      [a.id, a.cliente_id, a.inicio, a.fim, a.status],
+      'insert into agendamentos (id, cliente_id, inicio, fim, status, pessoa_id) values ($1, $2, $3, $4, $5, $6)',
+      [a.id, a.cliente_id, a.inicio, a.fim, a.status, a.pessoa_id],
     );
   }
 }
 
-/** horarios_livres_em(agora) como lista de ISO. */
+/** horarios_livres_em(agora) como lista de ISO: a união entre as pessoas, sem repetir início. */
 export async function livresEm(db: PGlite, agora: Date): Promise<string[]> {
-  const { rows } = await db.query<{ h: Date }>('select h from horarios_livres_em($1) h', [agora.toISOString()]);
+  const { rows } = await db.query<{ h: Date }>('select distinct inicio as h from horarios_livres_em($1) order by h', [agora.toISOString()]);
   return rows.map((r) => new Date(r.h).toISOString());
+}
+
+/** horarios_livres_em(agora) por pessoa, como "pessoa_id|ISO" em ordem de início e de pessoa. */
+export async function livresPorPessoaEm(db: PGlite, agora: Date): Promise<string[]> {
+  const { rows } = await db.query<{ pessoa_id: string; inicio: Date }>(
+    'select pessoa_id, inicio from horarios_livres_em($1)', [agora.toISOString()],
+  );
+  return rows.map((r) => `${r.pessoa_id}|${new Date(r.inicio).toISOString()}`);
 }

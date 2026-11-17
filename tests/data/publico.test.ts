@@ -57,10 +57,11 @@ describe('horários ajustados', () => {
         return new HttpResponse(null, { status: 201 });
       }),
     );
-    await fecharHorario(db, '2026-11-17T12:00:00.000Z');
-    await criarExtra(db, '2026-11-17T22:00:00.000Z');
+    await fecharHorario(db, '2026-11-17T12:00:00.000Z', null);
+    // extra sem pessoa: o banco põe a primeira ativa
+    await criarExtra(db, '2026-11-17T22:00:00.000Z', null);
     expect(corpos).toEqual([
-      { inicio: '2026-11-17T12:00:00.000Z', tipo: 'fechado' },
+      { inicio: '2026-11-17T12:00:00.000Z', tipo: 'fechado', pessoa_id: null },
       { inicio: '2026-11-17T22:00:00.000Z', tipo: 'extra' },
     ]);
   });

@@ -25,9 +25,9 @@ const VAZIO = { ...DADOS, clientes: [], servicos: [], agendamentos: [] };
 describe('logica.js do script de backup', () => {
   it('linhasAgendamentos em hora de São Paulo, em ordem, em português', () => {
     expect(deVm(L.linhasAgendamentos(DADOS, F))).toEqual([
-      ['Data', 'Hora', 'Cliente', 'WhatsApp', 'Serviço', 'Situação', 'Origem', 'Observação'],
-      ['17/11/2026', '14:30', 'João', '5511987654321', 'Corte', 'Concluído', 'Dono', 'barba'],
-      ['18/11/2026', '09:00', 'João', '5511987654321', '—', 'Marcado', 'Link', ''],
+      ['Data', 'Hora', 'Cliente', 'WhatsApp', 'Serviço', 'Pessoa', 'Situação', 'Origem', 'Observação'],
+      ['17/11/2026', '14:30', 'João', '5511987654321', 'Corte', '', 'Concluído', 'Dono', 'barba'],
+      ['18/11/2026', '09:00', 'João', '5511987654321', '—', '', 'Marcado', 'Link', ''],
     ]);
   });
 
@@ -87,7 +87,7 @@ describe('logica.js do script de backup', () => {
       criarPlanilha: (_n: string, abas: Record<string, unknown[][]>) => {
         chamadas.push('criarPlanilha');
         if (falhar === 'planilha') throw new Error('planilha falhou');
-        expect(Object.keys(abas)).toEqual(['Agendamentos', 'Clientes', 'Serviços', 'Configurações']);
+        expect(Object.keys(abas)).toEqual(['Agendamentos', 'Clientes', 'Serviços', 'Pessoas', 'Configurações']);
       },
       salvarJson: (_n: string, texto: string) => { chamadas.push('salvarJson'); expect(JSON.parse(texto)).toEqual(DADOS); },
       limparAntigas: () => { chamadas.push('limparAntigas'); },
@@ -133,5 +133,47 @@ describe('logica.js do script de backup', () => {
     expect(deVm(L.protegerLinhas([['=HYPERLINK("x")', '+55', '-1', '@a', 'Ana', 30, '']]))).toEqual([
       ["'=HYPERLINK(\"x\")", "'+55", "'-1", "'@a", 'Ana', 30, ''],
     ]);
+  });
+});
+
+describe('logica.js: pessoas (backup v2)', () => {
+  const COM_PESSOAS = {
+    ...DADOS,
+    versao: 2,
+    servicos: [
+      { id: 's1', nome: 'Corte', duracao_min: 30, ativo: true },
+      { id: 's2', nome: 'Escova', duracao_min: 30, ativo: true },
+    ],
+    pessoas: [
+      { id: 'p2', nome: null, ativo: true, ordem: 2, folgas: [] },
+      { id: 'p1', nome: '=Ana', ativo: true, ordem: 1, folgas: [] },
+      { id: 'p3', nome: null, ativo: false, ordem: 3, folgas: [] },
+    ],
+    pessoa_servicos: [
+      { pessoa_id: 'p1', servico_id: 's2' },
+      { pessoa_id: 'p1', servico_id: 's1' },
+      { pessoa_id: 'p2', servico_id: 's1' },
+    ],
+    agendamentos: DADOS.agendamentos.map((a, i) => ({ ...a, pessoa_id: i === 0 ? 'p2' : 'p3' })),
+  };
+
+  it('linhasPessoas: nome de exibição, ativa e serviços, pela ordem', () => {
+    expect(deVm(L.linhasPessoas(COM_PESSOAS))).toEqual([
+      ['Nome', 'Ativa', 'Serviços'],
+      ['=Ana', 'Sim', 'Corte, Escova'],
+      ['Pessoa 2', 'Sim', 'Corte'],
+      ['Pessoa (desativada)', 'Não', ''],
+    ]);
+    expect(deVm(L.linhasPessoas(DADOS))).toEqual([['Nome', 'Ativa', 'Serviços']]);
+  });
+
+  it('a coluna Pessoa dos agendamentos usa o nome de exibição', () => {
+    const linhas = deVm(L.linhasAgendamentos(COM_PESSOAS, F)) as unknown[][];
+    expect(linhas.map((l) => l[5])).toEqual(['Pessoa', 'Pessoa (desativada)', 'Pessoa 2']);
+  });
+
+  it('nome que começa com = continua escapado na planilha', () => {
+    const protegidas = deVm(L.protegerLinhas(L.linhasPessoas(COM_PESSOAS))) as unknown[][];
+    expect(protegidas[1][0]).toBe("'=Ana");
   });
 });

@@ -1,20 +1,21 @@
-/* Tokens do tema único (escuro): cores, fontes, raios e tempos de animação usados em todo o app. */
+/* Tokens do tema único (escuro) da Amana: cores, fontes, raios e tempos de animação usados em todo o app. */
 :root {
-  --fundo: #161412;
-  --sup: #211e1b;
-  --sup2: #2c2824;
-  --borda: #3b3631; /* só divisórias decorativas */
-  --borda-i: #736a60; /* contorno de tudo que é interativo (≥ 3:1) */
-  --texto: #ede6dc;
-  --sutil: #a39a8f;
-  --creme: #e7d3b8;
-  --couro: #b9894f;
-  --couro-txt: #17120c; /* texto sobre couro e sobre perigo cheio; nunca branco sobre --perigo */
+  --fundo: #121012;
+  --sup: #1d1a1d;
+  --sup2: #282428;
+  --borda: #383238; /* só divisórias decorativas */
+  --borda-i: #776d77; /* contorno de tudo que é interativo (≥ 3:1) */
+  --texto: #f3eee9;
+  --sutil: #a89ea8;
+  --titulo: #efe3f6;
+  --marca: #b272de; /* roxo açaí */
+  --marca-txt: #140d17; /* texto sobre a marca e sobre perigo cheio; nunca branco sobre --perigo */
   --perigo: #f07470;
   --sucesso: #7cc59a;
 
-  --serif: 'Playfair Display', Georgia, serif;
-  --sans: 'Hanken Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --fonte-titulo: 'Bricolage Grotesque Variable', 'Helvetica Neue', Arial, sans-serif;
+  --fonte: 'Bricolage Grotesque Variable', 'Helvetica Neue', Arial, sans-serif;
+  --fonte-mao: 'Caveat', cursive;
 
   --raio-pilula: 999px;
   --raio-cartao: 16px;

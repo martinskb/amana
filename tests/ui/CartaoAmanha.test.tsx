@@ -15,7 +15,7 @@ import CartaoAmanha from '../../src/ui/CartaoAmanha';
 const F = 'America/Sao_Paulo';
 function ag(id: string, inicio: string, nome: string, telefone: string, status: Status): AgendamentoCompleto {
   return {
-    id, cliente_id: id, servico_id: null, inicio, fim: inicio, status, observacao: null, origem: 'dono',
+    id, cliente_id: id, servico_id: null, inicio, fim: inicio, status, observacao: null, origem: 'dono', pessoa_id: 'p1',
     criado_em: '2026-11-01T00:00:00Z', cliente: { nome, telefone }, servico: null,
   };
 }
@@ -33,13 +33,14 @@ afterEach(() => vi.useRealTimers());
 describe('cartão Amanhã', () => {
   it('busca amanhã em hora local', async () => {
     renderComConfig(<CartaoAmanha />);
-    await screen.findByText(/Amanhã:/);
+    await screen.findByText('2 clientes pra lembrar');
     expect(m.listAgendamentos).toHaveBeenCalledWith({}, '2026-11-18', '2026-11-18');
   });
 
   it('conta só marcados e confirmados', async () => {
     renderComConfig(<CartaoAmanha />);
-    expect(await screen.findByText('Amanhã: 2 clientes')).toBeInTheDocument();
+    expect(await screen.findByText('2 clientes pra lembrar')).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Amanhã' })).toHaveTextContent('amanhã');
   });
 
   it('com menos movimento, o número grande aparece direto', async () => {
@@ -50,7 +51,7 @@ describe('cartão Amanhã', () => {
       removeEventListener: () => {},
     }));
     const { container } = renderComConfig(<CartaoAmanha />);
-    await screen.findByText('Amanhã: 2 clientes');
+    await screen.findByText('2 clientes pra lembrar');
     const num = container.querySelector('.num');
     expect(num).toHaveTextContent('2');
     expect(num).toHaveAttribute('aria-hidden', 'true');
@@ -60,13 +61,13 @@ describe('cartão Amanhã', () => {
   it('um só usa o singular', async () => {
     m.listAgendamentos.mockResolvedValue([JOAO]);
     renderComConfig(<CartaoAmanha />);
-    expect(await screen.findByText('Amanhã: 1 cliente')).toBeInTheDocument();
+    expect(await screen.findByText('1 cliente pra lembrar')).toBeInTheDocument();
   });
 
   it.each([[[]], [[ANA]]])('sem ninguém (%#) mostra "nenhum cliente" e nenhum botão', async (lista) => {
     m.listAgendamentos.mockResolvedValue(lista);
     renderComConfig(<CartaoAmanha />);
-    expect(await screen.findByText('Amanhã: nenhum cliente')).toBeInTheDocument();
+    expect(await screen.findByText('nenhum cliente')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Lembrar' })).not.toBeInTheDocument();
   });
 
@@ -85,7 +86,7 @@ describe('cartão Amanhã', () => {
 
   it('ao voltar para o app no dia seguinte, usa o novo "amanhã"', async () => {
     renderComConfig(<CartaoAmanha />);
-    await screen.findByText(/Amanhã:/);
+    await screen.findByText('2 clientes pra lembrar');
     vi.setSystemTime(new Date('2026-11-18T12:00:00Z')); // quarta 09:00
     act(() => document.dispatchEvent(new Event('visibilitychange')));
     await waitFor(() => expect(m.listAgendamentos).toHaveBeenLastCalledWith({}, '2026-11-19', '2026-11-19'));
@@ -98,8 +99,8 @@ describe('cartão Amanhã — estabilidade da tela', () => {
     m.listAgendamentos.mockReturnValue(new Promise((r) => (responder = r)));
     const { container } = renderComConfig(<CartaoAmanha />);
     expect(container.querySelector('.cartao-amanha')).not.toBeNull();
-    expect(screen.getByText('Amanhã: …')).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Amanhã' })).toHaveTextContent('amanhã…');
     responder([JOAO]);
-    expect(await screen.findByText('Amanhã: 1 cliente')).toBeInTheDocument();
+    expect(await screen.findByText('1 cliente pra lembrar')).toBeInTheDocument();
   });
 });

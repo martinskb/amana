@@ -5,7 +5,9 @@ import { abreviaDia, dataLocal, diaDaSemana, FUSO, horaCurta, horaLocal } from '
 import { MSG_WHATSAPP_INVALIDO, normalizePhone, waLink } from '../../lib/whatsapp';
 import type { ErroPublico, HorariosPublicos } from '../../types';
 import Esqueleto from '../Esqueleto';
+import Chuva from '../Chuva';
 import { IconeDireita, IconeEsquerda } from '../icones';
+import MarcaAmana from '../MarcaAmana';
 
 const DIAS_LONGOS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -36,6 +38,8 @@ export default function Agendar() {
   const [dados, setDados] = useState<HorariosPublicos | null>(null);
   const [falhaCarga, setFalhaCarga] = useState(false);
   const [servicoId, setServicoId] = useState<string | null>(null);
+  // null = Sem preferência
+  const [pessoaId, setPessoaId] = useState<string | null>(null);
   const [dia, setDia] = useState<string | null>(null);
   const [horario, setHorario] = useState<string | null>(null);
   const [nome, setNome] = useState('');
@@ -43,7 +47,7 @@ export default function Agendar() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [fechado, setFechado] = useState(false);
-  const [marcado, setMarcado] = useState<{ nome: string; inicio: string; servico: string | null } | null>(null);
+  const [marcado, setMarcado] = useState<{ nome: string; inicio: string; servico: string | null; pessoa: string | null } | null>(null);
   const fichas = useRef<HTMLDivElement>(null);
   const rolarDias = (sentido: -1 | 1) => fichas.current?.scrollBy({ left: sentido * 3 * 70, behavior: 'smooth' });
 
@@ -56,6 +60,11 @@ export default function Agendar() {
     }
   }, []);
 
+  // na aba do navegador o cliente vê o nome do negócio, não o da Amana
+  useEffect(() => {
+    if (dados) document.title = dados.nome_negocio;
+  }, [dados]);
+
   useEffect(() => {
     void carregar();
   }, [carregar]);
@@ -65,7 +74,15 @@ export default function Agendar() {
   const servicos = dados?.servicos ?? [];
   const comServico = servicos.length > 0;
   const servico = servicos.find((s) => s.id === servicoId) ?? null;
-  const horariosVisiveis = comServico ? (servico?.horarios ?? []) : (dados?.horarios ?? []);
+  // passo "com quem": o banco diz quando há escolha (alguém com nome e mais de uma pessoa faz o serviço)
+  const comEscolha = !!servico?.com_escolha && (servico.pessoas?.length ?? 0) > 0;
+  const nomes = new Map((dados?.pessoas ?? []).map((p) => [p.id, p.nome]));
+  const daPessoa = comEscolha && pessoaId ? servico!.pessoas!.find((p) => p.id === pessoaId) : undefined;
+  const nomePessoa = daPessoa ? (nomes.get(daPessoa.id) ?? null) : null;
+  // os horários da pessoa escolhida; em Sem preferência, os de todas que fazem o serviço
+  const horariosVisiveis = comServico ? (daPessoa?.horarios ?? servico?.horarios ?? []) : (dados?.horarios ?? []);
+  // números dos passos: o "com quem" empurra os seguintes
+  const passoDia = !comServico ? 1 : comEscolha ? 3 : 2;
   const temHorario = comServico ? servicos.some((s) => s.horarios.length > 0) : (dados?.horarios.length ?? 0) > 0;
 
   const porDia = useMemo(() => {
@@ -89,15 +106,19 @@ export default function Agendar() {
     setEnviando(true);
     try {
       // com "+": o servidor normaliza de novo e um número estrangeiro não vira brasileiro
-      const r = await agendarPublico(supabase, nomeLimpo, `+${tel}`, horario, servico?.id ?? null);
+      // Sem preferência não manda a pessoa: o banco escolhe
+      const r = daPessoa
+        ? await agendarPublico(supabase, nomeLimpo, `+${tel}`, horario, servico?.id ?? null, daPessoa.id)
+        : await agendarPublico(supabase, nomeLimpo, `+${tel}`, horario, servico?.id ?? null);
       if (r.ok) {
-        setMarcado({ nome: nomeLimpo, inicio: r.inicio, servico: servico?.nome ?? null });
+        setMarcado({ nome: nomeLimpo, inicio: r.inicio, servico: servico?.nome ?? null, pessoa: r.pessoa ?? null });
       } else if (r.erro === 'link_fechado') {
         setFechado(true);
       } else {
         setErro(MENSAGENS[r.erro]);
         if (r.erro === 'servico_invalido') {
           setServicoId(null);
+          setPessoaId(null);
           setDia(null);
         }
         if (r.erro === 'horario_indisponivel' || r.erro === 'servico_invalido') {
@@ -123,6 +144,7 @@ export default function Agendar() {
   if (falhaCarga)
     return (
       <main className="publico">
+        <Chuva altura={220} />
         <p role="alert" className="cartao aviso-publico">
           Não foi possível carregar. Tente de novo em instantes.
         </p>
@@ -134,180 +156,242 @@ export default function Agendar() {
   if (!dados)
     return (
       <main className="publico">
+        <Chuva altura={220} />
         <Esqueleto />
       </main>
     );
 
-  const titulo = <h1>{dados.nome_negocio}</h1>;
+  const titulo = (
+    <>
+      <Chuva altura={260} />
+      <h1>{dados.nome_negocio}</h1>
+    </>
+  );
+  const assinatura = (
+    <footer className="assinatura">
+      agendado com <MarcaAmana tamanho={14} />
+    </footer>
+  );
 
   if (marcado) {
     const { dia: d, ddmm, hora } = descrever(marcado.inicio);
+    const com = marcado.pessoa ? ` com ${marcado.pessoa}` : '';
     return (
-      <main className="publico">
-        {titulo}
-        <div role="status" className="sucesso">
-          <svg className="check" width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
-            <circle className="check-circulo" cx="48" cy="48" r="44" />
-            <path className="check-traco" d="M30 49l12 12 24-26" />
-          </svg>
-          <h2>Pronto, {marcado.nome}!</h2>
-          <p className="resumo-sucesso">
-            {marcado.servico ? `${marcado.servico}: ` : 'Seu horário: '}
-            {d} {ddmm} às {hora}.
-          </p>
-        </div>
-        {falar(
-          marcado.servico
-            ? `Oi! Marquei ${marcado.servico} ${d} ${ddmm} às ${hora} pelo link.`
-            : `Oi! Marquei ${d} ${ddmm} às ${hora} pelo link.`,
-        )}
-      </main>
+      <>
+        <main className="publico">
+          {titulo}
+          <div role="status" className="sucesso">
+            <svg className="check" width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+              <circle className="check-circulo" cx="48" cy="48" r="44" />
+              <path className="check-traco" d="M30 49l12 12 24-26" />
+            </svg>
+            <h2>Pronto, {marcado.nome}!</h2>
+            <p className="resumo-sucesso">
+              {marcado.servico ? `${marcado.servico}: ` : 'Seu horário: '}
+              {d} {ddmm} às {hora}
+              {marcado.pessoa ? `, com ${marcado.pessoa}` : ''}.
+            </p>
+          </div>
+          {falar(
+            marcado.servico
+              ? `Oi! Marquei ${marcado.servico} ${d} ${ddmm} às ${hora}${com} pelo link.`
+              : `Oi! Marquei ${d} ${ddmm} às ${hora}${com} pelo link.`,
+          )}
+        </main>
+        {assinatura}
+      </>
     );
   }
 
   if (fechado || !dados.link_ativo || !temHorario)
     return (
-      <main className="publico">
-        {titulo}
-        <p className="cartao aviso-publico">
-          {fechado || !dados.link_ativo ? 'Agendamento online fechado no momento.' : 'Sem horários livres nos próximos dias.'}
-        </p>
-        {falar('Oi! Quero marcar um horário.')}
-      </main>
+      <>
+        <main className="publico">
+          {titulo}
+          <p className="aviso-publico">
+            {fechado || !dados.link_ativo ? 'Agendamento online fechado no momento.' : 'Sem horários livres nos próximos dias.'}
+          </p>
+          {falar('Oi! Quero marcar um horário.')}
+        </main>
+        {assinatura}
+      </>
     );
 
   return (
-    <main className="publico">
-      {titulo}
-      <p className="sutil lead">
-        {comServico ? 'Escolha o serviço, o dia e o horário.' : 'Escolha o dia e o horário do seu atendimento.'}
-      </p>
-      {comServico && (
-        <>
-          <p className="rotulo">Serviço</p>
-          <div className="servicos" role="group" aria-label="Serviços">
-            {servicos.map((s) => (
+    <>
+      <main className="publico">
+        {titulo}
+        <p className="sutil lead">Escolha e pronto: o horário é seu.</p>
+        {comServico && (
+          <>
+            <p className="capitulo">1 · serviço</p>
+            <div className="servicos" role="group" aria-label="Serviços">
+              {servicos.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  aria-pressed={servicoId === s.id}
+                  disabled={s.horarios.length === 0}
+                  onClick={() => {
+                    setServicoId(s.id);
+                    setHorario(null);
+                    setErro(null);
+                    // a pessoa escolhida não faz este serviço (ou ele não tem escolha): volta para Sem preferência
+                    if (!s.com_escolha || !s.pessoas?.some((p) => p.id === pessoaId)) setPessoaId(null);
+                  }}
+                >
+                  <span className="servico-nome">
+                    {servicoId === s.id && (
+                      <span className="servico-ok" aria-hidden="true">
+                        ✓{' '}
+                      </span>
+                    )}
+                    {s.nome}
+                  </span>{' '}
+                  <span className="servico-duracao">
+                    {s.horarios.length === 0 ? 'sem horário' : `${s.duracao_min} min`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {comEscolha && (
+          <>
+            <p className="capitulo">2 · com quem</p>
+            <div className="servicos com-quem" role="group" aria-label="Com quem">
               <button
-                key={s.id}
                 type="button"
-                aria-pressed={servicoId === s.id}
-                disabled={s.horarios.length === 0}
+                aria-pressed={!daPessoa}
                 onClick={() => {
-                  setServicoId(s.id);
+                  setPessoaId(null);
                   setHorario(null);
-                  setErro(null);
                 }}
               >
-                <span className="servico-nome">{s.nome}</span>{' '}
-                <span className="servico-duracao">
-                  {s.horarios.length === 0 ? 'sem horário' : `${s.duracao_min} min`}
-                </span>
+                Sem preferência
+              </button>
+              {servico!.pessoas!.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={daPessoa?.id === p.id}
+                  disabled={p.horarios.length === 0}
+                  onClick={() => {
+                    setPessoaId(p.id);
+                    setHorario(null);
+                  }}
+                >
+                  {nomes.get(p.id) ?? ''}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {(!comServico || servico) && <p className="capitulo">{passoDia} · dia</p>}
+        {(!comServico || servico) && (
+        <div className="dias-faixa">
+          <button type="button" className="red seta" aria-label="Dias anteriores" onClick={() => rolarDias(-1)}>
+            <IconeEsquerda />
+          </button>
+          <div className="dias" role="group" aria-label="Dias" ref={fichas}>
+            {[...porDia.keys()].map((d) => (
+              <button
+                key={d}
+                type="button"
+                className="ficha"
+                aria-pressed={dia === d}
+                onClick={() => {
+                  setDia(d);
+                  setHorario(null);
+                }}
+              >
+                <span className="ficha-dia">{abreviaDia(d)}</span> <span className="ficha-num">{d.slice(8, 10)}</span>
               </button>
             ))}
           </div>
-        </>
-      )}
-
-      {(!comServico || servico) && <p className="rotulo">Dia</p>}
-      {(!comServico || servico) && (
-      <div className="dias-faixa">
-        <button type="button" className="red seta" aria-label="Dias anteriores" onClick={() => rolarDias(-1)}>
-          <IconeEsquerda />
-        </button>
-        <div className="dias" role="group" aria-label="Dias" ref={fichas}>
-          {[...porDia.keys()].map((d) => (
-            <button
-              key={d}
-              type="button"
-              className="ficha"
-              aria-pressed={dia === d}
-              onClick={() => {
-                setDia(d);
-                setHorario(null);
-              }}
-            >
-              <span className="ficha-dia">{abreviaDia(d)}</span> <span className="ficha-num">{d.slice(8, 10)}</span>
-            </button>
-          ))}
-        </div>
-        <button type="button" className="red seta" aria-label="Mais dias" onClick={() => rolarDias(1)}>
-          <IconeDireita />
-        </button>
-      </div>
-      )}
-
-      {dia && porDia.has(dia) && <p className="rotulo">Horário</p>}
-      {dia && porDia.has(dia) && (
-        <div key={dia} className="horarios" role="group" aria-label="Horários">
-          {porDia.get(dia)!.map((h) => (
-            <button key={h} type="button" aria-pressed={horario === h} onClick={() => setHorario(h)}>
-              {horaCurta(horaLocal(new Date(h), FUSO))}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {horario && (
-        <form onSubmit={confirmar} className="cartao formulario">
-          <p className="resumo-escolha">
-            {servico ? `${servico.nome} · ${servico.duracao_min} min` : null}
-            {servico ? <br /> : null}
-            {resumo(horario)}
-          </p>
-          <label>
-            Nome
-            <input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={80} />
-          </label>
-          <label>
-            WhatsApp com DDD
-            <input
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              value={whats}
-              onChange={(e) => setWhats(e.target.value)}
-              placeholder="(11) 98765-4321"
-            />
-          </label>
-          <p className="sutil">
-            Seu nome e WhatsApp ficam só com {dados.nome_negocio}, para marcar e lembrar seus horários.
-          </p>
-          <details className="privacidade sutil" aria-label="Como usamos seus dados">
-            <summary>Como usamos seus dados</summary>
-            <ul>
-              <li>
-                Guardamos seu nome, WhatsApp e os horários que você marcar, para confirmar o atendimento e mandar
-                lembretes. Isso não é vendido nem repassado a ninguém.
-              </li>
-              <li>
-                Os dados ficam em serviços de nuvem usados pela agenda (banco de dados e cópia de segurança no
-                Google Drive). O histórico de cada horário é apagado 1 ano depois do atendimento.
-              </li>
-              <li>
-                Para ver, corrigir ou apagar seus dados, é só{' '}
-                {telNegocio ? (
-                  <a
-                    href={waLink(telNegocio, 'Oi! Quero ver, corrigir ou apagar meus dados da agenda.')}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    pedir pelo WhatsApp
-                  </a>
-                ) : (
-                  <>falar com {dados.nome_negocio}</>
-                )}
-                .
-              </li>
-            </ul>
-          </details>
-          <button type="submit" className="primario" disabled={enviando}>
-            Confirmar horário
+          <button type="button" className="red seta" aria-label="Mais dias" onClick={() => rolarDias(1)}>
+            <IconeDireita />
           </button>
-        </form>
-      )}
+        </div>
+        )}
 
-      {erro && <p role="alert">{erro}</p>}
-      {erro === MENSAGENS.limite && falar('Oi! Quero marcar um horário.')}
-    </main>
+        {dia && porDia.has(dia) && <p className="capitulo">{passoDia + 1} · horário</p>}
+        {dia && porDia.has(dia) && (
+          <div key={dia} className="horarios" role="group" aria-label="Horários">
+            {porDia.get(dia)!.map((h) => (
+              <button key={h} type="button" aria-pressed={horario === h} onClick={() => setHorario(h)}>
+                {horaCurta(horaLocal(new Date(h), FUSO))}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {horario && (
+          <form onSubmit={confirmar} className="formulario">
+            <p className="capitulo">{passoDia + 2} · seus dados</p>
+            <p className="resumo-escolha">
+              {servico ? `${servico.nome} · ${servico.duracao_min} min${nomePessoa ? ` · com ${nomePessoa}` : ''}` : null}
+              {servico ? <br /> : null}
+              {resumo(horario)}
+            </p>
+            <label>
+              Nome
+              <input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" maxLength={80} />
+            </label>
+            <label>
+              WhatsApp com DDD
+              <input
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={whats}
+                onChange={(e) => setWhats(e.target.value)}
+                placeholder="(11) 98765-4321"
+              />
+            </label>
+            <p className="sutil">
+              Seu nome e WhatsApp ficam só com {dados.nome_negocio}, para marcar e lembrar seus horários.
+            </p>
+            <details className="privacidade sutil" aria-label="Como usamos seus dados">
+              <summary>Como usamos seus dados</summary>
+              <ul>
+                <li>
+                  Guardamos seu nome, WhatsApp e os horários que você marcar, para confirmar o atendimento e mandar
+                  lembretes. Isso não é vendido nem repassado a ninguém.
+                </li>
+                <li>
+                  Os dados ficam em serviços de nuvem usados pela agenda (banco de dados e cópia de segurança no
+                  Google Drive). O histórico de cada horário é apagado 1 ano depois do atendimento.
+                </li>
+                <li>
+                  Para ver, corrigir ou apagar seus dados, é só{' '}
+                  {telNegocio ? (
+                    <a
+                      href={waLink(telNegocio, 'Oi! Quero ver, corrigir ou apagar meus dados da agenda.')}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      pedir pelo WhatsApp
+                    </a>
+                  ) : (
+                    <>falar com {dados.nome_negocio}</>
+                  )}
+                  .
+                </li>
+              </ul>
+            </details>
+            <button type="submit" className="primario" disabled={enviando}>
+              Confirmar horário
+            </button>
+          </form>
+        )}
+
+        {erro && <p role="alert">{erro}</p>}
+        {erro === MENSAGENS.limite && falar('Oi! Quero marcar um horário.')}
+      </main>
+      {assinatura}
+    </>
   );
 }
