@@ -149,6 +149,20 @@ describe('agenda_da_equipe', { timeout: 60_000 }, () => {
     expect(await agenda(db, 'c'.repeat(64))).toMatchObject({ ok: true, pessoa: 'Pessoa 3' });
   });
 
+  it('agendamento de cliente apagado aparece com o nome e sem telefone', async () => {
+    const db = await banco();
+    await db.query('update pessoas set link_whatsapp = true where id = $1', [ANA]);
+    const { rows: [c] } = await db.query<{ id: string }>(
+      `insert into clientes (nome, telefone) values ('Ana', '5511900009999') returning id`,
+    );
+    await agendar(db, ANA, c.id, '2026-11-16 21:00');
+    await db.query('delete from clientes where id = $1', [c.id]);
+    const a = await agenda(db, CODIGO_ANA);
+    const [primeiro] = a.ok ? a.dias[0].clientes : [];
+    expect(primeiro).toMatchObject({ cliente: 'Ana' });
+    expect(primeiro).not.toHaveProperty('telefone');
+  });
+
   it('a pública chama com o relógio de agora e anon pode chamar', async () => {
     const db = await banco();
     await db.exec('set role anon');
