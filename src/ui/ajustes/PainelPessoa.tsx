@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { listAgendamentosFuturosDaPessoa } from '../../data/agendamentos';
 import { apagarPessoa, criarPessoa, desativarPessoa, pessoaTemAgendamentos, reativarPessoa, salvarPessoa } from '../../data/pessoas';
+import { gerarLinkPessoa, salvarWhatsappPessoa } from '../../data/equipe';
 import { supabase } from '../../data/supabase';
+import { linkEquipe } from '../../lib/link';
 import { ativas, nomeDaPessoa } from '../../lib/pessoas';
 import { abreviaDia, dataLocal, horaLocal } from '../../lib/slots';
 import type { AgendamentoCompleto, Pessoa, Servico } from '../../types';
@@ -24,6 +26,101 @@ function ListaClientes({ itens, fuso }: { itens: AgendamentoCompleto[]; fuso: st
         <li key={a.id}>{linhaCliente(a, fuso)}</li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * "Link da agenda" de uma pessoa ativa: criar, copiar e trocar o link da equipe, e a chave que deixa o
+ * link mostrar o WhatsApp dos clientes. Cada ação grava na hora (fora do "Salvar" do painel).
+ */
+function SecaoLink({ pessoa }: { pessoa: Pessoa }) {
+  const { recarregarPessoas } = useConfig();
+  const [codigo, setCodigo] = useState(pessoa.link_codigo ?? null);
+  const [whatsapp, setWhatsapp] = useState(pessoa.link_whatsapp ?? false);
+  const [confirmarTroca, setConfirmarTroca] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  async function gerar() {
+    setErro(null);
+    setAviso(null);
+    setOcupado(true);
+    try {
+      setCodigo(await gerarLinkPessoa(supabase, pessoa.id));
+      setConfirmarTroca(false);
+      setAviso(codigo ? 'Link trocado: o antigo não vale mais.' : 'Link criado.');
+      await recarregarPessoas();
+    } catch {
+      setErro(ERRO_SALVAR);
+    }
+    setOcupado(false);
+  }
+
+  async function copiar() {
+    if (!codigo) return;
+    const link = linkEquipe(codigo);
+    try {
+      await navigator.clipboard.writeText(link);
+      setAviso('Link copiado!');
+    } catch {
+      setAviso(`Não deu para copiar. O link é: ${link}`);
+    }
+  }
+
+  async function alternarWhatsapp() {
+    const novo = !whatsapp;
+    setErro(null);
+    setWhatsapp(novo);
+    try {
+      await salvarWhatsappPessoa(supabase, pessoa.id, novo);
+      await recarregarPessoas();
+    } catch {
+      setWhatsapp(!novo);
+      setErro(ERRO_SALVAR);
+    }
+  }
+
+  return (
+    <fieldset className="link-pessoa" aria-label="Link da agenda">
+      <legend>Link da agenda</legend>
+      <p className="sutil">Abre só os clientes dela de hoje e amanhã, sem login e sem mexer em nada.</p>
+      {!codigo ? (
+        <button type="button" className="texto" disabled={ocupado} onClick={() => void gerar()}>
+          Criar link
+        </button>
+      ) : (
+        <>
+          <div className="linha acoes-link">
+            <button type="button" onClick={() => void copiar()}>
+              Copiar link
+            </button>
+            <button type="button" className="texto" onClick={() => setConfirmarTroca(true)}>
+              Trocar link
+            </button>
+          </div>
+          {confirmarTroca && (
+            <div className="confirmar-troca">
+              <p>O link antigo para de funcionar.</p>
+              <div className="linha">
+                <button type="button" className="perigo" disabled={ocupado} onClick={() => void gerar()}>
+                  Trocar mesmo
+                </button>
+                <button type="button" onClick={() => setConfirmarTroca(false)}>
+                  Não
+                </button>
+              </div>
+            </div>
+          )}
+          <label className="chave-linha">
+            <input type="checkbox" className="chave" checked={whatsapp} onChange={() => void alternarWhatsapp()} />
+            Pode chamar os clientes no WhatsApp
+          </label>
+        </>
+      )}
+      {aviso && <p className="sutil" role="status">{aviso}</p>}
+      {erro && <p role="alert">{erro}</p>}
+    </fieldset>
   );
 }
 
@@ -188,6 +285,8 @@ export default function PainelPessoa({
           )}
         </div>
       )}
+
+      {pessoa?.ativo && <SecaoLink pessoa={pessoa} />}
 
       {pessoa && temAgendamentos !== null && (
         <div className="acoes-pessoa">

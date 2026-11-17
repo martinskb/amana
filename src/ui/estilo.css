@@ -588,6 +588,15 @@ button.la-corpo:hover .la-valor, button.la-corpo:hover svg { color: var(--titulo
 .lista-clientes-pessoa { margin: 0; padding-left: 18px; color: var(--texto); }
 .acoes-pessoa { display: flex; flex-direction: column; align-items: center; margin: 4px 0 8px; }
 .acoes-pessoa .sutil { margin: 0; }
+.link-pessoa { border: 0; padding: 0; margin: 4px 0 12px; }
+.link-pessoa legend { padding: 0; margin-bottom: 4px; color: var(--sutil); font-weight: 500; }
+.link-pessoa > .sutil { margin: 0 0 8px; }
+.acoes-link { gap: 8px; align-items: center; }
+.acoes-link button { min-height: 44px; }
+.confirmar-troca { margin: 8px 0; }
+.confirmar-troca p { margin: 0 0 6px; }
+.chave-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; border-bottom: 1px solid var(--borda); }
+.chave-linha .chave { order: 2; flex: none; }
 .com-unidade { display: flex; align-items: flex-end; gap: 10px; }
 .com-unidade .campo-linha { flex: 1; margin: 0; }
 .com-unidade .unidade { padding-bottom: 12px; color: var(--sutil); }
