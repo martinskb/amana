@@ -152,7 +152,10 @@ describe('restaurar', { timeout: 30_000 }, () => {
     };
     await restaurar(consulta(db), v2, { confirmarSubstituir: false });
     const pessoas = (await db.query<Record<string, unknown>>('select * from pessoas order by ordem')).rows;
-    expect(pessoas.map((p) => ({ ...p, criado_em: iso(p.criado_em) }))).toEqual(v2.pessoas);
+    // o código do link não volta (arquivos de antes da 0008 ainda o trazem): o dono cria outro link
+    expect(pessoas.map((p) => ({ ...p, criado_em: iso(p.criado_em) }))).toEqual(
+      v2.pessoas!.map((p) => ({ ...p, link_codigo: null })),
+    );
     expect((await db.query('select pessoa_id, servico_id from pessoa_servicos')).rows).toEqual(v2.pessoa_servicos);
     const ags = (await db.query<{ id: string; pessoa_id: string }>('select id, pessoa_id from agendamentos order by id')).rows;
     expect(ags.map((a) => a.pessoa_id)).toEqual([P1, P1, P2]);

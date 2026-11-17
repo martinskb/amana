@@ -13,6 +13,7 @@ const MIGRACOES = [
   '0005_servico_no_link.sql',
   '0006_pessoas.sql',
   '0007_link_equipe.sql',
+  '0008_backup_sem_link.sql',
 ];
 
 /** Aplica uma migração pelo número (1 = 0001). */

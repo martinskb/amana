@@ -30,6 +30,17 @@ describe('backup no Drive: banco', { timeout: 30_000 }, () => {
     expect((j.clientes as { nome: string }[]).map((c) => c.nome)).toEqual(['Ana']);
   });
 
+  it('o código do link da equipe não sai no backup (quem pegar o arquivo não abre a agenda)', async () => {
+    const db = await novoBanco();
+    await comChave(db);
+    await db.query(`update pessoas set link_codigo = 'segredo', link_whatsapp = true`);
+    const j = await exportar(db);
+    const [p] = j.pessoas as Record<string, unknown>[];
+    expect(p).not.toHaveProperty('link_codigo');
+    expect(p.link_whatsapp).toBe(true);
+    expect(JSON.stringify(j)).not.toContain('segredo');
+  });
+
   it('o hash não sai no backup', async () => {
     const db = await novoBanco();
     await comChave(db);
