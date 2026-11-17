@@ -1,5 +1,4 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { nomeDivergente } from '../lib/nomes';
 import { resumoNomes } from '../lib/pessoas';
 import { abreviaDia, dataLocal, horaLocal, instanteLocal } from '../lib/slots';
 import type { AgendamentoCompleto, Status } from '../types';
@@ -97,7 +96,6 @@ export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selec
 
   function agendamento(a: AgendamentoCompleto, hora: string): { passado: boolean; no: ReactNode; chegou: boolean } {
     const atual = selecionado === `ag:${a.id}`;
-    const digitou = nomeDivergente(a.cliente.nome, a.nome_informado);
     const nome = <span className="lt-nome">{a.cliente.nome}</span>;
     const novo = novos.has(a.id);
     const desenhar = chegaram?.has(a.id) ?? false;
@@ -131,7 +129,6 @@ export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selec
             <span className="lt-sub">
               {a.servico?.nome ?? 'sem serviço'}
               {a.origem === 'link' && ' · pelo link'}
-              {digitou && <span className="alerta"> · digitou {digitou}</span>}
             </span>
             {novo && <span className="so-leitor">, novo, marcado pelo link</span>}
           </span>
