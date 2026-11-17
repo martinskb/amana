@@ -1,0 +1,88 @@
+<template>
+  <style>
+    @font-face { font-family: "Bricolage"; src: url("assets/fonts/bricolage.woff2") format("woff2-variations"); font-weight: 200 800; }
+    @font-face { font-family: "Caveat"; src: url("assets/fonts/caveat-700.woff2") format("woff2"); font-weight: 700; }
+    #root { position: absolute; inset: 0; overflow: hidden; font-family: "Bricolage", sans-serif; color: #f3eee9; }
+    .tit { position: absolute; left: 120px; top: 250px; width: 860px; font-weight: 800; font-size: 112px; line-height: 1; letter-spacing: -0.045em; color: #efe3f6; }
+    .tit em { font-style: normal; color: #b272de; }
+    .tit .w { display: inline-block; }
+    .tit.depois .w { opacity: 0; }
+    .mao { position: absolute; left: 120px; top: 260px; font-family: "Caveat", cursive; font-weight: 700; font-size: 132px; line-height: 1; color: #b272de; }
+    .mao span { display: inline-block; }
+    .cel { position: absolute; left: 160px; top: 520px; width: 760px; height: 1650px; padding: 14px; border: 2px solid #383238; border-radius: 96px; background: #000; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55); }
+    .tela { position: relative; width: 728px; height: 1618px; border-radius: 82px; overflow: hidden; background: #121012; }
+    .rolo { position: absolute; left: 0; top: 0; width: 728px; }
+    .rolo img { position: absolute; left: 0; top: 0; width: 728px; display: block; }
+    #lk-mao span { opacity: 0; padding: 0 24px 0 4px; }
+    #lk-p1, #lk-p2, #lk-p3, #lk-p4, #lk-p5 { opacity: 0; }
+    .dedo { opacity: 0; position: absolute; left: 0; top: 0; width: 84px; height: 84px; border-radius: 50%; background: rgba(243, 238, 233, 0.35); border: 3px solid rgba(243, 238, 233, 0.7); }
+  </style>
+  <div id="root" data-composition-id="link" data-width="1080" data-height="1920">
+    <h1 class="tit" id="lk-t1"><span class="w">o</span> <span class="w">cliente</span><br /><span class="w">marca</span> <span class="w"><em>sozinho</em>.</span></h1>
+    <h1 class="tit depois" id="lk-t2"><span class="w">sem</span> <span class="w"><em>conversa</em>,</span><br /><span class="w">sem</span> <span class="w">confusão.</span></h1>
+    <p class="mao" id="lk-mao"><span>marcou sozinho!</span></p>
+    <div class="cel" id="lk-cel" data-layout-allow-overflow>
+      <div class="tela" id="lk-tela">
+        <div class="rolo" id="lk-rolo">
+          <img id="lk-p0" src="assets/telas/v-pub-0-390.png" alt="" />
+          <img id="lk-p1" src="assets/telas/v-pub-1-390.png" alt="" />
+          <img id="lk-p2" src="assets/telas/v-pub-2-390.png" alt="" />
+          <img id="lk-p3" src="assets/telas/v-pub-3-390.png" alt="" />
+          <img id="lk-p4" src="assets/telas/v-pub-4-390.png" alt="" />
+          <img id="lk-p5" src="assets/telas/v-pub-5-390.png" alt="" />
+        </div>
+      </div>
+    </div>
+    <div class="dedo" id="lk-dedo"></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const entra = (sel, t) => tl.fromTo(sel + " .w", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.08, ease: "power2.out" }, t);
+    const sai = (sel, t) => tl.to(sel + " .w", { opacity: 0, filter: "blur(6px)", duration: 0.16, stagger: 0.03, ease: "power2.in" }, t);
+    const telas = ["#lk-p0", "#lk-p1", "#lk-p2", "#lk-p3", "#lk-p4", "#lk-p5"];
+    const mostra = (sel, t) => telas.forEach((s) => tl.set(s, { opacity: s === sel ? 1 : 0 }, t));
+    // um toque: o dedo chega 0,2 s antes, aperta no instante t (o som está no index.html)
+    const toque = (x, y, t) => {
+      tl.set("#lk-dedo", { x: x - 42, y: y - 42 }, t - 0.21);
+      tl.fromTo("#lk-dedo", { opacity: 0, scale: 1.3 }, { opacity: 1, scale: 1, duration: 0.2, ease: "power2.out", immediateRender: false }, t - 0.2);
+      tl.to("#lk-dedo", { scale: 0.85, duration: 0.08, ease: "power2.in" }, t);
+      tl.to("#lk-dedo", { scale: 1, opacity: 0, duration: 0.3, ease: "power2.out" }, t + 0.08);
+    };
+
+    // entra num whip da direita
+    tl.fromTo("#lk-cel", { x: 1300, filter: "blur(18px)" }, { x: 0, filter: "blur(0px)", duration: 0.4, ease: "expo.out" }, 0);
+    entra("#lk-t1", 0.3);
+    // 1 · serviço: Corte + barba
+    toque(376, 978, 1.5); mostra("#lk-p1", 1.5);
+    // 2 · com quem: Rafa
+    tl.fromTo("#lk-rolo", { y: 0 }, { y: -300, duration: 0.6, ease: "power2.inOut" }, 2.6);
+    toque(326, 1161, 3.75); mostra("#lk-p2", 3.75);
+    // 3 · dia: quarta, 18
+    tl.to("#lk-rolo", { y: -500, duration: 0.6, ease: "power2.inOut" }, 4.6);
+    toque(268, 1177, 6.0); mostra("#lk-p3", 6.0);
+    // 4 · horário: 11h
+    tl.to("#lk-rolo", { y: -760, duration: 0.6, ease: "power2.inOut" }, 6.4);
+    toque(312, 1133, 7.5);
+    sai("#lk-t1", 7.6);
+    entra("#lk-t2", 7.9);
+    // 5 · seus dados: nome e WhatsApp
+    tl.to("#lk-rolo", { y: -823, duration: 0.6, ease: "power2.inOut" }, 8.2);
+    mostra("#lk-p4", 9.25);
+    // confirmar: o celular sobe para o botão aparecer
+    sai("#lk-t2", 10.1);
+    tl.fromTo("#lk-cel", { y: 0 }, { y: -560, duration: 0.6, ease: "power2.inOut", immediateRender: false }, 10.3);
+    toque(540, 1323, 11.25);
+    // Pronto! A tela nova chega um pouco grande e assenta
+    mostra("#lk-p5", 11.25);
+    tl.set("#lk-rolo", { y: 0 }, 11.25);
+    tl.set("#lk-cel", { y: 0 }, 11.25);
+    tl.fromTo("#lk-tela", { scale: 1.04 }, { scale: 1, duration: 0.35, ease: "power2.out" }, 11.25);
+    tl.fromTo("#lk-cel", { scale: 1, transformOrigin: "380px 0px" }, { scale: 1.35, duration: 0.6, ease: "power2.inOut", immediateRender: false }, 11.6);
+    tl.fromTo("#lk-mao span", { opacity: 0, rotation: -3, clipPath: "inset(0 100% 0 0)" }, { opacity: 1, rotation: -3, clipPath: "inset(0 0% 0 0)", duration: 0.6, ease: "power2.out" }, 12.3);
+    // sai carregado para a direita
+    tl.to("#lk-mao span", { opacity: 0, filter: "blur(8px)", duration: 0.2, ease: "power2.in" }, 15.8);
+    tl.to("#lk-cel", { x: 760, scale: 0.6, duration: 0.5, ease: "power3.in" }, 15.95);
+    tl.fromTo("#lk-cel", { filter: "blur(0px)" }, { keyframes: [{ filter: "blur(6px)", duration: 0.3 }, { filter: "blur(14px)", duration: 0.2 }], ease: "none", immediateRender: false }, 15.95);
+    window.__timelines["link"] = tl;
+  </script>
+</template>

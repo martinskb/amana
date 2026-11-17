@@ -14,13 +14,15 @@
 //
 // uso: node scripts/prints/servidor-falso.cjs   (PORTA_FALSO, padrão 5198)
 // GET /__modo?servicos=0 tira os serviços (página do cliente sem serviço); ?servicos=1 devolve.
+// GET /__modo?negocio=<nome> troca o nome do negócio. GET /__modo?pessoas=video: Zé, Rafa e Bia.
 // GET /__modo?pessoas=1|3|20: uma pessoa sem nome (como depois da 0006); três (Ana, uma sem nome e
 // João, cada uma com seus serviços); ou vinte, para ver o filtro rolar.
 const http = require('http');
 
 const PORTA = Number(process.env.PORTA_FALSO || 5198);
 const FUSO_H = -3; // America/Sao_Paulo, sem horário de verão
-const agora = Date.now();
+// AGORA_MS: um instante fixo (o tirar-prints.mjs passa quando HORA=hh:mm), para os prints do vídeo
+const agora = Number(process.env.AGORA_MS) || Date.now();
 const local = new Date(agora + FUSO_H * 3600e3); // relógio de Belém nos campos UTC
 const minAgora = local.getUTCHours() * 60 + local.getUTCMinutes();
 // o próximo horário cheio ou meia hora, preso entre 4h e 21h para os agendamentos de hoje caberem no dia
@@ -94,6 +96,12 @@ const PESSOAS = {
     { id: 'p3', nome: 'João', ativo: true, ordem: 3, folgas: [], servicos: ['s1', 's2'] },
     { id: 'p4', nome: 'Carla', ativo: false, ordem: 4, folgas: [], servicos: ['s1'] },
   ],
+  // vídeo de apresentação: três pessoas com nome (Zé, Rafa e Bia), a Rafa com link
+  video: [
+    { id: 'p1', nome: 'Zé', ativo: true, ordem: 1, folgas: [], servicos: todos },
+    { id: 'p2', nome: 'Rafa', ativo: true, ordem: 2, folgas: [], servicos: todos, link_codigo: 'ana', link_whatsapp: true },
+    { id: 'p3', nome: 'Bia', ativo: true, ordem: 3, folgas: [], servicos: ['s1', 's3'] },
+  ],
   20: Array.from({ length: 20 }, (_, i) => ({
     id: `p${i + 1}`,
     nome: ['Ana', 'João', 'Bia', 'Rafa', 'Duda', 'Léo', 'Marina', 'Caio', 'Lu', 'Teo'][i % 10] + (i >= 10 ? ' ' + (i - 9) : ''),
@@ -137,7 +145,7 @@ function agendaEquipe(codigo) {
         ...(codigo === 'com-whats' ? { telefone: a.cliente.telefone } : {}),
       }));
   return {
-    ok: true, negocio: config.nome_negocio, pessoa: 'Ana', whatsapp: codigo === 'com-whats',
+    ok: true, negocio: config.nome_negocio, pessoa: pessoas.find((p) => p.link_codigo === 'ana')?.nome ?? 'Ana', whatsapp: codigo === 'com-whats',
     hoje: dia(0), amanha: dia(1), dias: [{ data: dia(0), clientes: clientesDe(0) }, { data: dia(1), clientes: clientesDe(1) }],
   };
 }
@@ -174,10 +182,15 @@ http.createServer((q, r) => {
     if (p === '/__modo') {
       if (u.searchParams.has('servicos')) servicos = u.searchParams.get('servicos') === '0' ? [] : todosServicos;
       if (u.searchParams.has('pessoas')) pessoas = PESSOAS[u.searchParams.get('pessoas')] ?? PESSOAS[1];
+      if (u.searchParams.has('negocio')) config.nome_negocio = u.searchParams.get('negocio');
       body = { servicos: servicos.length, pessoas: pessoas.length };
     } else if (p.startsWith('/auth/v1/user')) body = user;
     else if (p.endsWith('/rpc/horarios_publicos')) body = publico();
-    else if (p.endsWith('/rpc/agenda_da_equipe')) body = agendaEquipe(JSON.parse(corpo || '{}').codigo);
+    else if (p.endsWith('/rpc/agendar_publico')) {
+      // sempre aceita: só para o print da tela de "Pronto!"
+      const c = JSON.parse(corpo || '{}');
+      body = { ok: true, inicio: c.inicio, pessoa: pessoas.find((x) => x.id === c.pessoa)?.nome ?? null };
+    } else if (p.endsWith('/rpc/agenda_da_equipe')) body = agendaEquipe(JSON.parse(corpo || '{}').codigo);
     else if (p.endsWith('/configuracoes')) {
       if (q.method === 'PATCH' && corpo) Object.assign(config, JSON.parse(corpo));
       body = um ? config : [config];

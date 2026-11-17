@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: #121012; }
+      #root { position: relative; width: 100%; height: 100%; }
+      #chao { position: absolute; inset: 0; background: #121012; }
+    </style>
+  </head>
+  <body>
+    <!-- Amana — vídeo de apresentação, 1080x1920, 63 s. Direção em SPEC.md. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="63" data-width="1080" data-height="1920">
+      <div id="chao"></div>
+
+      <!-- a chuva da Amana, atrás de tudo depois do aperto -->
+      <div id="chuva" data-composition-id="chuva" data-composition-src="compositions/chuva.html" data-start="4.5" data-duration="58.5" data-track-index="1" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 1"></div>
+
+      <div id="aperto" data-composition-id="aperto" data-composition-src="compositions/aperto.html" data-start="0" data-duration="4.5" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 2"></div>
+      <div id="logo" data-composition-id="logo" data-composition-src="compositions/logo.html" data-start="4.5" data-duration="6" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 2"></div>
+      <div id="agenda" data-composition-id="agenda" data-composition-src="compositions/agenda.html" data-start="10.5" data-duration="10.5" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 2"></div>
+      <div id="link" data-composition-id="link" data-composition-src="compositions/link.html" data-start="21" data-duration="16.5" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 2"></div>
+      <div id="novo" data-composition-id="novo" data-composition-src="compositions/novo.html" data-start="37.5" data-duration="4.5" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 2"></div>
+      <div id="whats" data-composition-id="whats" data-composition-src="compositions/whats.html" data-start="42" data-duration="4.5" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 2"></div>
+      <div id="equipe" data-composition-id="equipe" data-composition-src="compositions/equipe.html" data-start="46.5" data-duration="6" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 2"></div>
+      <div id="pc" data-composition-id="pc" data-composition-src="compositions/pc.html" data-start="52.5" data-duration="4.5" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 2"></div>
+      <div id="fim" data-composition-id="fim" data-composition-src="compositions/fim.html" data-start="57" data-duration="6" data-track-index="2" data-track-kind="graphics" data-width="1080" data-height="1920" style="z-index: 2"></div>
+
+      <!-- música: entra no logo (batida k = 4,5 + 0,75k) -->
+      <audio id="musica" class="clip" src="assets/audio/musica.wav" data-start="4.5" data-duration="58.5" data-volume="1.25" data-track-index="10"></audio>
+      <!-- chuva de verdade -->
+      <audio id="chuva-som-1" class="clip" src="assets/audio/chuva.mp3" data-start="4.2" data-duration="9.2" data-volume="0.45" data-fade-in="0.3" data-fade-out="2.5" data-track-index="11"></audio>
+      <audio id="chuva-som-2" class="clip" src="assets/audio/chuva.mp3" data-start="55.5" data-duration="7.5" data-volume="0.5" data-fade-in="1.2" data-fade-out="2.5" data-track-index="11"></audio>
+
+      <!-- aperto: notificações cada vez mais rápidas (pico 0,037 s depois do início) -->
+      <audio id="ping-1" class="clip" src="assets/audio/notificacao.mp3" data-start="0.10" data-duration="0.7" data-volume="0.55" data-track-index="22"></audio>
+      <audio id="ping-2" class="clip" src="assets/audio/notificacao.mp3" data-start="0.62" data-duration="0.7" data-volume="0.5" data-track-index="23"></audio>
+      <audio id="ping-3" class="clip" src="assets/audio/notificacao.mp3" data-start="1.05" data-duration="0.7" data-volume="0.55" data-track-index="24"></audio>
+      <audio id="ping-4" class="clip" src="assets/audio/notificacao.mp3" data-start="1.42" data-duration="0.7" data-volume="0.5" data-track-index="25"></audio>
+      <audio id="ping-5" class="clip" src="assets/audio/notificacao.mp3" data-start="1.74" data-duration="0.7" data-volume="0.55" data-track-index="26"></audio>
+      <audio id="ping-6" class="clip" src="assets/audio/notificacao.mp3" data-start="2.02" data-duration="0.7" data-volume="0.5" data-track-index="27"></audio>
+      <audio id="ping-7" class="clip" src="assets/audio/notificacao.mp3" data-start="2.27" data-duration="0.7" data-volume="0.55" data-track-index="28"></audio>
+      <audio id="ping-8" class="clip" src="assets/audio/notificacao.mp3" data-start="2.49" data-duration="0.7" data-volume="0.5" data-track-index="29"></audio>
+      <audio id="ping-9" class="clip" src="assets/audio/notificacao.mp3" data-start="2.68" data-duration="0.7" data-volume="0.55" data-track-index="30"></audio>
+      <audio id="ping-10" class="clip" src="assets/audio/notificacao.mp3" data-start="2.85" data-duration="0.7" data-volume="0.5" data-track-index="31"></audio>
+      <audio id="ping-11" class="clip" src="assets/audio/notificacao.mp3" data-start="3.00" data-duration="0.7" data-volume="0.55" data-track-index="32"></audio>
+      <audio id="ping-12" class="clip" src="assets/audio/notificacao.mp3" data-start="3.13" data-duration="0.7" data-volume="0.5" data-track-index="33"></audio>
+
+      <!-- gotas: pico 0,575 s depois do início -->
+      <audio id="gota-1" class="clip" src="assets/audio/gota.mp3" data-start="3.76" data-duration="1.6" data-volume="0.9" data-track-index="14"></audio>
+      <audio id="gota-2" class="clip" src="assets/audio/gota.mp3" data-start="6.66" data-duration="1.6" data-volume="0.7" data-track-index="14"></audio>
+
+      <!-- whooshes nas trocas de cena (três tomadas alternadas; picos a 0,613 / 0,133 / 0,699 s) -->
+      <audio id="wh-1" class="clip" src="assets/audio/whoosh-c.mp3" data-start="9.83" data-duration="1.8" data-volume="0.6" data-track-index="15"></audio>
+      <audio id="wh-2" class="clip" src="assets/audio/whoosh-b.mp3" data-start="20.90" data-duration="0.4" data-volume="0.7" data-track-index="15"></audio>
+      <audio id="wh-3" class="clip" src="assets/audio/whoosh-a.mp3" data-start="36.92" data-duration="1.4" data-volume="0.6" data-track-index="15"></audio>
+      <audio id="wh-4" class="clip" src="assets/audio/whoosh-c.mp3" data-start="41.40" data-duration="1.8" data-volume="0.55" data-track-index="15"></audio>
+      <audio id="wh-5" class="clip" src="assets/audio/whoosh-b.mp3" data-start="46.25" data-duration="0.4" data-volume="0.7" data-track-index="15"></audio>
+      <audio id="wh-6" class="clip" src="assets/audio/whoosh-a.mp3" data-start="48.82" data-duration="1.4" data-volume="0.55" data-track-index="15"></audio>
+      <audio id="wh-7" class="clip" src="assets/audio/whoosh-c.mp3" data-start="51.83" data-duration="1.8" data-volume="0.55" data-track-index="15"></audio>
+
+      <!-- toques do dedo (pico 0,071 s depois do início) -->
+      <audio id="toque-1" class="clip" src="assets/audio/toque.mp3" data-start="17.21" data-duration="0.24" data-volume="0.9" data-track-index="16"></audio>
+      <audio id="toque-2" class="clip" src="assets/audio/toque.mp3" data-start="22.46" data-duration="0.24" data-volume="0.9" data-track-index="16"></audio>
+      <audio id="toque-3" class="clip" src="assets/audio/toque.mp3" data-start="24.71" data-duration="0.24" data-volume="0.9" data-track-index="16"></audio>
+      <audio id="toque-4" class="clip" src="assets/audio/toque.mp3" data-start="26.96" data-duration="0.24" data-volume="0.9" data-track-index="16"></audio>
+      <audio id="toque-5" class="clip" src="assets/audio/toque.mp3" data-start="28.46" data-duration="0.24" data-volume="0.9" data-track-index="16"></audio>
+      <audio id="tecla-1" class="clip" src="assets/audio/toque.mp3" data-start="29.96" data-duration="0.24" data-volume="0.35" data-track-index="34"></audio>
+      <audio id="tecla-2" class="clip" src="assets/audio/toque.mp3" data-start="30.11" data-duration="0.24" data-volume="0.3" data-track-index="35"></audio>
+      <audio id="tecla-3" class="clip" src="assets/audio/toque.mp3" data-start="30.24" data-duration="0.24" data-volume="0.35" data-track-index="36"></audio>
+      <audio id="tecla-4" class="clip" src="assets/audio/toque.mp3" data-start="30.40" data-duration="0.24" data-volume="0.3" data-track-index="37"></audio>
+      <audio id="tecla-5" class="clip" src="assets/audio/toque.mp3" data-start="30.53" data-duration="0.24" data-volume="0.35" data-track-index="38"></audio>
+      <audio id="toque-6" class="clip" src="assets/audio/toque.mp3" data-start="32.21" data-duration="0.24" data-volume="0.9" data-track-index="16"></audio>
+      <audio id="toque-7" class="clip" src="assets/audio/toque.mp3" data-start="43.46" data-duration="0.24" data-volume="0.9" data-track-index="16"></audio>
+      <audio id="toque-8" class="clip" src="assets/audio/toque.mp3" data-start="47.96" data-duration="0.24" data-volume="0.9" data-track-index="16"></audio>
+
+      <!-- pops: o "Pronto!" e o link copiado (pico 0,034 s) -->
+      <audio id="pop-1" class="clip" src="assets/audio/pop.mp3" data-start="32.57" data-duration="0.6" data-volume="0.8" data-track-index="19"></audio>
+
+      <!-- o único riser: a gota cai no logo em 58,5 s (pico 2,621 s) -->
+      <audio id="riser" class="clip" src="assets/audio/riser.mp3" data-start="55.91" data-duration="4.4" data-volume="0.7" data-fade-out="1" data-track-index="20"></audio>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

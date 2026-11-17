@@ -5,6 +5,8 @@
 // uso: node scripts/prints/tirar-prints.mjs <pasta-de-saída> [nome,nome...]
 //   NAVEGADOR    binário (padrão: o primeiro entre chromium, chromium-browser, google-chrome, brave)
 //   PORTA_FALSO  Supabase falso (5198)   PORTA_APP  vite (5199)   PORTA_CDP  DevTools (9333)
+//   ESCALA       pixels por ponto (2)   HORA  hh:mm de Belém que o app e o servidor falso acham que é
+//   VIDEO=1      tira as telas do vídeo de apresentação (Zé, Rafa e Bia na "Barbearia do Zé")
 // Cada tela sai como <nome>-<largura>.png (390 e 1280; a agenda também em 360).
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -23,6 +25,15 @@ const PORTA_CDP = Number(process.env.PORTA_CDP || 9333);
 const BASE = `http://localhost:${PORTA_APP}/`;
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+const ESCALA = Number(process.env.ESCALA || 2);
+// HORA: o relógio fica adiantado (ou atrasado) até essa hora de hoje em Belém (UTC-3)
+let DESVIO = 0;
+if (process.env.HORA) {
+  const [hh, mm] = process.env.HORA.split(':').map(Number);
+  const belem = new Date(Date.now() - 3 * 3600e3);
+  const alvoMs = Date.UTC(belem.getUTCFullYear(), belem.getUTCMonth(), belem.getUTCDate(), hh + 3, mm);
+  DESVIO = alvoMs - Date.now();
+}
 
 const NAVEGADOR =
   process.env.NAVEGADOR ||
@@ -56,7 +67,7 @@ async function esperarUrl(url) {
   throw new Error(`não respondeu: ${url}`);
 }
 
-filhos.push(spawn(process.execPath, [join(RAIZ, 'scripts/prints/servidor-falso.cjs')], { env: { ...process.env, PORTA_FALSO: String(PORTA_FALSO) }, stdio: 'inherit' }));
+filhos.push(spawn(process.execPath, [join(RAIZ, 'scripts/prints/servidor-falso.cjs')], { env: { ...process.env, PORTA_FALSO: String(PORTA_FALSO), ...(DESVIO ? { AGORA_MS: String(Date.now() + DESVIO) } : {}) }, stdio: 'inherit' }));
 filhos.push(
   spawn(process.execPath, [join(RAIZ, 'node_modules/vite/bin/vite.js'), '--port', String(PORTA_APP), '--strictPort'], {
     cwd: RAIZ,
@@ -195,15 +206,65 @@ const TELAS = [
   { nome: 'sem-conexao-cache', rota: '/', bloquear: true, cacheAntes: true, espera: 16000 },
 ];
 
+/** Escreve num campo controlado pelo React (o setter nativo e um evento de input). */
+const preencher = (seletor, valor) =>
+  avaliar(`(() => { const el = document.querySelector(${JSON.stringify(seletor)});
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(valor)});
+    el.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+const V = { pessoas: 'video', negocio: 'Barbearia do Zé', larguras: [390] };
+const publicoAte = async (passo) => {
+  await clicar('.servicos button', 'Corte + barba');
+  await espera(500);
+  if (passo < 2) return;
+  await clicar('.com-quem button', 'Rafa');
+  await espera(500);
+  if (passo < 3) return;
+  await clicar('.ficha');
+  await espera(500);
+  await avaliar(`document.querySelector('.horarios button')?.click()`);
+  await espera(500);
+  if (passo < 4) return;
+  await preencher('.formulario input', 'Lucas');
+  await preencher('.formulario input[type=tel], .formulario input[inputmode=tel], .formulario label:nth-of-type(2) input', '91 98888-7777');
+  await espera(300);
+  if (passo < 5) return;
+  await clicar('.formulario button[type=submit]');
+};
+const TELAS_VIDEO = [
+  { ...V, nome: 'v-agenda', rota: '/', inteira: true },
+  { ...V, nome: 'v-filtro', rota: '/', inteira: true, passos: () => clicar('.filtro-pessoas button', 'Rafa') },
+  { ...V, nome: 'v-semana', rota: '/', passos: () => clicar('.alterna button', 'semana') },
+  { ...V, nome: 'v-menu-mais', rota: '/', passos: () => clicar('.fab') },
+  { ...V, nome: 'v-detalhes', rota: '/', passos: () => clicar('.lt-ag', 'Pedro Lima') },
+  { ...V, nome: 'v-pub-0', rota: '/agendar', logado: false, inteira: true },
+  { ...V, nome: 'v-pub-1', rota: '/agendar', logado: false, inteira: true, passos: () => publicoAte(1) },
+  { ...V, nome: 'v-pub-2', rota: '/agendar', logado: false, inteira: true, passos: () => publicoAte(2) },
+  { ...V, nome: 'v-pub-3', rota: '/agendar', logado: false, inteira: true, passos: () => publicoAte(3) },
+  { ...V, nome: 'v-pub-4', rota: '/agendar', logado: false, inteira: true, passos: () => publicoAte(4) },
+  { ...V, nome: 'v-pub-5', rota: '/agendar', logado: false, passos: () => publicoAte(5), depois: 1800 },
+  { ...V, nome: 'v-equipe', rota: '/equipe/com-whats', logado: false, inteira: true },
+  { ...V, nome: 'v-pessoa-link', rota: '/config', passos: () => clicar('button', 'Rafa, ') },
+  { ...V, nome: 'v-ajustes', rota: '/config', inteira: true },
+  { ...V, nome: 'v-offline', rota: '/', bloquear: true, cacheAntes: true, espera: 16000 },
+  { ...V, nome: 'v-pc', rota: '/', larguras: [1280] },
+  { ...V, nome: 'v-pc-semana', rota: '/', larguras: [1280], passos: () => clicar('.alterna button', 'semana') },
+];
+
 mkdirSync(saida, { recursive: true });
 await cmd('Page.enable');
 await cmd('Network.enable');
+if (DESVIO) {
+  // o app também acha que é HORA: Date adiantado pelo mesmo desvio em todo documento novo
+  await cmd('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const D = Date, d = ${DESVIO};
+    class F extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } }
+    globalThis.Date = F; })();` });
+}
 const escolhidas = filtro ? filtro.split(',') : null;
-for (const t of TELAS.filter((t) => !escolhidas || escolhidas.includes(t.nome))) {
+for (const t of (process.env.VIDEO ? TELAS_VIDEO : TELAS).filter((t) => !escolhidas || escolhidas.includes(t.nome))) {
   for (const w of t.larguras ?? [390, 1280]) {
     const h = w < 700 ? 844 : 800;
-    await cmd('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 2, mobile: w < 700 });
-    await fetch(`http://localhost:${PORTA_FALSO}/__modo?servicos=${t.servicos === false ? 0 : 1}&pessoas=${t.pessoas ?? 1}`);
+    await cmd('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: ESCALA, mobile: w < 700 });
+    await fetch(`http://localhost:${PORTA_FALSO}/__modo?servicos=${t.servicos === false ? 0 : 1}&pessoas=${t.pessoas ?? 1}${t.negocio ? '&negocio=' + encodeURIComponent(t.negocio) : ''}`);
     // um arquivo estático da mesma origem, só para mexer no localStorage antes de o app abrir
     await cmd('Page.navigate', { url: BASE + 'favicon.svg' });
     await espera(300);

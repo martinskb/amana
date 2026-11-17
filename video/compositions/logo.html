@@ -1,0 +1,58 @@
+<template>
+  <style>
+    @font-face { font-family: "Bricolage"; src: url("assets/fonts/bricolage.woff2") format("woff2-variations"); font-weight: 200 800; }
+    @font-face { font-family: "Caveat"; src: url("assets/fonts/caveat-700.woff2") format("woff2"); font-weight: 700; }
+    #root { position: absolute; inset: 0; overflow: hidden; font-family: "Bricolage", sans-serif; color: #f3eee9; }
+    #lg-marca {
+      position: absolute; left: 0; right: 0; top: 700px; display: flex; justify-content: center; align-items: baseline;
+      gap: 0.04em; font-weight: 800; font-size: 200px; letter-spacing: -0.035em; line-height: 1;
+    }
+    #lg-marca .l { display: inline-block; }
+    #lg-gota { width: 0.36em; height: 0.47em; flex: none; }
+    #lg-gota path { fill: #b272de; }
+    #lg-frase {
+      position: absolute; left: 0; right: 0; top: 1010px; text-align: center;
+      font-weight: 600; font-size: 54px; letter-spacing: -0.02em; color: #a89ea8;
+    }
+    #lg-frase em { font-style: normal; color: #b272de; }
+    #lg-frase .w { display: inline-block; }
+    #lg-respira {
+      position: absolute; left: 0; right: 0; top: 1190px; text-align: center;
+      font-family: "Caveat", cursive; font-weight: 700; font-size: 120px; color: #b272de;
+    }
+    #lg-respira span { display: inline-block; padding: 0 20px; }
+    #lg-roxo { position: absolute; inset: 0; background: #b272de; }
+  </style>
+  <div id="root" data-composition-id="logo" data-width="1080" data-height="1920">
+    <div id="lg-marca" data-layout-allow-overflow>
+      <span class="l">a</span><span class="l">m</span><span class="l">a</span><span class="l">n</span><span class="l">a</span>
+      <svg id="lg-gota" viewBox="0 0 20 26" aria-hidden="true"><path d="M10 1C10 1 2 12 2 17a8 8 0 0 0 16 0C18 12 10 1 10 1Z" /></svg>
+    </div>
+    <p id="lg-frase"><span class="w">amana</span> <span class="w">quer</span> <span class="w">dizer</span> <span class="w"><em>chuva</em>,</span> <span class="w">em</span> <span class="w">tupi.</span></p>
+    <p id="lg-respira"><span>respira.</span></p>
+    <!-- a onda roxa da cena anterior fecha num ponto e abre a chuva -->
+    <div id="lg-roxo"></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#lg-roxo", { clipPath: "circle(1500px at 540px 1050px)" },
+      { clipPath: "circle(0px at 540px 1050px)", duration: 0.5, ease: "power3.inOut" }, 0);
+    // "amana", letra por letra
+    tl.fromTo("#lg-marca .l", { opacity: 0.25, filter: "blur(8px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.2, stagger: 0.1, ease: "power2.out" }, 0.9);
+    // a gota cai do céu e vira o ponto (o "plip" está no index.html)
+    tl.fromTo("#lg-gota", { y: -1000, opacity: 1 }, { y: 0, duration: 0.55, ease: "power2.in" }, 2.15);
+    tl.fromTo("#lg-gota", { scaleX: 1, scaleY: 1, transformOrigin: "50% 100%" },
+      { keyframes: [{ scaleX: 1.35, scaleY: 0.62, duration: 0.07 }, { scaleX: 0.9, scaleY: 1.1, duration: 0.12 }, { scaleX: 1, scaleY: 1, duration: 0.16 }], ease: "power2.out" }, 2.7);
+    tl.set("#lg-gota", { opacity: 0 }, 0);
+    tl.set("#lg-gota", { opacity: 1 }, 2.15);
+    // o nome e o respiro
+    tl.fromTo("#lg-frase .w", { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.08, ease: "power2.out" }, 3.1);
+    tl.fromTo("#lg-respira span", { opacity: 0, rotation: -3, clipPath: "inset(0 100% 0 0)" },
+      { opacity: 1, rotation: -3, clipPath: "inset(0 0% 0 0)", duration: 0.6, ease: "power2.out" }, 4.1);
+    // saída
+    tl.to(["#lg-marca", "#lg-frase", "#lg-respira"], { opacity: 0, filter: "blur(10px)", duration: 0.3, stagger: 0.04, ease: "power3.in" }, 5.55);
+    window.__timelines["logo"] = tl;
+  </script>
+</template>

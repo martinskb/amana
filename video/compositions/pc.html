@@ -1,0 +1,50 @@
+<template>
+  <style>
+    @font-face { font-family: "Bricolage"; src: url("assets/fonts/bricolage.woff2") format("woff2-variations"); font-weight: 200 800; }
+    #root { position: absolute; inset: 0; overflow: hidden; font-family: "Bricolage", sans-serif; color: #f3eee9; }
+    .tit { position: absolute; left: 120px; top: 250px; width: 860px; font-weight: 800; font-size: 92px; line-height: 1; letter-spacing: -0.045em; color: #efe3f6; }
+    .tit em { font-style: normal; color: #b272de; }
+    .tit .w { display: inline-block; }
+    .tit.depois .w { opacity: 0; }
+    /* monitor: tela de 940 x 588 (a agenda em 1280 px, 16:10), moldura de 20 px */
+    #pc-monitor { position: absolute; left: 50px; top: 600px; width: 980px; }
+    #pc-moldura { width: 980px; padding: 18px; border: 2px solid #383238; border-radius: 28px; background: #000; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55); }
+    #pc-tela { position: relative; width: 940px; height: 588px; border-radius: 10px; overflow: hidden; background: #121012; }
+    #pc-tela img { position: absolute; left: 0; top: 0; width: 940px; display: block; }
+    #pc-semana { opacity: 0; }
+    #pc-pescoco { width: 110px; height: 130px; margin: 0 auto; background: #1d1a1d; }
+    #pc-base { width: 380px; height: 26px; margin: 0 auto; border-radius: 13px; background: #282428; }
+    .cel { position: absolute; left: 640px; top: 900px; width: 760px; height: 1650px; padding: 14px; border: 2px solid #383238; border-radius: 96px; background: #000; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55); }
+    .tela { position: relative; width: 728px; height: 1618px; border-radius: 82px; overflow: hidden; background: #121012; }
+    .tela img { position: absolute; left: 0; top: 0; width: 728px; display: block; }
+  </style>
+  <div id="root" data-composition-id="pc" data-width="1080" data-height="1920">
+    <h1 class="tit" id="pc-t1"><span class="w">no</span> <span class="w">celular</span><br /><span class="w">e</span> <span class="w">no</span> <span class="w"><em>computador</em>.</span></h1>
+    <div id="pc-monitor">
+      <div id="pc-moldura">
+        <div id="pc-tela">
+          <img id="pc-dia" src="assets/telas/v-pc-1280.png" alt="" />
+          <img id="pc-semana" src="assets/telas/v-pc-semana-1280.png" alt="" />
+        </div>
+      </div>
+      <div id="pc-pescoco"></div>
+      <div id="pc-base"></div>
+    </div>
+    <div class="cel" id="pc-cel" data-layout-allow-overflow>
+      <div class="tela"><img src="assets/telas/v-agenda-390.png" alt="" /></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#pc-monitor", { y: 420, opacity: 0 }, { y: 0, opacity: 1, duration: 0.65, ease: "expo.out" }, 0);
+    tl.fromTo("#pc-cel", { x: 520, scale: 0.44, transformOrigin: "0% 0%" }, { x: 0, scale: 0.44, duration: 0.6, ease: "expo.out" }, 0.3);
+    tl.fromTo("#pc-t1 .w", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.08, ease: "power2.out" }, 0.35);
+    // dia → semana na tela grande
+    tl.to("#pc-dia", { opacity: 0, filter: "blur(8px)", duration: 0.18, ease: "power2.in" }, 2.3);
+    tl.fromTo("#pc-semana", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out" }, 2.42);
+    // saída: tudo some na chuva
+    tl.to("#pc-t1 .w", { opacity: 0, filter: "blur(6px)", duration: 0.16, stagger: 0.03, ease: "power2.in" }, 3.9);
+    tl.to(["#pc-monitor", "#pc-cel"], { opacity: 0, filter: "blur(12px)", duration: 0.35, stagger: 0.05, ease: "power3.in" }, 4.05);
+    window.__timelines["pc"] = tl;
+  </script>
+</template>

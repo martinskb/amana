@@ -1,0 +1,30 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; }
+    /* a chuva do app (riscos a 105°, roxo açaí), na escala do vídeo: 3 px a cada 36 px */
+    #chuva-riscos {
+      position: absolute; left: -60px; right: -60px; top: -160px; height: 2240px;
+      background: repeating-linear-gradient(105deg, rgba(178, 114, 222, 0.16) 0 3px, transparent 3px 36px);
+    }
+    #chuva-veu {
+      position: absolute; inset: 0;
+      background: linear-gradient(rgba(18, 16, 18, 0) 0%, rgba(18, 16, 18, 0) 45%, rgba(18, 16, 18, 0.85) 100%);
+    }
+  </style>
+  <div id="root" data-composition-id="chuva" data-width="1080" data-height="1920">
+    <div id="chuva-camada" data-layout-ignore>
+      <div id="chuva-riscos"></div>
+      <div id="chuva-veu"></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // um período do padrão na vertical: 36 / sen(15°) = 139,1 px; três por segundo, sem costura
+    tl.fromTo("#chuva-riscos", { y: 0 }, { y: 139.1, duration: 1 / 3, ease: "none", repeat: 175 }, 0);
+    // forte no logo, mais fraca atrás do produto, forte de novo no fim
+    tl.fromTo("#chuva-camada", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power2.out" }, 0);
+    tl.to("#chuva-camada", { opacity: 0.5, duration: 0.8, ease: "power2.inOut" }, 5.6);
+    tl.to("#chuva-camada", { opacity: 1, duration: 1.2, ease: "power2.inOut" }, 51.8);
+    window.__timelines["chuva"] = tl;
+  </script>
+</template>

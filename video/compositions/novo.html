@@ -1,0 +1,36 @@
+<template>
+  <style>
+    @font-face { font-family: "Bricolage"; src: url("assets/fonts/bricolage.woff2") format("woff2-variations"); font-weight: 200 800; }
+    #root { position: absolute; inset: 0; overflow: hidden; font-family: "Bricolage", sans-serif; color: #f3eee9; }
+    .tit { position: absolute; left: 120px; top: 250px; width: 860px; font-weight: 800; font-size: 112px; line-height: 1; letter-spacing: -0.045em; color: #efe3f6; }
+    .tit em { font-style: normal; color: #b272de; }
+    .tit .w { display: inline-block; }
+    .tit.depois .w { opacity: 0; }
+    .cel { position: absolute; left: 160px; top: 520px; width: 760px; height: 1650px; padding: 14px; border: 2px solid #383238; border-radius: 96px; background: #000; box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55); }
+    .tela { position: relative; width: 728px; height: 1618px; border-radius: 82px; overflow: hidden; background: #121012; }
+    .rolo { position: absolute; left: 0; top: 0; width: 728px; }
+    .rolo img { position: absolute; left: 0; top: 0; width: 728px; display: block; }
+  </style>
+  <div id="root" data-composition-id="novo" data-width="1080" data-height="1920">
+    <h1 class="tit" id="nv-t1"><span class="w">e</span> <span class="w">cai</span> <span class="w">direto</span><br /><span class="w">na</span> <span class="w">sua</span> <span class="w"><em>agenda</em>.</span></h1>
+    <div class="cel" id="nv-cel" data-layout-allow-overflow>
+      <div class="tela">
+        <div class="rolo" id="nv-rolo"><img src="assets/telas/v-agenda-390.png" alt="" /></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.set("#nv-rolo", { y: -700 }, 0);
+    // chega da esquerda, pequeno, e assenta
+    tl.fromTo("#nv-cel", { x: -760, scale: 0.6, filter: "blur(10px)" }, { x: 0, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "expo.out" }, 0);
+    tl.fromTo("#nv-t1 .w", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.08, ease: "power2.out" }, 0.3);
+    // aproxima no Pedro: "marcou sozinho!", "pelo link"
+    tl.fromTo("#nv-cel", { scale: 1, transformOrigin: "330px 0px" }, { scale: 1.6, duration: 0.6, ease: "power2.inOut", immediateRender: false }, 1.1);
+    // atravessa o Pedro: a próxima cena é o detalhe dele
+    tl.to("#nv-t1 .w", { opacity: 0, filter: "blur(6px)", duration: 0.16, stagger: 0.03, ease: "power2.in" }, 3.8);
+    tl.to("#nv-cel", { scale: 4.2, duration: 0.45, ease: "power3.in" }, 4.05);
+    tl.to("#nv-cel", { opacity: 0, duration: 0.15, ease: "power2.in" }, 4.33);
+    window.__timelines["novo"] = tl;
+  </script>
+</template>

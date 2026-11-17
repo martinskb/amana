@@ -1,0 +1,47 @@
+<template>
+  <style>
+    @font-face { font-family: "Bricolage"; src: url("assets/fonts/bricolage.woff2") format("woff2-variations"); font-weight: 200 800; }
+    @font-face { font-family: "Caveat"; src: url("assets/fonts/caveat-700.woff2") format("woff2"); font-weight: 700; }
+    #root { position: absolute; inset: 0; overflow: hidden; font-family: "Bricolage", sans-serif; color: #f3eee9; }
+    #fm-marca {
+      position: absolute; left: 0; right: 0; top: 700px; display: flex; justify-content: center; align-items: baseline;
+      gap: 0.04em; font-weight: 800; font-size: 200px; letter-spacing: -0.035em; line-height: 1;
+    }
+    #fm-nome { display: inline-block; }
+    #fm-gota { width: 0.36em; height: 0.47em; flex: none; }
+    #fm-gota path { fill: #b272de; }
+    #fm-mao {
+      position: absolute; left: 0; right: 0; top: 1010px; text-align: center;
+      font-family: "Caveat", cursive; font-weight: 700; font-size: 108px; color: #b272de;
+    }
+    #fm-mao span { display: inline-block; }
+    #fm-linha {
+      position: absolute; left: 0; right: 0; top: 1200px; text-align: center;
+      font-weight: 600; font-size: 56px; letter-spacing: -0.02em; color: #a89ea8;
+    }
+    #fm-linha .w { display: inline-block; opacity: 0; }
+    #fm-mao span { opacity: 0; padding: 0 20px; }
+  </style>
+  <div id="root" data-composition-id="fim" data-width="1080" data-height="1920">
+    <div id="fm-marca" data-layout-allow-overflow>
+      <span id="fm-nome">amana</span>
+      <svg id="fm-gota" viewBox="0 0 20 26" aria-hidden="true"><path d="M10 1C10 1 2 12 2 17a8 8 0 0 0 16 0C18 12 10 1 10 1Z" /></svg>
+    </div>
+    <p id="fm-mao"><span>aproveita a chuva</span></p>
+    <p id="fm-linha"><span class="w">agenda</span> <span class="w">para</span> <span class="w">quem</span> <span class="w">atende</span></p>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // a gota cai (o riser chega no pico aqui, em 1,5 s)
+    tl.fromTo("#fm-gota", { y: -1100 }, { y: 0, duration: 0.55, ease: "power2.in" }, 0.95);
+    tl.fromTo("#fm-gota", { scaleX: 1, scaleY: 1, transformOrigin: "50% 100%" },
+      { keyframes: [{ scaleX: 1.35, scaleY: 0.62, duration: 0.07 }, { scaleX: 0.9, scaleY: 1.1, duration: 0.12 }, { scaleX: 1, scaleY: 1, duration: 0.16 }], ease: "power2.out" }, 1.5);
+    // e "amana" se abre a partir da gota, da direita para a esquerda
+    tl.fromTo("#fm-nome", { clipPath: "inset(0 0 0 100%)" }, { clipPath: "inset(0 0 0 0%)", duration: 0.55, ease: "power3.out" }, 1.52);
+    tl.fromTo("#fm-mao span", { opacity: 0, rotation: -3, clipPath: "inset(0 100% 0 0)" },
+      { opacity: 1, rotation: -3, clipPath: "inset(0 0% 0 0)", duration: 0.7, ease: "power2.out" }, 2.4);
+    tl.fromTo("#fm-linha .w", { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.08, ease: "power2.out" }, 3.25);
+    window.__timelines["fim"] = tl;
+  </script>
+</template>
