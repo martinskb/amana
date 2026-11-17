@@ -38,6 +38,8 @@ export default function Agendar() {
   const [dados, setDados] = useState<HorariosPublicos | null>(null);
   const [falhaCarga, setFalhaCarga] = useState(false);
   const [servicoId, setServicoId] = useState<string | null>(null);
+  // null = Sem preferência
+  const [pessoaId, setPessoaId] = useState<string | null>(null);
   const [dia, setDia] = useState<string | null>(null);
   const [horario, setHorario] = useState<string | null>(null);
   const [nome, setNome] = useState('');
@@ -45,7 +47,7 @@ export default function Agendar() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [fechado, setFechado] = useState(false);
-  const [marcado, setMarcado] = useState<{ nome: string; inicio: string; servico: string | null } | null>(null);
+  const [marcado, setMarcado] = useState<{ nome: string; inicio: string; servico: string | null; pessoa: string | null } | null>(null);
   const fichas = useRef<HTMLDivElement>(null);
   const rolarDias = (sentido: -1 | 1) => fichas.current?.scrollBy({ left: sentido * 3 * 70, behavior: 'smooth' });
 
@@ -72,7 +74,15 @@ export default function Agendar() {
   const servicos = dados?.servicos ?? [];
   const comServico = servicos.length > 0;
   const servico = servicos.find((s) => s.id === servicoId) ?? null;
-  const horariosVisiveis = comServico ? (servico?.horarios ?? []) : (dados?.horarios ?? []);
+  // passo "com quem": o banco diz quando há escolha (alguém com nome e mais de uma pessoa faz o serviço)
+  const comEscolha = !!servico?.com_escolha && (servico.pessoas?.length ?? 0) > 0;
+  const nomes = new Map((dados?.pessoas ?? []).map((p) => [p.id, p.nome]));
+  const daPessoa = comEscolha && pessoaId ? servico!.pessoas!.find((p) => p.id === pessoaId) : undefined;
+  const nomePessoa = daPessoa ? (nomes.get(daPessoa.id) ?? null) : null;
+  // os horários da pessoa escolhida; em Sem preferência, os de todas que fazem o serviço
+  const horariosVisiveis = comServico ? (daPessoa?.horarios ?? servico?.horarios ?? []) : (dados?.horarios ?? []);
+  // números dos passos: o "com quem" empurra os seguintes
+  const passoDia = !comServico ? 1 : comEscolha ? 3 : 2;
   const temHorario = comServico ? servicos.some((s) => s.horarios.length > 0) : (dados?.horarios.length ?? 0) > 0;
 
   const porDia = useMemo(() => {
@@ -96,15 +106,19 @@ export default function Agendar() {
     setEnviando(true);
     try {
       // com "+": o servidor normaliza de novo e um número estrangeiro não vira brasileiro
-      const r = await agendarPublico(supabase, nomeLimpo, `+${tel}`, horario, servico?.id ?? null);
+      // Sem preferência não manda a pessoa: o banco escolhe
+      const r = daPessoa
+        ? await agendarPublico(supabase, nomeLimpo, `+${tel}`, horario, servico?.id ?? null, daPessoa.id)
+        : await agendarPublico(supabase, nomeLimpo, `+${tel}`, horario, servico?.id ?? null);
       if (r.ok) {
-        setMarcado({ nome: nomeLimpo, inicio: r.inicio, servico: servico?.nome ?? null });
+        setMarcado({ nome: nomeLimpo, inicio: r.inicio, servico: servico?.nome ?? null, pessoa: r.pessoa ?? null });
       } else if (r.erro === 'link_fechado') {
         setFechado(true);
       } else {
         setErro(MENSAGENS[r.erro]);
         if (r.erro === 'servico_invalido') {
           setServicoId(null);
+          setPessoaId(null);
           setDia(null);
         }
         if (r.erro === 'horario_indisponivel' || r.erro === 'servico_invalido') {
@@ -161,6 +175,7 @@ export default function Agendar() {
 
   if (marcado) {
     const { dia: d, ddmm, hora } = descrever(marcado.inicio);
+    const com = marcado.pessoa ? ` com ${marcado.pessoa}` : '';
     return (
       <>
         <main className="publico">
@@ -173,13 +188,14 @@ export default function Agendar() {
             <h2>Pronto, {marcado.nome}!</h2>
             <p className="resumo-sucesso">
               {marcado.servico ? `${marcado.servico}: ` : 'Seu horário: '}
-              {d} {ddmm} às {hora}.
+              {d} {ddmm} às {hora}
+              {marcado.pessoa ? `, com ${marcado.pessoa}` : ''}.
             </p>
           </div>
           {falar(
             marcado.servico
-              ? `Oi! Marquei ${marcado.servico} ${d} ${ddmm} às ${hora} pelo link.`
-              : `Oi! Marquei ${d} ${ddmm} às ${hora} pelo link.`,
+              ? `Oi! Marquei ${marcado.servico} ${d} ${ddmm} às ${hora}${com} pelo link.`
+              : `Oi! Marquei ${d} ${ddmm} às ${hora}${com} pelo link.`,
           )}
         </main>
         {assinatura}
@@ -220,6 +236,8 @@ export default function Agendar() {
                     setServicoId(s.id);
                     setHorario(null);
                     setErro(null);
+                    // a pessoa escolhida não faz este serviço (ou ele não tem escolha): volta para Sem preferência
+                    if (!s.com_escolha || !s.pessoas?.some((p) => p.id === pessoaId)) setPessoaId(null);
                   }}
                 >
                   <span className="servico-nome">
@@ -239,7 +257,39 @@ export default function Agendar() {
           </>
         )}
 
-        {(!comServico || servico) && <p className="capitulo">{comServico ? '2 · dia' : '1 · dia'}</p>}
+        {comEscolha && (
+          <>
+            <p className="capitulo">2 · com quem</p>
+            <div className="servicos com-quem" role="group" aria-label="Com quem">
+              <button
+                type="button"
+                aria-pressed={!daPessoa}
+                onClick={() => {
+                  setPessoaId(null);
+                  setHorario(null);
+                }}
+              >
+                Sem preferência
+              </button>
+              {servico!.pessoas!.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={daPessoa?.id === p.id}
+                  disabled={p.horarios.length === 0}
+                  onClick={() => {
+                    setPessoaId(p.id);
+                    setHorario(null);
+                  }}
+                >
+                  {nomes.get(p.id) ?? ''}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {(!comServico || servico) && <p className="capitulo">{passoDia} · dia</p>}
         {(!comServico || servico) && (
         <div className="dias-faixa">
           <button type="button" className="red seta" aria-label="Dias anteriores" onClick={() => rolarDias(-1)}>
@@ -267,7 +317,7 @@ export default function Agendar() {
         </div>
         )}
 
-        {dia && porDia.has(dia) && <p className="capitulo">{comServico ? '3 · horário' : '2 · horário'}</p>}
+        {dia && porDia.has(dia) && <p className="capitulo">{passoDia + 1} · horário</p>}
         {dia && porDia.has(dia) && (
           <div key={dia} className="horarios" role="group" aria-label="Horários">
             {porDia.get(dia)!.map((h) => (
@@ -280,9 +330,9 @@ export default function Agendar() {
 
         {horario && (
           <form onSubmit={confirmar} className="formulario">
-            <p className="capitulo">{comServico ? '4 · seus dados' : '3 · seus dados'}</p>
+            <p className="capitulo">{passoDia + 2} · seus dados</p>
             <p className="resumo-escolha">
-              {servico ? `${servico.nome} · ${servico.duracao_min} min` : null}
+              {servico ? `${servico.nome} · ${servico.duracao_min} min${nomePessoa ? ` · com ${nomePessoa}` : ''}` : null}
               {servico ? <br /> : null}
               {resumo(horario)}
             </p>

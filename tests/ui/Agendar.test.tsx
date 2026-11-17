@@ -377,3 +377,107 @@ describe('assinatura da Amana', () => {
     conferirAssinatura();
   });
 });
+
+// Ana faz Corte (qua 9h e qui 10h); Bia faz Corte (qua 9h30) e Escova; uma pessoa sem nome faz Corte + barba.
+const COM_PESSOAS: HorariosPublicos = {
+  ...DADOS,
+  pessoas: [
+    { id: 'p1', nome: 'Ana' },
+    { id: 'p2', nome: 'Bia' },
+  ],
+  servicos: [
+    {
+      id: 's1',
+      nome: 'Corte',
+      duracao_min: 30,
+      horarios: DADOS.horarios,
+      com_escolha: true,
+      pessoas: [
+        { id: 'p1', horarios: ['2026-11-18T12:00:00Z', '2026-11-19T13:00:00Z'] },
+        { id: 'p2', horarios: ['2026-11-18T12:30:00Z'] },
+      ],
+    },
+    { id: 's2', nome: 'Escova', duracao_min: 30, horarios: ['2026-11-18T12:30:00Z'], com_escolha: false, pessoas: [{ id: 'p2', horarios: ['2026-11-18T12:30:00Z'] }] },
+    { id: 's3', nome: 'Corte + barba', duracao_min: 60, horarios: ['2026-11-18T12:00:00Z'], com_escolha: false, pessoas: [] },
+  ],
+};
+
+describe('página pública com pessoas', () => {
+  beforeEach(() => m.getHorariosPublicos.mockResolvedValue(COM_PESSOAS));
+  const comQuem = () => screen.queryByRole('group', { name: 'Com quem' });
+
+  it('o passo "2 · com quem" aparece só no serviço com escolha, com "Sem preferência" já escolhido', async () => {
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte 30 min' }));
+    expect(screen.getByText('2 · com quem')).toBeInTheDocument();
+    const botoes = within(comQuem()!).getAllByRole('button');
+    expect(botoes.map((b) => b.textContent)).toEqual(['Sem preferência', 'Ana', 'Bia']);
+    expect(botoes[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('3 · dia')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'qua 18' }));
+    expect(screen.getByText('4 · horário')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '9h' }));
+    expect(screen.getByText('5 · seus dados')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Escova 30 min' }));
+    expect(comQuem()).toBeNull();
+    expect(screen.getByText('2 · dia')).toBeInTheDocument();
+  });
+
+  it('os dias e horários seguem a pessoa; Sem preferência mostra todos', async () => {
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte 30 min' }));
+    await userEvent.click(within(comQuem()!).getByRole('button', { name: 'Bia' }));
+    expect(screen.queryByRole('button', { name: 'qui 19' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'qua 18' }));
+    expect(screen.queryByRole('button', { name: '9h' })).toBeNull();
+    expect(screen.getByRole('button', { name: '9h30' })).toBeInTheDocument();
+    await userEvent.click(within(comQuem()!).getByRole('button', { name: 'Sem preferência' }));
+    expect(screen.getByRole('button', { name: '9h' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'qui 19' })).toBeInTheDocument();
+  });
+
+  it('trocar para um serviço que a pessoa não faz volta para Sem preferência', async () => {
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte 30 min' }));
+    await userEvent.click(within(comQuem()!).getByRole('button', { name: 'Ana' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Escova 30 min' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Corte 30 min' }));
+    expect(within(comQuem()!).getByRole('button', { name: 'Sem preferência' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('com a pessoa escolhida: envia a pessoa e o "Pronto" diz com quem', async () => {
+    m.agendarPublico.mockResolvedValue({ ok: true, inicio: '2026-11-18T12:00:00Z', pessoa: 'Ana' });
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte 30 min' }));
+    await userEvent.click(within(comQuem()!).getByRole('button', { name: 'Ana' }));
+    await escolher9hDeQuarta();
+    expect(screen.getByText(/Corte · 30 min · com Ana/)).toBeInTheDocument();
+    await preencher('Carlos', '11987654321');
+    await confirmar();
+    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Carlos', '+5511987654321', '2026-11-18T12:00:00Z', 's1', 'p1');
+    const status = await screen.findByRole('status');
+    expect(within(status).getByText('Corte: qua 18/11 às 9h, com Ana.')).toBeInTheDocument();
+  });
+
+  it('Sem preferência: não envia pessoa; se o banco escolheu alguém com nome, o "Pronto" diz', async () => {
+    m.agendarPublico.mockResolvedValue({ ok: true, inicio: '2026-11-18T12:00:00Z', pessoa: 'Ana' });
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte 30 min' }));
+    await escolher9hDeQuarta();
+    await preencher('Carlos', '11987654321');
+    await confirmar();
+    expect(m.agendarPublico).toHaveBeenCalledWith(expect.anything(), 'Carlos', '+5511987654321', '2026-11-18T12:00:00Z', 's1');
+    expect(within(await screen.findByRole('status')).getByText('Corte: qua 18/11 às 9h, com Ana.')).toBeInTheDocument();
+  });
+
+  it('pessoa sem nome na resposta: o "Pronto" de sempre', async () => {
+    m.agendarPublico.mockResolvedValue({ ok: true, inicio: '2026-11-18T12:00:00Z', pessoa: null });
+    render(<Agendar />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Corte + barba 60 min' }));
+    await escolher9hDeQuarta();
+    await preencher('Carlos', '11987654321');
+    await confirmar();
+    expect(within(await screen.findByRole('status')).getByText('Corte + barba: qua 18/11 às 9h.')).toBeInTheDocument();
+  });
+});
