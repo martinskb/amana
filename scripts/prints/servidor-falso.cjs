@@ -89,7 +89,7 @@ const todos = todosServicos.map((s) => s.id);
 const PESSOAS = {
   1: [{ id: 'p1', nome: null, ativo: true, ordem: 1, folgas: [], servicos: todos }],
   3: [
-    { id: 'p1', nome: 'Ana', ativo: true, ordem: 1, folgas: [], servicos: todos },
+    { id: 'p1', nome: 'Ana', ativo: true, ordem: 1, folgas: [], servicos: todos, link_codigo: 'ana', link_whatsapp: false },
     { id: 'p2', nome: null, ativo: true, ordem: 2, folgas: [], servicos: ['s1', 's3'] },
     { id: 'p3', nome: 'João', ativo: true, ordem: 3, folgas: [], servicos: ['s1', 's2'] },
     { id: 'p4', nome: 'Carla', ativo: false, ordem: 4, folgas: [], servicos: ['s1'] },
@@ -125,6 +125,23 @@ const publico = () => ({
     })
     .filter((s) => ativas().some((x) => x.servicos.includes(s.id))),
 });
+// link da equipe: "ana" (sem WhatsApp), "com-whats" (com), qualquer outro código é inválido
+function agendaEquipe(codigo) {
+  if (codigo !== 'ana' && codigo !== 'com-whats') return { ok: false };
+  const dia = (n) => em(n, 12 * 60).slice(0, 10); // meio-dia em Belém cai no mesmo dia em UTC
+  const clientesDe = (n) =>
+    agendamentos
+      .filter((a) => a.status !== 'cancelado' && a.inicio >= em(n, 0) && a.inicio < em(n + 1, 0))
+      .map((a) => ({
+        inicio: a.inicio, fim: a.fim, cliente: a.cliente.nome, servico: a.servico?.nome ?? null, status: a.status,
+        ...(codigo === 'com-whats' ? { telefone: a.cliente.telefone } : {}),
+      }));
+  return {
+    ok: true, negocio: config.nome_negocio, pessoa: 'Ana', whatsapp: codigo === 'com-whats',
+    hoje: dia(0), amanha: dia(1), dias: [{ data: dia(0), clientes: clientesDe(0) }, { data: dia(1), clientes: clientesDe(1) }],
+  };
+}
+
 const user = { id: 'u1', aud: 'authenticated', role: 'authenticated', email: 'dono@exemplo.com', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
 
 // filtros do PostgREST que o app usa: eq, neq, gt, gte, lt, lte (cliente_id, origem, inicio, criado_em, status)
@@ -160,6 +177,7 @@ http.createServer((q, r) => {
       body = { servicos: servicos.length, pessoas: pessoas.length };
     } else if (p.startsWith('/auth/v1/user')) body = user;
     else if (p.endsWith('/rpc/horarios_publicos')) body = publico();
+    else if (p.endsWith('/rpc/agenda_da_equipe')) body = agendaEquipe(JSON.parse(corpo || '{}').codigo);
     else if (p.endsWith('/configuracoes')) {
       if (q.method === 'PATCH' && corpo) Object.assign(config, JSON.parse(corpo));
       body = um ? config : [config];

@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { linkEquipe } from '../../src/lib/link';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgendamentoCompleto, Pessoa, Servico } from '../../src/types';
@@ -12,7 +13,10 @@ const m = vi.hoisted(() => ({
   apagarPessoa: vi.fn(),
   pessoaTemAgendamentos: vi.fn(),
   listAgendamentosFuturosDaPessoa: vi.fn(),
+  gerarLinkPessoa: vi.fn(),
+  salvarWhatsappPessoa: vi.fn(),
 }));
+vi.mock('../../src/data/equipe', () => ({ gerarLinkPessoa: m.gerarLinkPessoa, salvarWhatsappPessoa: m.salvarWhatsappPessoa }));
 vi.mock('../../src/data/supabase', () => ({ supabase: {} }));
 vi.mock('../../src/data/pessoas', () => ({
   criarPessoa: m.criarPessoa,
@@ -55,6 +59,8 @@ beforeEach(() => {
   m.apagarPessoa.mockResolvedValue(undefined);
   m.pessoaTemAgendamentos.mockResolvedValue(true);
   m.listAgendamentosFuturosDaPessoa.mockResolvedValue([]);
+  m.gerarLinkPessoa.mockResolvedValue('c'.repeat(64));
+  m.salvarWhatsappPessoa.mockResolvedValue(undefined);
 });
 
 function abrir(pessoa: Pessoa | undefined, pessoas: Pessoa[] = [ana, semNome]) {
@@ -164,5 +170,61 @@ describe('PainelPessoa: editar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apagar de vez' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('única pessoa ativa');
     expect(m.apagarPessoa).not.toHaveBeenCalled();
+  });
+});
+
+describe('PainelPessoa: link da agenda', () => {
+  const comLink: Pessoa = { ...ana, link_codigo: 'a'.repeat(64), link_whatsapp: false };
+  const secao = () => screen.getByRole('group', { name: 'Link da agenda' });
+
+  it('pessoa nova e pessoa desativada não têm a seção', () => {
+    abrir(undefined);
+    expect(screen.queryByRole('group', { name: 'Link da agenda' })).toBeNull();
+  });
+
+  it('desativada não tem a seção', () => {
+    abrir({ ...ana, ativo: false }, [{ ...ana, ativo: false }, semNome]);
+    expect(screen.queryByRole('group', { name: 'Link da agenda' })).toBeNull();
+  });
+
+  it('sem link: "Criar link" gera e passa a mostrar Copiar e Trocar', async () => {
+    const { recarregarPessoas } = abrir(ana);
+    await userEvent.click(within(secao()).getByRole('button', { name: 'Criar link' }));
+    expect(m.gerarLinkPessoa).toHaveBeenCalledWith({}, 'p1');
+    expect(await within(secao()).findByRole('button', { name: 'Copiar link' })).toBeInTheDocument();
+    expect(within(secao()).getByRole('button', { name: 'Trocar link' })).toBeInTheDocument();
+    expect(recarregarPessoas).toHaveBeenCalled();
+  });
+
+  it('"Copiar link" copia o endereço da agenda dela', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    abrir(comLink);
+    fireEvent.click(within(secao()).getByRole('button', { name: 'Copiar link' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(linkEquipe('a'.repeat(64))));
+    expect(await within(secao()).findByText('Link copiado!')).toBeInTheDocument();
+  });
+
+  it('"Trocar link" pede confirmação e só troca depois dela', async () => {
+    abrir(comLink);
+    await userEvent.click(within(secao()).getByRole('button', { name: 'Trocar link' }));
+    expect(within(secao()).getByText('O link antigo para de funcionar.')).toBeInTheDocument();
+    expect(m.gerarLinkPessoa).not.toHaveBeenCalled();
+    await userEvent.click(within(secao()).getByRole('button', { name: 'Trocar mesmo' }));
+    expect(m.gerarLinkPessoa).toHaveBeenCalledWith({}, 'p1');
+  });
+
+  it('a chave do WhatsApp começa como está e grava; erro de rede avisa e volta', async () => {
+    const { recarregarPessoas } = abrir(comLink);
+    const chave = within(secao()).getByRole('checkbox', { name: 'Pode chamar os clientes no WhatsApp' });
+    expect(chave).not.toBeChecked();
+    await userEvent.click(chave);
+    expect(m.salvarWhatsappPessoa).toHaveBeenCalledWith({}, 'p1', true);
+    await waitFor(() => expect(recarregarPessoas).toHaveBeenCalled());
+    expect(chave).toBeChecked();
+    m.salvarWhatsappPessoa.mockRejectedValueOnce(new Error('rede'));
+    await userEvent.click(chave);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar');
+    expect(chave).toBeChecked();
   });
 });

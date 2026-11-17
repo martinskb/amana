@@ -172,6 +172,16 @@ input[type='checkbox'].chave:disabled { opacity: 0.55; }
 .publico > *:not(.chuva) { position: relative; }
 .publico h1 { font-family: var(--fonte-titulo); font-weight: 800; letter-spacing: -0.04em; font-size: 44px; line-height: 1.05; color: var(--titulo); margin: 0; overflow-wrap: anywhere; animation: sobe-8 400ms var(--curva) both; }
 .publico .lead { margin: 8px 0 22px; font-size: 17px; }
+/* link da equipe: hoje e amanhã de uma pessoa, só para olhar */
+.publico.equipe h1 { font-size: 32px; margin-bottom: 8px; }
+.equipe-lista { list-style: none; padding: 0; margin: 0; }
+.equipe-lista li { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 8px 0; border-bottom: 1px solid var(--borda); }
+.equipe-lista li.passado { opacity: 0.8; }
+.equipe-lista li.passado strong { color: var(--sutil); }
+.equipe-hora { flex: none; width: 48px; color: var(--sutil); font-variant-numeric: tabular-nums; }
+.equipe-quem { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.equipe-quem strong { font-size: 17px; }
+.equipe-lista .botao.redondo { flex: none; }
 .publico .capitulo { margin: 22px 0 10px; }
 .aviso-publico { margin: 18px 0; color: var(--texto); }
 .dias-faixa { display: flex; align-items: center; gap: 8px; }
@@ -578,6 +588,15 @@ button.la-corpo:hover .la-valor, button.la-corpo:hover svg { color: var(--titulo
 .lista-clientes-pessoa { margin: 0; padding-left: 18px; color: var(--texto); }
 .acoes-pessoa { display: flex; flex-direction: column; align-items: center; margin: 4px 0 8px; }
 .acoes-pessoa .sutil { margin: 0; }
+.link-pessoa { border: 0; padding: 0; margin: 4px 0 12px; }
+.link-pessoa legend { padding: 0; margin-bottom: 4px; color: var(--sutil); font-weight: 500; }
+.link-pessoa > .sutil { margin: 0 0 8px; }
+.acoes-link { gap: 8px; align-items: center; }
+.acoes-link button { min-height: 44px; }
+.confirmar-troca { margin: 8px 0; }
+.confirmar-troca p { margin: 0 0 6px; }
+.chave-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; border-bottom: 1px solid var(--borda); }
+.chave-linha .chave { order: 2; flex: none; }
 .com-unidade { display: flex; align-items: flex-end; gap: 10px; }
 .com-unidade .campo-linha { flex: 1; margin: 0; }
 .com-unidade .unidade { padding-bottom: 12px; color: var(--sutil); }
