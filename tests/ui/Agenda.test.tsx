@@ -291,25 +291,16 @@ describe('Agenda', () => {
     expect(within(painel).getByRole('heading', { name: 'ter 17/11 às 09:00' })).toBeInTheDocument();
   });
 
-  // SEC-001: quem agenda pelo link não prova que é dono do número; o dono vê o nome digitado quando não bate
-  it('agendamento pelo link com nome digitado diferente do cadastro mostra o alerta na grade e nos detalhes', async () => {
+  // o nome digitado no link não gera aviso: vários clientes podem usar o mesmo WhatsApp
+  it('agendamento pelo link com nome digitado diferente do cadastro não mostra aviso', async () => {
     m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, origem: 'link', nome_informado: 'Fulano' }]);
-    renderComConfig(<Agenda />);
-    const botao = await screen.findByRole('button', { name: /10:00 João/ });
-    expect(botao).toHaveTextContent('digitou Fulano');
-    await userEvent.click(botao);
-    expect(within(screen.getByRole('dialog', { name: 'Agendamento' })).getByRole('note')).toHaveTextContent(
-      'Pelo link, a pessoa digitou o nome "Fulano", diferente do cadastro deste WhatsApp. Confirme com o cliente.',
-    );
-  });
-
-  it('nome digitado igual ao cadastro (ignorando maiúsculas e espaços) não mostra alerta', async () => {
-    m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, origem: 'link', nome_informado: '  joão ' }]);
     renderComConfig(<Agenda />);
     const botao = await screen.findByRole('button', { name: /10:00 João/ });
     expect(botao).not.toHaveTextContent('digitou');
     await userEvent.click(botao);
-    expect(within(screen.getByRole('dialog', { name: 'Agendamento' })).queryByRole('note')).toBeNull();
+    const painel = screen.getByRole('dialog', { name: 'Agendamento' });
+    expect(within(painel).queryByRole('note')).toBeNull();
+    expect(painel).not.toHaveTextContent('Fulano');
   });
 
   it('a agenda começa pelo cabeçalho, sem o título "Agenda"', async () => {
