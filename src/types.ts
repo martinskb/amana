@@ -44,8 +44,34 @@ export interface AgendamentoCompleto extends Agendamento {
 }
 /** `pessoa_id` null: fechado do negócio todo. Extra sempre tem pessoa. */
 export interface HorarioAjuste { id: string; inicio: string; tipo: 'fechado' | 'extra'; pessoa_id: string | null }
-/** Quem atende. `servicos`: ids dos serviços que ela faz; `folgas`: dias de folga só dela ("YYYY-MM-DD"). */
-export interface Pessoa { id: string; nome: string | null; ativo: boolean; ordem: number; folgas: string[]; servicos: string[] }
+/**
+ * Quem atende. `servicos`: ids dos serviços que ela faz; `folgas`: dias de folga só dela ("YYYY-MM-DD").
+ * `link_codigo`: código do link da equipe (ausente/null = sem link); `link_whatsapp`: o link mostra o
+ * WhatsApp dos clientes. Opcionais: pessoas guardadas por versões anteriores não têm.
+ */
+export interface Pessoa {
+  id: string;
+  nome: string | null;
+  ativo: boolean;
+  ordem: number;
+  folgas: string[];
+  servicos: string[];
+  link_codigo?: string | null;
+  link_whatsapp?: boolean;
+}
+/** Um cliente na agenda do link da equipe. `telefone` só vem quando o dono liga o WhatsApp da pessoa. */
+export interface ClienteEquipe { inicio: string; fim: string; cliente: string; servico: string | null; status: Status; telefone?: string }
+export type AgendaEquipe =
+  | { ok: false }
+  | {
+      ok: true;
+      negocio: string;
+      pessoa: string;
+      whatsapp: boolean;
+      hoje: string;
+      amanha: string;
+      dias: { data: string; clientes: ClienteEquipe[] }[];
+    };
 export type ErroPublico = 'link_fechado' | 'dados_invalidos' | 'limite' | 'horario_indisponivel' | 'servico_invalido';
 /** `pessoa`: nome de quem vai atender (null se ela não tem nome; ausente no banco sem a 0006). */
 export type ResultadoPublico = { ok: true; inicio: string; pessoa?: string | null } | { ok: false; erro: ErroPublico };

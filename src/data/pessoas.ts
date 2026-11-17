@@ -4,7 +4,7 @@ import type { SupabaseClient } from './supabase';
 
 type Linha = Omit<Pessoa, 'servicos'> & { pessoa_servicos?: { servico_id: string }[] };
 
-const CAMPOS = 'id, nome, ativo, ordem, folgas';
+const CAMPOS = 'id, nome, ativo, ordem, folgas, link_codigo, link_whatsapp';
 
 function daLinha({ pessoa_servicos, ...p }: Linha): Pessoa {
   return { ...p, servicos: (pessoa_servicos ?? []).map((s) => s.servico_id) };

@@ -232,3 +232,20 @@ describe('dados existentes com pessoa', () => {
     expect(corpo).toEqual({ nome: 'Bia', telefone: '5511987654321', inicio: '2026-11-18T12:00:00Z', servico: 's1', pessoa: 'p1' });
   });
 });
+
+describe('pessoas com link da equipe', () => {
+  it('listPessoas pede link_codigo e link_whatsapp', async () => {
+    let select: string | null = null;
+    servidor.use(
+      http.get(`${REST}/pessoas`, ({ request }) => {
+        select = new URL(request.url).searchParams.get('select');
+        return HttpResponse.json([{ ...linhaAna, link_codigo: 'abc', link_whatsapp: true }]);
+      }),
+    );
+    const [p] = await listPessoas(db);
+    expect(select).toContain('link_codigo');
+    expect(select).toContain('link_whatsapp');
+    expect(p).toMatchObject({ link_codigo: 'abc', link_whatsapp: true });
+  });
+});
+
