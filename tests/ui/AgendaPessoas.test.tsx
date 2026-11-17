@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConflitoDeHorarioError } from '../../src/data/erros';
 import { gravar, ler } from '../../src/lib/cache';
 import type { AgendamentoCompleto, Pessoa } from '../../src/types';
 import { CONFIG_TESTE } from '../helpers/config';
@@ -11,23 +12,34 @@ const m = vi.hoisted(() => ({
   listNovosPeloLink: vi.fn(),
   listServicos: vi.fn(),
   listAjustes: vi.fn(),
+  criarAgendamento: vi.fn(),
+  editarAgendamento: vi.fn(),
+  fecharHorario: vi.fn(),
+  criarExtra: vi.fn(),
+  removerAjuste: vi.fn(),
+  findOrCreateCliente: vi.fn(),
 }));
 vi.mock('../../src/data/supabase', () => ({ supabase: {} }));
 vi.mock('../../src/data/agendamentos', () => ({
   listAgendamentos: m.listAgendamentos,
   listNovosPeloLink: m.listNovosPeloLink,
-  criarAgendamento: vi.fn(),
-  editarAgendamento: vi.fn(),
+  criarAgendamento: m.criarAgendamento,
+  editarAgendamento: m.editarAgendamento,
   mudarStatus: vi.fn(),
 }));
-vi.mock('../../src/data/clientes', () => ({ findOrCreateCliente: vi.fn(), listClientes: vi.fn(async () => []) }));
+vi.mock('../../src/data/clientes', () => ({ findOrCreateCliente: m.findOrCreateCliente, listClientes: vi.fn(async () => []) }));
 vi.mock('../../src/data/servicos', () => ({ listServicos: m.listServicos }));
-vi.mock('../../src/data/ajustes', () => ({ listAjustes: m.listAjustes, fecharHorario: vi.fn(), criarExtra: vi.fn(), removerAjuste: vi.fn() }));
+vi.mock('../../src/data/ajustes', () => ({
+  listAjustes: m.listAjustes,
+  fecharHorario: m.fecharHorario,
+  criarExtra: m.criarExtra,
+  removerAjuste: m.removerAjuste,
+}));
 
 import Agenda from '../../src/ui/Agenda';
 
 const ANA: Pessoa = { id: 'p1', nome: 'Ana', ativo: true, ordem: 1, folgas: [], servicos: ['s1'] };
-const BIA: Pessoa = { id: 'p2', nome: 'Bia', ativo: true, ordem: 2, folgas: [], servicos: ['s1'] };
+const BIA: Pessoa = { id: 'p2', nome: 'Bia', ativo: true, ordem: 2, folgas: [], servicos: ['s1', 's2'] };
 
 function ag(id: string, inicio: string, nome: string, pessoa_id: string, origem: 'dono' | 'link' = 'dono'): AgendamentoCompleto {
   const fim = new Date(new Date(inicio).getTime() + 30 * 60_000).toISOString();
@@ -67,7 +79,16 @@ beforeEach(() => {
       return dia >= de && dia <= ate;
     }),
   );
-  m.listServicos.mockResolvedValue([{ id: 's1', nome: 'Corte', duracao_min: 30, ativo: true }]);
+  m.listServicos.mockResolvedValue([
+    { id: 's1', nome: 'Corte', duracao_min: 30, ativo: true },
+    { id: 's2', nome: 'Escova', duracao_min: 30, ativo: true },
+  ]);
+  m.criarAgendamento.mockResolvedValue({ id: 'novo' });
+  m.editarAgendamento.mockResolvedValue(undefined);
+  m.fecharHorario.mockResolvedValue(undefined);
+  m.criarExtra.mockResolvedValue(undefined);
+  m.removerAjuste.mockResolvedValue(undefined);
+  m.findOrCreateCliente.mockResolvedValue({ id: 'c9', nome: 'Rui', telefone: '5511955554444', criado_em: '' });
   m.listAjustes.mockResolvedValue([]);
   m.listNovosPeloLink.mockResolvedValue([NOVO_BIA]);
   localStorage.clear();
@@ -166,5 +187,135 @@ describe('Agenda com uma pessoa', () => {
     expect(screen.queryByRole('group', { name: 'Pessoa' })).toBeNull();
     expect(screen.queryByText('Ana')).toBeNull();
     expect(screen.getByRole('button', { name: 'Marcar ter 17/11 às 09:00' })).toHaveTextContent(/^09:00 livre$/);
+  });
+});
+
+const opcoes = (rotulo: string) =>
+  within(screen.getByLabelText(rotulo) as HTMLSelectElement)
+    .getAllByRole('option')
+    .map((o) => o.textContent);
+const valorDe = (rotulo: string) => {
+  const sel = screen.getByLabelText(rotulo) as HTMLSelectElement;
+  return sel.options[sel.selectedIndex]?.textContent;
+};
+async function abrirNovo(hora: string) {
+  await userEvent.click(await screen.findByRole('button', { name: `Marcar ter 17/11 às ${hora}` }));
+  await userEvent.click(screen.getByRole('button', { name: 'Marcar cliente' }));
+}
+
+describe('painéis com duas pessoas', () => {
+  it('Novo: "Com quem" só com quem está livre e faz o serviço; grava a pessoa e a confirmação diz com quem', async () => {
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    await abrirNovo('10:00');
+    expect(opcoes('Com quem')).toEqual(['Bia']);
+    await userEvent.type(screen.getByLabelText('Cliente'), 'Rui');
+    await userEvent.type(screen.getByLabelText('Telefone'), '11955554444');
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(m.criarAgendamento).toHaveBeenCalledWith({}, expect.objectContaining({ pessoa_id: 'p2' }));
+    const link = await screen.findByRole('link', { name: 'Mandar confirmação no WhatsApp' });
+    expect(decodeURIComponent(link.getAttribute('href')!)).toContain('às 10h com Bia. Até lá!');
+  });
+
+  it('Novo: vem a primeira livre; com o filtro, a do filtro; o serviço limita as opções', async () => {
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    await abrirNovo('09:00');
+    expect(opcoes('Com quem')).toEqual(['Ana', 'Bia']);
+    expect(valorDe('Com quem')).toBe('Ana');
+    await userEvent.selectOptions(screen.getByLabelText('Serviço'), 's2');
+    expect(opcoes('Com quem')).toEqual(['Bia']);
+  });
+
+  it('Novo com o filtro em Bia: vem a Bia', async () => {
+    gravar('filtro-pessoa', 'p2');
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    await abrirNovo('09:00');
+    expect(valorDe('Com quem')).toBe('Bia');
+  });
+
+  it('Editar: mantém a pessoa enquanto pode; senão mostra a troca antes de salvar e grava a da tela', async () => {
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    await userEvent.click(await itemDe('João'));
+    await userEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    expect(valorDe('Com quem')).toBe('Ana');
+    await userEvent.selectOptions(screen.getByLabelText('Serviço'), 's2');
+    expect(valorDe('Com quem')).toBe('Bia');
+    expect(screen.getByText(/Ana não faz esse serviço ou não está livre nesse horário: vai com Bia/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(m.editarAgendamento).toHaveBeenCalledWith({}, 'a1', expect.objectContaining({ servico_id: 's2', pessoa_id: 'p2' }));
+  });
+
+  it('Detalhe: "com Ana" troca para outra pessoa livre que faz o serviço', async () => {
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    await userEvent.click(await itemDe('João'));
+    await userEvent.click(screen.getByRole('button', { name: /^com Ana/ }));
+    await userEvent.click(within(screen.getByRole('group', { name: 'Trocar para' })).getByRole('button', { name: 'Bia' }));
+    expect(m.editarAgendamento).toHaveBeenCalledWith({}, 'a1', { pessoa_id: 'p2' });
+  });
+
+  it('Detalhe: se o banco recusar, a mensagem de horário ocupado', async () => {
+    m.editarAgendamento.mockRejectedValue(new ConflitoDeHorarioError());
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    await userEvent.click(await itemDe('João'));
+    await userEvent.click(screen.getByRole('button', { name: /^com Ana/ }));
+    await userEvent.click(within(screen.getByRole('group', { name: 'Trocar para' })).getByRole('button', { name: 'Bia' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Esse horário já está ocupado.');
+  });
+
+  it('Fechar: "Para" com o negócio todo e as pessoas; vem o negócio; grava para quem foi escolhido', async () => {
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    expect(opcoes('Para')).toEqual(['o negócio todo', 'Ana', 'Bia']);
+    expect(valorDe('Para')).toBe('o negócio todo');
+    await userEvent.selectOptions(screen.getByLabelText('Para'), 'p1');
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar este horário' }));
+    expect(m.fecharHorario).toHaveBeenCalledWith({}, '2026-11-17T12:00:00.000Z', 'p1');
+  });
+
+  it('Fechar com o filtro em Bia: vem a Bia', async () => {
+    gravar('filtro-pessoa', 'p2');
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    expect(valorDe('Para')).toBe('Bia');
+  });
+
+  it('o fechado de uma pessoa mostra para quem, e reabrir remove só ele', async () => {
+    m.listAjustes.mockResolvedValue([{ id: 'f1', inicio: '2026-11-17T12:00:00.000Z', tipo: 'fechado', pessoa_id: 'p1' }]);
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    const fechado = await screen.findByText('fechado · Ana');
+    expect(screen.getByRole('button', { name: 'Marcar ter 17/11 às 09:00' })).toHaveTextContent('livre · Bia');
+    await userEvent.click(fechado.closest('button')!);
+    expect(screen.getByRole('heading', { name: /fechado · Ana/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Reabrir' }));
+    expect(m.removerAjuste).toHaveBeenCalledWith({}, 'f1');
+  });
+
+  it('Extra: "Com quem" sem o negócio todo; vem a do filtro', async () => {
+    gravar('filtro-pessoa', 'p2');
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(min-width: 1280px)', media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    await userEvent.click(await screen.findByRole('button', { name: '+ Horário extra' }));
+    expect(opcoes('Com quem')).toEqual(['Ana', 'Bia']);
+    expect(valorDe('Com quem')).toBe('Bia');
+    await userEvent.type(screen.getByLabelText('Hora'), '19:00');
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir horário' }));
+    expect(m.criarExtra).toHaveBeenCalledWith({}, '2026-11-17T22:00:00.000Z', 'p2');
+  });
+
+  it('Lembrar de amanhã diz com quem', async () => {
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, BIA]);
+    const amanha = await screen.findByRole('complementary', { name: 'Amanhã' });
+    await userEvent.click(await within(amanha).findByRole('button', { name: 'Lembrar' }));
+    const link = within(amanha).getByRole('link', { name: 'Lembrar Pedro' });
+    expect(decodeURIComponent(link.getAttribute('href')!)).toContain('às 15h com Ana. Até lá!');
+  });
+});
+
+describe('painéis com uma pessoa', () => {
+  it('sem "Com quem" no novo nem "Para" no fechar', async () => {
+    renderComConfig(<Agenda />, CONFIG_TESTE, [ANA, { ...BIA, ativo: false }]);
+    await userEvent.click(await screen.findByRole('button', { name: 'Marcar ter 17/11 às 09:00' }));
+    expect(screen.queryByLabelText('Para')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Marcar cliente' }));
+    expect(screen.queryByLabelText('Com quem')).toBeNull();
   });
 });

@@ -42,7 +42,7 @@ type EstadoPainel =
   | { tipo: 'editar'; agendamento: AgendamentoCompleto }
   // extraId: o horário só existe por causa de um extra (fora do expediente) e pode ser removido
   | { tipo: 'livre'; data: string; hora: string; extraId?: string }
-  | { tipo: 'fechado'; data: string; hora: string; ajusteId: string }
+  | { tipo: 'fechado'; data: string; hora: string; ajusteId: string; pessoaId: string | null }
   | { tipo: 'extra' }
   | null;
 
@@ -246,11 +246,11 @@ export default function Agenda() {
       comExpediente.add(h.data);
       if (!h.fechado) continue;
       const ini = h.inicio.getTime();
-      const ajuste = fechados.find((f) => {
+      // um item por fechado que cobre o horário (do negócio ou de cada pessoa)
+      for (const f of fechados) {
         const fi = new Date(f.inicio).getTime();
-        return ini < fi + passo && fi < ini + passo;
-      });
-      if (ajuste) mapa.get(h.data)?.push({ tipo: 'fechado', hora: h.hora, ajusteId: ajuste.id });
+        if (ini < fi + passo && fi < ini + passo) mapa.get(h.data)?.push({ tipo: 'fechado', hora: h.hora, ajusteId: f.id, pessoa_id: f.pessoa_id });
+      }
     }
     for (const itens of mapa.values()) itens.sort((x, y) => x.hora.localeCompare(y.hora));
     return { porDia: mapa, comExpediente };
@@ -273,10 +273,20 @@ export default function Agenda() {
   const [erroAjuste, setErroAjuste] = useState<string | null>(null);
   const [extraData, setExtraData] = useState(hoje);
   const [extraHora, setExtraHora] = useState('');
+  // com 2+ pessoas: para quem fechar (null = o negócio todo) e de quem é o extra
+  const [fecharPara, setFecharPara] = useState<string | null>(null);
+  const [extraDe, setExtraDe] = useState<string | null>(null);
+  const agsComPessoa = useMemo(() => (agendamentos ?? []).map((a) => ({ ...a, pessoa_id: pessoaDe(a) })), [agendamentos, pessoaDe]);
+  const servicosAtivos = servicos.filter((s) => s.ativo).length;
+  const nomeDe = (id: string | null) => {
+    const p = id ? pessoas.find((x) => x.id === id) : undefined;
+    return p ? nomeDaPessoa(p, pessoas) : '';
+  };
 
   /** Abre o horário extra já no dia que está na tela. */
   function abrirExtra(data = diaSelecionado) {
     setExtraData(data);
+    setExtraDe(filtro ?? ativas(pessoas)[0]?.id ?? null);
     setPainel({ tipo: 'extra' });
   }
 
@@ -286,9 +296,10 @@ export default function Agenda() {
       ver(item.agendamento);
       setPainel({ tipo: 'detalhes', agendamento: item.agendamento });
     } else if (item.tipo === 'fechado') {
-      setPainel({ tipo: 'fechado', data, hora: item.hora, ajusteId: item.ajusteId });
+      setPainel({ tipo: 'fechado', data, hora: item.hora, ajusteId: item.ajusteId, pessoaId: item.pessoa_id ?? null });
     } else {
       const hora = item.tipo === 'livres' ? item.de : item.hora;
+      setFecharPara(filtro);
       setPainel({ tipo: 'livre', data, hora, extraId: extraQueCria(data, hora) });
     }
   }
@@ -330,6 +341,8 @@ export default function Agenda() {
           inicial={p.tipo === 'novo' ? { data: p.data, hora: p.hora } : undefined}
           agendamento={p.tipo === 'editar' ? p.agendamento : undefined}
           servicos={servicos}
+          agendamentos={agsComPessoa}
+          filtro={filtro}
           onSalvo={depoisDeSalvar}
           onFechar={() => setPainel(null)}
         />
@@ -352,13 +365,30 @@ export default function Agenda() {
                   <IconeX /> Remover horário extra
                 </button>
               ) : (
-                <button
-                  type="button"
-                  className="acao-linha"
-                  onClick={() => ajustar(() => fecharHorario(supabase, instanteLocal(p.data, p.hora, config.fuso).toISOString(), null))}
-                >
-                  <IconeFaltou /> Fechar este horário
-                </button>
+                <>
+                  {varias && (
+                    <label className="campo-linha">
+                      Para
+                      <select value={fecharPara ?? ''} onChange={(e) => setFecharPara(e.target.value || null)}>
+                        <option value="">o negócio todo</option>
+                        {ativas(pessoas).map((x) => (
+                          <option key={x.id} value={x.id}>
+                            {nomeDaPessoa(x, pessoas)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <button
+                    type="button"
+                    className="acao-linha"
+                    onClick={() =>
+                      ajustar(() => fecharHorario(supabase, instanteLocal(p.data, p.hora, config.fuso).toISOString(), varias ? fecharPara : null))
+                    }
+                  >
+                    <IconeFaltou /> Fechar este horário
+                  </button>
+                </>
               )}
             </li>
           </ul>
@@ -373,7 +403,7 @@ export default function Agenda() {
       return (
         <div className="painel-conteudo">
           <h3 className="painel-titulo">
-            {abreviaDia(p.data)} {ddmm(p.data)} às {p.hora} — fechado
+            {abreviaDia(p.data)} {ddmm(p.data)} às {p.hora} — fechado{varias && p.pessoaId ? ` · ${nomeDe(p.pessoaId)}` : ''}
           </h3>
           <p className="painel-resumo">Este horário não aparece no link de agendamento.</p>
           <button type="button" className="primario larga" onClick={() => ajustar(() => removerAjuste(supabase, p.ajusteId))}>
@@ -395,9 +425,21 @@ export default function Agenda() {
             onSubmit={(e) => {
               e.preventDefault();
               if (!extraData || !extraHora) return setErroAjuste('Escolha a data e a hora.');
-              void ajustar(() => criarExtra(supabase, instanteLocal(extraData, extraHora, config.fuso).toISOString(), null));
+              void ajustar(() => criarExtra(supabase, instanteLocal(extraData, extraHora, config.fuso).toISOString(), varias ? extraDe : null));
             }}
           >
+            {varias && (
+              <label>
+                Com quem
+                <select value={extraDe ?? ''} onChange={(e) => setExtraDe(e.target.value)}>
+                  {ativas(pessoas).map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {nomeDaPessoa(x, pessoas)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <div className="linha">
               <label>
                 Data
@@ -425,6 +467,8 @@ export default function Agenda() {
       return (
         <DetalhesAgendamento
           agendamento={p.agendamento}
+          agendamentos={agsComPessoa}
+          servicosAtivos={servicosAtivos}
           onEditar={() => setPainel({ tipo: 'editar', agendamento: p.agendamento })}
           onMudou={() => {
             ver(p.agendamento);

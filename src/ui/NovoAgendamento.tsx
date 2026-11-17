@@ -5,8 +5,9 @@ import { ConflitoDeHorarioError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import { dataLocal, horaLocal, instanteLocal } from '../lib/slots';
 import { mensagemConfirmar } from '../lib/mensagens';
+import { ativas, fazServico, livresPara, nomeDaPessoa, nomeNaMensagem, variasPessoas } from '../lib/pessoas';
 import { MSG_WHATSAPP_INVALIDO, normalizePhone, waLink } from '../lib/whatsapp';
-import type { AgendamentoCompleto, Cliente, Servico } from '../types';
+import type { Agendamento, AgendamentoCompleto, Cliente, Pessoa, Servico } from '../types';
 import { useConfig } from './contexto';
 
 interface Props {
@@ -14,12 +15,17 @@ interface Props {
   /** Quando presente, o formulário edita este agendamento. */
   agendamento?: AgendamentoCompleto;
   servicos: Servico[];
+  /** Os agendamentos já carregados (com pessoa), para saber quem está livre no horário. */
+  agendamentos?: readonly Agendamento[];
+  /** A pessoa do filtro da agenda: vem escolhida se estiver livre. */
+  filtro?: string | null;
   onSalvo: () => void;
   onFechar: () => void;
 }
 
-export default function NovoAgendamento({ inicial, agendamento, servicos, onSalvo, onFechar }: Props) {
-  const { config } = useConfig();
+export default function NovoAgendamento({ inicial, agendamento, servicos, agendamentos = [], filtro = null, onSalvo, onFechar }: Props) {
+  const { config, pessoas } = useConfig();
+  const varias = variasPessoas(pessoas);
   const editando = Boolean(agendamento);
   const [data, setData] = useState(agendamento ? dataLocal(new Date(agendamento.inicio), config.fuso) : inicial?.data ?? '');
   const [hora, setHora] = useState(agendamento ? horaLocal(new Date(agendamento.inicio), config.fuso) : inicial?.hora ?? '');
@@ -27,6 +33,32 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
   // '' = sem serviço: ocupa um horário (passo_min)
   const [servicoId, setServicoId] = useState(agendamento?.servico_id ?? '');
   const [observacao, setObservacao] = useState(agendamento?.observacao ?? '');
+  // a pessoa pedida (a do agendamento, a do filtro ou a escolhida no campo); null = a primeira livre
+  const [pessoaId, setPessoaId] = useState<string | null>(agendamento?.pessoa_id ?? filtro);
+
+  // "Com quem": quem faz o serviço e está livre no horário (sem horário ainda, quem faz o serviço)
+  const servicoEscolhido = servicos.find((s) => s.id === servicoId) ?? null;
+  const servicosAtivos = servicos.filter((s) => s.ativo).length;
+  let quemPode: Pessoa[] = [];
+  if (varias) {
+    if (data && hora) {
+      const ini = instanteLocal(data, hora, config.fuso);
+      quemPode = livresPara({
+        pessoas,
+        servicoId: servicoId || null,
+        servicosAtivos,
+        inicio: ini,
+        fim: new Date(ini.getTime() + (servicoEscolhido?.duracao_min ?? config.passo_min) * 60_000),
+        agendamentos,
+        ignorar: agendamento?.id,
+      });
+    } else {
+      quemPode = ativas(pessoas).filter((p) => fazServico(p, servicoId || null, servicosAtivos));
+    }
+  }
+  // nunca troca escondido: a escolhida é a que aparece no campo
+  const escolhida = quemPode.find((p) => p.id === pessoaId) ?? quemPode[0] ?? null;
+  const pedida = pessoaId ? pessoas.find((p) => p.id === pessoaId) : undefined;
 
   const [termo, setTermo] = useState('');
   const [sugestoes, setSugestoes] = useState<Cliente[]>([]);
@@ -35,7 +67,7 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   // depois de marcar na mão: painel para mandar a confirmação (spec v3, seção 4)
-  const [marcado, setMarcado] = useState<{ nome: string; telefone: string; inicio: string } | null>(null);
+  const [marcado, setMarcado] = useState<{ nome: string; telefone: string; inicio: string; pessoa: string | null } | null>(null);
 
   useEffect(() => {
     if (editando || cliente || termo.trim().length < 2) {
@@ -56,6 +88,8 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
     const inicio = instanteLocal(data, hora, config.fuso);
     const fim = new Date(inicio.getTime() + (servico?.duracao_min ?? config.passo_min) * 60_000);
     const obs = observacao.trim() || null;
+    if (varias && !escolhida) return setErro('Ninguém livre que faça esse serviço nesse horário.');
+    const comPessoa = varias && escolhida ? { pessoa_id: escolhida.id } : {};
 
     setSalvando(true);
     try {
@@ -65,6 +99,7 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
           inicio: inicio.toISOString(),
           fim: fim.toISOString(),
           observacao: obs,
+          ...comPessoa,
         });
       } else {
         let quem = cliente;
@@ -82,8 +117,9 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
           status: 'marcado',
           observacao: obs,
           origem: 'dono',
+          ...comPessoa,
         });
-        setMarcado({ nome: quem.nome, telefone: quem.telefone, inicio: inicio.toISOString() });
+        setMarcado({ nome: quem.nome, telefone: quem.telefone, inicio: inicio.toISOString(), pessoa: nomeNaMensagem(escolhida?.id, pessoas) });
         return;
       }
       onSalvo();
@@ -102,7 +138,7 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
         <div className="botoes-painel">
           <a
             className="botao larga"
-            href={waLink(marcado.telefone, mensagemConfirmar({ nome: marcado.nome, inicio: marcado.inicio, fuso: config.fuso }))}
+            href={waLink(marcado.telefone, mensagemConfirmar({ nome: marcado.nome, inicio: marcado.inicio, fuso: config.fuso, pessoa: marcado.pessoa }))}
             target="_blank"
             rel="noreferrer"
           >
@@ -162,6 +198,28 @@ export default function NovoAgendamento({ inicial, agendamento, servicos, onSalv
             ))}
           </select>
         </label>
+        {varias &&
+          (escolhida ? (
+            <>
+              <label>
+                Com quem
+                <select value={escolhida.id} onChange={(e) => setPessoaId(e.target.value)}>
+                  {quemPode.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {nomeDaPessoa(p, pessoas)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {pedida && pedida.id !== escolhida.id && (
+                <p className="sutil">
+                  {nomeDaPessoa(pedida, pessoas)} não faz esse serviço ou não está livre nesse horário: vai com {nomeDaPessoa(escolhida, pessoas)}.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="sutil">Ninguém livre que faça esse serviço nesse horário.</p>
+          ))}
         <div className="linha">
           <label>
             Data

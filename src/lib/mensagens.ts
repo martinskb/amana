@@ -12,7 +12,11 @@ export interface DadosMensagem {
   nome: string;
   inicio: string; // ISO
   fuso: string;
+  /** Nome de quem atende ("com Ana"); só vem com 2+ pessoas ativas e pessoa com nome. */
+  pessoa?: string | null;
 }
+
+const com = (d: DadosMensagem) => (d.pessoa ? ` com ${d.pessoa}` : '');
 
 function quando({ inicio, fuso }: DadosMensagem) {
   const d = new Date(inicio);
@@ -22,12 +26,12 @@ function quando({ inicio, fuso }: DadosMensagem) {
 
 export function mensagemConfirmar(d: DadosMensagem): string {
   const { dia, ddmm, hora } = quando(d);
-  return `Olá, ${d.nome}! ✅ Seu horário está confirmado: ${dia} (${ddmm}) às ${hora}. Até lá!`;
+  return `Olá, ${d.nome}! ✅ Seu horário está confirmado: ${dia} (${ddmm}) às ${hora}${com(d)}. Até lá!`;
 }
 
 export function mensagemLembrar(d: DadosMensagem): string {
   const { dia, ddmm, hora } = quando(d);
-  return `Olá, ${d.nome}! 👋 Passando para lembrar do seu horário amanhã, ${dia} (${ddmm}), às ${hora}. Até lá!`;
+  return `Olá, ${d.nome}! 👋 Passando para lembrar do seu horário amanhã, ${dia} (${ddmm}), às ${hora}${com(d)}. Até lá!`;
 }
 
 export function mensagemCancelar(d: DadosMensagem, link: string): string {

@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { mudarStatus } from '../data/agendamentos';
+import { editarAgendamento, mudarStatus } from '../data/agendamentos';
+import { ConflitoDeHorarioError } from '../data/erros';
 import { supabase } from '../data/supabase';
 import { linkAgendamento } from '../lib/link';
 import { mensagemCancelar, mensagemConfirmar } from '../lib/mensagens';
+import { livresPara, nomeDaPessoa, nomeNaMensagem, variasPessoas } from '../lib/pessoas';
 import { abreviaDia, dataLocal, horaLocal } from '../lib/slots';
 import { waLink } from '../lib/whatsapp';
-import type { AgendamentoCompleto, Status } from '../types';
+import type { Agendamento, AgendamentoCompleto, Pessoa, Status } from '../types';
 import { useConfig } from './contexto';
-import { IconeCheck, IconeFaltou, IconeLapis, IconeWhatsApp, IconeX } from './icones';
+import { IconeCheck, IconeDireita, IconeFaltou, IconeLapis, IconeWhatsApp, IconeX } from './icones';
 import { nomeDivergente } from '../lib/nomes';
 
 const NOMES: Record<Status, string> = {
@@ -20,19 +22,25 @@ const NOMES: Record<Status, string> = {
 
 interface Props {
   agendamento: AgendamentoCompleto;
+  /** Os agendamentos já carregados (com pessoa), para saber quem está livre no horário. */
+  agendamentos?: readonly Agendamento[];
+  /** Quantos serviços ativos o negócio tem (sem nenhum, todo mundo faz tudo). */
+  servicosAtivos?: number;
   onEditar: () => void;
   onMudou: () => void;
   onFechar: () => void;
 }
 
-export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou, onFechar }: Props) {
-  const { config } = useConfig();
+export default function DetalhesAgendamento({ agendamento: a, agendamentos = [], servicosAtivos = 1, onEditar, onMudou, onFechar }: Props) {
+  const { config, pessoas } = useConfig();
+  const varias = variasPessoas(pessoas);
+  const [trocando, setTrocando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [cancelado, setCancelado] = useState(false);
   const [confirmado, setConfirmado] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [perguntandoCancelar, setPerguntandoCancelar] = useState(false);
-  const dados = { nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso };
+  const dados = { nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso, pessoa: nomeNaMensagem(a.pessoa_id, pessoas) };
 
   // grava antes e só depois oferece o WhatsApp: o Safari não abre janela depois de esperar a rede
   async function confirmarNoWhatsApp() {
@@ -98,6 +106,24 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
     );
   }
 
+  const atual = pessoas.find((p) => p.id === a.pessoa_id);
+  // para quem dá para passar: faz o serviço e está livre no horário
+  const outras = varias
+    ? livresPara({ pessoas, servicoId: a.servico_id, servicosAtivos, inicio, fim: new Date(a.fim), agendamentos, ignorar: a.id }).filter(
+        (p) => p.id !== a.pessoa_id,
+      )
+    : [];
+
+  async function passarPara(p: Pessoa) {
+    setErro(null);
+    try {
+      await editarAgendamento(supabase, a.id, { pessoa_id: p.id });
+      onMudou();
+    } catch (e) {
+      setErro(e instanceof ConflitoDeHorarioError ? 'Esse horário já está ocupado.' : 'Não foi possível atualizar. Confira a internet e tente de novo.');
+    }
+  }
+
   const minutos = Math.round((new Date(a.fim).getTime() - inicio.getTime()) / 60000);
 
   return (
@@ -108,6 +134,25 @@ export default function DetalhesAgendamento({ agendamento: a, onEditar, onMudou,
         {minutos > 0 && ` · ${minutos} min`}
       </p>
       <p className="sutil">Situação: {NOMES[a.status]}</p>
+      {varias && (
+        <>
+          <button type="button" className="acao-linha com-quem" aria-expanded={trocando} onClick={() => setTrocando((t) => !t)}>
+            com {atual ? nomeDaPessoa(atual, pessoas) : 'Pessoa (desativada)'} <IconeDireita tamanho={16} />
+          </button>
+          {trocando &&
+            (outras.length > 0 ? (
+              <div role="group" aria-label="Trocar para" className="trocar-pessoa">
+                {outras.map((p) => (
+                  <button key={p.id} type="button" onClick={() => void passarPara(p)}>
+                    {nomeDaPessoa(p, pessoas)}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="sutil">Ninguém mais livre que faça esse serviço nesse horário.</p>
+            ))}
+        </>
+      )}
       {a.observacao && <p>{a.observacao}</p>}
       {nomeDivergente(a.cliente.nome, a.nome_informado) && (
         <p role="note" className="aviso-nome">

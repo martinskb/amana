@@ -5,7 +5,8 @@ export type Item =
   | { tipo: 'agendamento'; hora: string; agendamento: AgendamentoCompleto }
   /** `pessoas`: ids de quem está livre nesse bloco (pela ordem). */
   | { tipo: 'livre'; hora: string; pessoas?: string[] }
-  | { tipo: 'fechado'; hora: string; ajusteId: string };
+  /** `pessoa_id` null: fechado para o negócio todo. */
+  | { tipo: 'fechado'; hora: string; ajusteId: string; pessoa_id?: string | null };
 
 /** Na semana, livres seguidos viram um grupo "de–até". */
 export type ItemSemana = Exclude<Item, { tipo: 'livre' }> | { tipo: 'livres'; de: string; ate: string };

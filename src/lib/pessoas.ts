@@ -22,3 +22,39 @@ export function fazServico(p: Pessoa, servicoId: string | null, servicosAtivos: 
   if (servicoId === null || servicosAtivos === 0) return true;
   return p.servicos.includes(servicoId);
 }
+
+/**
+ * Quem pode atender de `inicio` a `fim`: ativa, faz o serviço e não tem cliente ativo (marcado ou
+ * confirmado) cruzando esse intervalo. `ignorar`: o agendamento que está sendo editado. Pela ordem.
+ * É a mesma conta da trava do banco; expediente e folga não entram (o dono marca onde quiser).
+ */
+export function livresPara(args: {
+  pessoas: Pessoa[];
+  servicoId: string | null;
+  servicosAtivos: number;
+  inicio: Date;
+  fim: Date;
+  agendamentos: readonly { id: string; pessoa_id: string; inicio: string; fim: string; status: string }[];
+  ignorar?: string;
+}): Pessoa[] {
+  const ini = args.inicio.getTime();
+  const fim = args.fim.getTime();
+  const ocupadas = new Set(
+    args.agendamentos
+      .filter(
+        (a) =>
+          a.id !== args.ignorar &&
+          (a.status === 'marcado' || a.status === 'confirmado') &&
+          new Date(a.inicio).getTime() < fim &&
+          ini < new Date(a.fim).getTime(),
+      )
+      .map((a) => a.pessoa_id),
+  );
+  return ativas(args.pessoas).filter((p) => fazServico(p, args.servicoId, args.servicosAtivos) && !ocupadas.has(p.id));
+}
+
+/** O nome que entra nas mensagens ("às 10h com Ana"): só com 2+ ativas e se ela tem nome. */
+export function nomeNaMensagem(pessoaId: string | null | undefined, pessoas: Pessoa[]): string | null {
+  if (!pessoaId || !variasPessoas(pessoas)) return null;
+  return pessoas.find((p) => p.id === pessoaId)?.nome ?? null;
+}

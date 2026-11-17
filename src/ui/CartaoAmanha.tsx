@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { listAgendamentos } from '../data/agendamentos';
 import { supabase } from '../data/supabase';
 import { mensagemLembrar } from '../lib/mensagens';
+import { nomeNaMensagem } from '../lib/pessoas';
 import { diasDoPeriodo, horaLocal } from '../lib/slots';
 import { waLink } from '../lib/whatsapp';
 import type { AgendamentoCompleto } from '../types';
@@ -15,7 +16,7 @@ import { useAoVoltar } from './useAoVoltar';
  * `pessoa`: só os clientes dela (o filtro da agenda); null = todos.
  */
 export default function CartaoAmanha({ pessoa = null }: { pessoa?: string | null }) {
-  const { config } = useConfig();
+  const { config, pessoas } = useConfig();
   const voltas = useAoVoltar();
   const { de: amanha } = diasDoPeriodo('amanha', new Date(), config.fuso);
   const [lista, setLista] = useState<AgendamentoCompleto[] | null>(null);
@@ -72,7 +73,7 @@ export default function CartaoAmanha({ pessoa = null }: { pessoa?: string | null
                 <a
                   className="botao"
                   style={{ marginLeft: 'auto' }}
-                  href={waLink(a.cliente.telefone, mensagemLembrar({ nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso }))}
+                  href={waLink(a.cliente.telefone, mensagemLembrar({ nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso, pessoa: nomeNaMensagem(a.pessoa_id, pessoas) }))}
                   target="_blank"
                   rel="noreferrer"
                   aria-label={`Lembrar ${a.cliente.nome}`}

@@ -70,7 +70,8 @@ export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selec
         passado: instanteLocal(data, hora, config.fuso).getTime() < agora,
         no: (
           <button {...comum} className={`lt-item lt-fechado${atual ? ' selecionado' : ''}`}>
-            <s className="lt-hora">{hora}</s> <s className="lt-texto">fechado</s>
+            <s className="lt-hora">{hora}</s>{' '}
+            <s className="lt-texto">{etiquetas && item.pessoa_id ? `fechado · ${etiquetas.get(item.pessoa_id) ?? ''}` : 'fechado'}</s>
           </button>
         ),
       };
@@ -141,7 +142,8 @@ export default function LinhaDoTempo({ data, itens, modo, novos, chegaram, selec
 
   const linhas = itens.map((item, i) => {
     const { passado, no, chegou } = linha(item);
-    const chave = item.tipo === 'agendamento' ? item.agendamento.id : `${item.tipo}-${horaDoItem(item)}`;
+    // um horário pode ter fechados de mais de uma pessoa
+    const chave = item.tipo === 'agendamento' ? item.agendamento.id : item.tipo === 'fechado' ? `fechado-${item.ajusteId}` : `${item.tipo}-${horaDoItem(item)}`;
     const classe = [passado && 'passado', chegou && 'chegou'].filter(Boolean).join(' ');
     // a cascata para no 8º item: os seguintes entram juntos
     return (

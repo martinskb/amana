@@ -46,3 +46,20 @@ describe('mensagens prontas', () => {
     expect(link).toContain('%E2%9C%85');
   });
 });
+
+describe('mensagens com a pessoa', () => {
+  it('Confirmar e Lembrar dizem com quem logo depois da hora', () => {
+    expect(mensagemConfirmar({ nome: 'João', inicio: '2026-11-18T12:00:00Z', fuso: F, pessoa: 'Ana' })).toBe(
+      'Olá, João! ✅ Seu horário está confirmado: quarta-feira (18/11) às 9h com Ana. Até lá!',
+    );
+    expect(mensagemLembrar({ nome: 'João', inicio: '2026-11-18T12:00:00Z', fuso: F, pessoa: 'Ana' })).toBe(
+      'Olá, João! 👋 Passando para lembrar do seu horário amanhã, quarta-feira (18/11), às 9h com Ana. Até lá!',
+    );
+  });
+
+  it('pessoa null: texto de sempre', () => {
+    expect(mensagemConfirmar({ nome: 'João', inicio: '2026-11-18T12:00:00Z', fuso: F, pessoa: null })).toBe(
+      mensagemConfirmar({ nome: 'João', inicio: '2026-11-18T12:00:00Z', fuso: F }),
+    );
+  });
+});
