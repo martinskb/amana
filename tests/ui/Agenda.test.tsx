@@ -303,6 +303,18 @@ describe('Agenda', () => {
     expect(painel).not.toHaveTextContent('Fulano');
   });
 
+  it('agendamento de cliente apagado abre com o nome, sem WhatsApp e sem Editar', async () => {
+    m.listAgendamentos.mockResolvedValue([{ ...JOAO_TERCA, cliente_id: null, cliente: { nome: 'João', telefone: null } }]);
+    renderComConfig(<Agenda />);
+    await userEvent.click(await screen.findByRole('button', { name: /10:00 João/ }));
+    const painel = screen.getByRole('dialog', { name: 'Agendamento' });
+    expect(within(painel).getByRole('heading', { name: 'João' })).toBeInTheDocument();
+    expect(within(painel).queryByRole('link')).toBeNull();
+    expect(within(painel).queryByRole('button', { name: /WhatsApp/ })).toBeNull();
+    expect(within(painel).queryByRole('button', { name: /Editar/ })).toBeNull();
+    expect(within(painel).getByRole('button', { name: /Concluir/ })).toBeInTheDocument();
+  });
+
   it('a agenda começa pelo cabeçalho, sem o título "Agenda"', async () => {
     renderComConfig(<Agenda />);
     expect(await screen.findByRole('button', { name: 'Copiar link' })).toBeInTheDocument();

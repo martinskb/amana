@@ -79,9 +79,11 @@ export default function DetalhesAgendamento({ agendamento: a, agendamentos = [],
         <h3 className="painel-titulo">{a.cliente.nome}</h3>
         <p className="painel-resumo">{quando}</p>
         <p className="sutil">Situação: {NOMES.confirmado}</p>
-        <a className="botao larga" href={waLink(a.cliente.telefone, mensagemConfirmar(dados))} target="_blank" rel="noreferrer">
-          <IconeWhatsApp /> Abrir WhatsApp
-        </a>
+        {a.cliente.telefone && (
+          <a className="botao larga" href={waLink(a.cliente.telefone, mensagemConfirmar(dados))} target="_blank" rel="noreferrer">
+            <IconeWhatsApp /> Abrir WhatsApp
+          </a>
+        )}
         <button type="button" className="texto fechar-texto" onClick={onMudou}>
           Fechar
         </button>
@@ -95,9 +97,11 @@ export default function DetalhesAgendamento({ agendamento: a, agendamentos = [],
         <h3 className="painel-titulo">{a.cliente.nome}</h3>
         <p className="painel-resumo">{quando}</p>
         <p className="sutil">Situação: {NOMES.cancelado}</p>
-        <a className="botao larga" href={waLink(a.cliente.telefone, mensagem)} target="_blank" rel="noreferrer">
-          <IconeWhatsApp /> Avisar no WhatsApp
-        </a>
+        {a.cliente.telefone && (
+          <a className="botao larga" href={waLink(a.cliente.telefone, mensagem)} target="_blank" rel="noreferrer">
+            <IconeWhatsApp /> Avisar no WhatsApp
+          </a>
+        )}
         <button type="button" className="texto fechar-texto" onClick={onMudou}>
           Fechar
         </button>
@@ -155,7 +159,7 @@ export default function DetalhesAgendamento({ agendamento: a, agendamentos = [],
       )}
       {a.observacao && <p>{a.observacao}</p>}
       {erro && <p role="alert">{erro}</p>}
-      {a.status === 'marcado' && (
+      {a.status === 'marcado' && a.cliente.telefone && (
         <button type="button" className="primario larga" disabled={confirmando} onClick={confirmarNoWhatsApp}>
           <IconeWhatsApp /> Confirmar no WhatsApp
         </button>
@@ -171,16 +175,20 @@ export default function DetalhesAgendamento({ agendamento: a, agendamentos = [],
             <IconeFaltou /> Faltou
           </button>
         </li>
-        <li>
-          <button type="button" className="acao-linha" onClick={onEditar}>
-            <IconeLapis /> Editar
-          </button>
-        </li>
-        <li>
-          <a className="acao-linha" href={waLink(a.cliente.telefone, '')} target="_blank" rel="noreferrer">
-            <IconeWhatsApp /> WhatsApp
-          </a>
-        </li>
+        {a.cliente_id && (
+          <li>
+            <button type="button" className="acao-linha" onClick={onEditar}>
+              <IconeLapis /> Editar
+            </button>
+          </li>
+        )}
+        {a.cliente.telefone && (
+          <li>
+            <a className="acao-linha" href={waLink(a.cliente.telefone, '')} target="_blank" rel="noreferrer">
+              <IconeWhatsApp /> WhatsApp
+            </a>
+          </li>
+        )}
       </ul>
       {perguntandoCancelar ? (
         <div className="confirmar-cancelar" role="group" aria-label="Confirmar cancelamento">

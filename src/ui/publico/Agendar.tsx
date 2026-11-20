@@ -377,7 +377,7 @@ export default function Agendar() {
                 </li>
                 <li>
                   Os dados ficam em serviços de nuvem usados pela agenda (banco de dados e cópia de segurança no
-                  Google Drive). O histórico de cada horário é apagado 1 ano depois do atendimento.
+                  Google Drive). Seu cadastro (nome e WhatsApp) é apagado uma semana depois do último atendimento, e o histórico de cada horário, 3 meses depois.
                 </li>
                 <li>
                   Para ver, corrigir ou apagar seus dados, é só{' '}
