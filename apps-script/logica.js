@@ -90,12 +90,12 @@ function linhasAgendamentos(dados, fuso) {
   });
   var linhas = [['Data', 'Hora', 'Cliente', 'WhatsApp', 'Serviço', 'Pessoa', 'Situação', 'Origem', 'Observação']];
   ordenados.forEach(function (a) {
-    var c = clientes[a.cliente_id] || {};
+    var c = (a.cliente_id && clientes[a.cliente_id]) || {};
     var s = a.servico_id ? servicos[a.servico_id] : null;
     linhas.push([
       dataBr(a.inicio, fuso),
       horaBr(a.inicio, fuso),
-      c.nome || '',
+      c.nome || a.cliente_nome || '',
       c.telefone || '',
       s ? s.nome : '—',
       (a.pessoa_id && pessoas[a.pessoa_id]) || '',
