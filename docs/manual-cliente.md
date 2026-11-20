@@ -82,4 +82,4 @@ No painel de uma pessoa (Ajustes → Pessoas → toque nela), toque em **Criar l
 
 ## Ajustes
 
-Em **Ajustes** você muda o nome e o WhatsApp do negócio, a duração de cada horário, quantos dias o link mostra, o expediente de cada dia (pode ter mais de um intervalo, por exemplo manhã e tarde), as folgas, os serviços (nome e duração; desligar um serviço tira ele do link) e as pessoas. A lista de **Clientes** (busca e histórico) e o **Backup** também ficam em Ajustes.
+Em **Ajustes** você muda o nome e o WhatsApp do negócio, a duração de cada horário, quantos dias o link mostra, o expediente de cada dia (pode ter mais de um intervalo, por exemplo manhã e tarde), as folgas, os serviços (nome e duração; desligar um serviço tira ele do link) e as pessoas. A lista de **Clientes** (busca e histórico) e o **Backup** também ficam em Ajustes. O cliente some da lista uma semana depois do último atendimento, e o histórico de cada horário fica 3 meses.

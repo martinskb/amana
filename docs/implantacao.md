@@ -9,7 +9,7 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 ## 2. Supabase
 
 - [ ] Criar a conta em supabase.com (entrar com a conta Google do negócio) e um projeto na região São Paulo. Guardar a senha do banco **com o cliente**.
-- [ ] Em **SQL Editor**, rodar, nesta ordem, `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_link_publico.sql`, `supabase/migrations/0003_backup_drive.sql`, `supabase/migrations/0004_link_seguranca.sql`, `supabase/migrations/0005_servico_no_link.sql`, `supabase/migrations/0006_pessoas.sql`, `supabase/migrations/0007_link_equipe.sql`, `supabase/migrations/0008_backup_sem_link.sql` e `supabase/seed.sql`. (Projeto que já existia: rodar só as migrações que faltam, em ordem. A 0006 vai **antes** de publicar a versão do app com pessoas; veja "Atualizar para a versão com pessoas" abaixo.)
+- [ ] Em **SQL Editor**, rodar, nesta ordem, `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_link_publico.sql`, `supabase/migrations/0003_backup_drive.sql`, `supabase/migrations/0004_link_seguranca.sql`, `supabase/migrations/0005_servico_no_link.sql`, `supabase/migrations/0006_pessoas.sql`, `supabase/migrations/0007_link_equipe.sql`, `supabase/migrations/0008_backup_sem_link.sql`, `supabase/migrations/0009_limpeza.sql` e `supabase/seed.sql`. (Projeto que já existia: rodar só as migrações que faltam, em ordem. A 0006 vai **antes** de publicar a versão do app com pessoas; veja "Atualizar para a versão com pessoas" abaixo.)
 - [ ] Em **Authentication → Users → Add user → Create new user**, criar o dono com o e-mail `<usuario>@dono.agenda` (por exemplo `joao@dono.agenda`), uma senha de **8 ou mais caracteres** e **Auto Confirm User** marcado. No app, o dono entra com o usuário (`joao`) e a senha. Esse e-mail nunca recebe mensagens: se o dono esquecer a senha, troque aqui no painel.
 - [ ] Copiar o **User UID** desse usuário e rodar no SQL Editor:
       `insert into donos (user_id) values ('<User UID>');`
@@ -64,6 +64,15 @@ Tudo fica nas contas do cliente. Ative a **verificação em duas etapas** em cad
 - [ ] Publicar o site. Nada muda para quem não gerar link.
 - [ ] Conferir: em Ajustes → Pessoas → uma pessoa → **Criar link**, abrir o link numa aba anônima e ver os clientes dela de hoje e de amanhã.
 - [ ] Rodar também `supabase/migrations/0008_backup_sem_link.sql` (pode ser a qualquer hora): o backup do Drive deixa de levar o código dos links. Backup não restaura links; depois de restaurar, crie de novo em Ajustes.
+
+## 5e. Limpeza automática
+
+- [ ] No **SQL Editor**, rodar `supabase/migrations/0009_limpeza.sql`.
+- [ ] Em **Database → Extensions**, ligar a extensão `pg_cron`.
+- [ ] No **SQL Editor**, rodar `supabase/cron/limpeza.sql`.
+- [ ] Conferir o agendamento rodando:
+      `select jobname, schedule, command from cron.job;`
+- [ ] **Atenção:** só ligue o `pg_cron` e agende a limpeza **depois** que o site novo estiver no ar (o site antigo não espera agendamentos com cliente apagado e quebra).
 
 ## 6. Teste no iPhone do cliente
 
