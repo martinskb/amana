@@ -14,6 +14,7 @@ const MIGRACOES = [
   '0006_pessoas.sql',
   '0007_link_equipe.sql',
   '0008_backup_sem_link.sql',
+  '0009_limpeza.sql',
 ];
 
 /** Aplica uma migração pelo número (1 = 0001). */

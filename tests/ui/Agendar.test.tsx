@@ -65,13 +65,24 @@ describe('página pública de agendamento', () => {
     expect(screen.queryByRole('button', { name: '10h' })).not.toBeInTheDocument();
   });
 
+  it('Como usamos seus dados fala do cadastro apagado em uma semana e do histórico em 3 meses', async () => {
+    render(<Agendar />);
+    await escolher9hDeQuarta();
+    await userEvent.click(screen.getByText('Como usamos seus dados'));
+    const aviso = screen.getByRole('group', { name: 'Como usamos seus dados' });
+    expect(aviso).toHaveTextContent(
+      'Os dados ficam em serviços de nuvem usados pela agenda (banco de dados e cópia de segurança no Google Drive). Seu cadastro (nome e WhatsApp) é apagado uma semana depois do último atendimento, e o histórico de cada horário, 3 meses depois.',
+    );
+    expect(aviso).not.toHaveTextContent('1 ano');
+  });
+
   it('aviso de privacidade: o que é guardado, por quanto tempo e como pedir para apagar (LGPD)', async () => {
     render(<Agendar />);
     await escolher9hDeQuarta();
     await userEvent.click(screen.getByText('Como usamos seus dados'));
     const aviso = screen.getByRole('group', { name: 'Como usamos seus dados' });
     expect(within(aviso).getByText(/não é vendido nem repassado/)).toBeInTheDocument();
-    expect(within(aviso).getByText(/apagado 1 ano depois/)).toBeInTheDocument();
+    expect(within(aviso).getByText(/apagado uma semana depois do último atendimento/)).toBeInTheDocument();
     expect(within(aviso).getByRole('link', { name: 'pedir pelo WhatsApp' })).toHaveAttribute(
       'href',
       waLink('5511900001111', 'Oi! Quero ver, corrigir ou apagar meus dados da agenda.'),

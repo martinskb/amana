@@ -60,15 +60,17 @@ export default function ResumoLateral({ novos, onEntendi, versao, pessoa = null 
                 {proximo.servico?.nome ?? 'sem serviço'} · {faltaPara(proximo.inicio, agora)}
               </span>
             </div>
-            <a
-              className="botao redondo"
-              href={waLink(proximo.cliente.telefone, '')}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`WhatsApp de ${proximo.cliente.nome}`}
-            >
-              <IconeWhatsApp />
-            </a>
+            {proximo.cliente.telefone && (
+              <a
+                className="botao redondo"
+                href={waLink(proximo.cliente.telefone, '')}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`WhatsApp de ${proximo.cliente.nome}`}
+              >
+                <IconeWhatsApp />
+              </a>
+            )}
           </div>
         )}
       </section>

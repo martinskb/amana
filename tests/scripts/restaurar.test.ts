@@ -162,4 +162,40 @@ describe('restaurar', { timeout: 30_000 }, () => {
     const ajustes = (await db.query<{ pessoa_id: string | null }>('select pessoa_id from horarios_ajuste order by inicio')).rows;
     expect(ajustes).toEqual([{ pessoa_id: P1 }, { pessoa_id: null }]);
   });
+
+  it('backup com agendamento sem cliente (depois da limpeza) restaura com o nome guardado', async () => {
+    const db = await novoBanco();
+    const semCliente: BackupFile = {
+      ...ARQUIVO,
+      agendamentos: [
+        {
+          id: 'cccccccc-0000-0000-0000-000000000001',
+          cliente_id: null,
+          cliente_nome: 'Ana',
+          servico_id: S1,
+          inicio: '2026-11-17T13:00:00.000Z',
+          fim: '2026-11-17T13:30:00.000Z',
+          status: 'marcado',
+          observacao: null,
+          origem: 'dono',
+        },
+      ],
+    };
+    await restaurar(consulta(db), semCliente, { confirmarSubstituir: false });
+    const { rows } = await db.query<{ id: string; cliente_id: string | null; cliente_nome: string | null }>(
+      'select id, cliente_id, cliente_nome from agendamentos',
+    );
+    expect(rows).toEqual([
+      { id: 'cccccccc-0000-0000-0000-000000000001', cliente_id: null, cliente_nome: 'Ana' },
+    ]);
+  });
+
+  it('backup antigo sem cliente_nome preenche o nome pelo cliente', async () => {
+    const db = await novoBanco();
+    await restaurar(consulta(db), ARQUIVO, { confirmarSubstituir: false });
+    const { rows } = await db.query<{ id: string; cliente_id: string | null; cliente_nome: string | null }>(
+      'select id, cliente_id, cliente_nome from agendamentos order by id',
+    );
+    expect(rows.map((r) => r.cliente_nome)).toEqual(['Ana', 'Bia', 'Ana']);
+  });
 });

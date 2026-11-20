@@ -31,6 +31,30 @@ describe('logica.js do script de backup', () => {
     ]);
   });
 
+  it('linha de agendamento sem cadastro usa cliente_nome e deixa o WhatsApp vazio', () => {
+    const dados = {
+      ...DADOS,
+      agendamentos: [
+        {
+          id: 'a1',
+          cliente_id: null,
+          cliente_nome: 'Ana',
+          servico_id: 's1',
+          inicio: '2026-11-17T17:30:00Z',
+          fim: '2026-11-17T18:00:00Z',
+          status: 'concluido',
+          origem: 'dono',
+          observacao: 'barba',
+        },
+      ],
+    };
+    const linhas = deVm(L.linhasAgendamentos(dados, F)) as string[][];
+    expect(linhas).toEqual([
+      ['Data', 'Hora', 'Cliente', 'WhatsApp', 'Serviço', 'Pessoa', 'Situação', 'Origem', 'Observação'],
+      ['17/11/2026', '14:30', 'Ana', '', 'Corte', '', 'Concluído', 'Dono', 'barba'],
+    ]);
+  });
+
   it('linhasClientes', () => {
     expect(deVm(L.linhasClientes(DADOS, F))).toEqual([
       ['Nome', 'WhatsApp', 'Cliente desde'],

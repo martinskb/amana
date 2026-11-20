@@ -70,16 +70,18 @@ export default function CartaoAmanha({ pessoa = null }: { pessoa?: string | null
                 <span>
                   {horaLocal(new Date(a.inicio), config.fuso)} {a.cliente.nome}
                 </span>
-                <a
-                  className="botao"
-                  style={{ marginLeft: 'auto' }}
-                  href={waLink(a.cliente.telefone, mensagemLembrar({ nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso, pessoa: nomeNaMensagem(a.pessoa_id, pessoas) }))}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Lembrar ${a.cliente.nome}`}
-                >
-                  WhatsApp
-                </a>
+                {a.cliente.telefone && (
+                  <a
+                    className="botao"
+                    style={{ marginLeft: 'auto' }}
+                    href={waLink(a.cliente.telefone, mensagemLembrar({ nome: a.cliente.nome, inicio: a.inicio, fuso: config.fuso, pessoa: nomeNaMensagem(a.pessoa_id, pessoas) }))}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Lembrar ${a.cliente.nome}`}
+                  >
+                    WhatsApp
+                  </a>
+                )}
               </li>
             ))}
           </ul>
